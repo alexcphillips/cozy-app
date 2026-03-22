@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import styles from "./Introduction.module.css";
+import Table from "../components/ui/Table/Table";
+
+export type User = {
+    id: number;
+    name: string;
+    email: string;
+};
 
 export default function Introduction() {
-    const [data, setData] = useState<any>(null);
+    const [data, setData] = useState<User[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -15,7 +22,7 @@ export default function Introduction() {
                 );
                 if (!response.ok)
                     throw new Error("HTTP Error: " + response.status);
-                const result = await response.json();
+                const result: User[] = await response.json();
                 setData(result);
                 setError(null);
             } catch (err) {
@@ -53,17 +60,19 @@ export default function Introduction() {
             )}
 
             {!loading && !error && data && (
-                <div className={styles["users"]}>
-                    {
-                        <ul>
-                            {data.map((user: any) => (
-                                <li key={user.id}>
-                                    {user.name} - {user.email}
-                                </li>
-                            ))}
-                        </ul>
-                    }
-                </div>
+                <Table<{ id: number; name: string; email: string }>
+                    data={data}
+                    columns={[
+                        {
+                            key: "id",
+                            label: "ID",
+                            sortable: true,
+                            render: (row) => <strong>{row.id}</strong>,
+                        },
+                        { key: "name", label: "Name", sortable: true },
+                        { key: "email", label: "Email" },
+                    ]}
+                />
             )}
         </div>
     );

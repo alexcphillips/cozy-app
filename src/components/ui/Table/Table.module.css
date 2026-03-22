@@ -1,0 +1,32 @@
+.cell {
+    border: 1px solid gray;
+    vertical-align: middle;
+    padding: 4px;
+}
+
+table {
+    border-spacing: 0px;
+    border-collapse: collapse;
+}
+
+tbody tr:hover {
+    background-color: lightblue;
+}
+
+tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+tbody tr:nth-child(even) {
+    background-color: #e7e7e7;
+}
+
+tbody tr:nth-child(odd) {
+    background-color: #f9f9f9;
+}
+
+.sort-button {
+    display: block;
+    float: right;
+    margin-left: 5px;
+}
