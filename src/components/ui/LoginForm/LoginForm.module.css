@@ -1,0 +1,10 @@
+.error-text {
+    color: red;
+}
+
+.form-container {
+    border: 1px solid red;
+    display: flex;
+    align-items: center;
+    text-align: center;
+}

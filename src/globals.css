@@ -1,0 +1,38 @@
+:root {
+    /* Canvas & Structure */
+    --bg-page: #fffdfd; /* Warmer white */
+    --bg-surface: #ffffff; /* Pure white for cards/panels */
+    --border-subtle: #f5eaeb; /* Soft baseline divider lines */
+
+    /* Filter Section Tokens */
+    --bg-filter-default: #fcefef; /* Soft pink blush tint */
+    --bg-filter-active: #f5c6cb; /* Strawberries & cream accent */
+    --border-filter: #ebc3c7; /* Pastel border line */
+
+    /* Text & Contrast Layers */
+    --text-primary: #4a3a3c; /* Deep muted dark strawberry chocolate */
+    --text-secondary: #7a686a; /* Soft cocoa-gray for captions/icons */
+
+    /* Navigation */
+    --bg-navbar: #fff6f7; /* Softest milk-pink overlay background */
+    --bg-nav-item-hover: #fadbdd; /* Sweet berry cream highlight state */
+    --bg-sidenav-dropdown: #fff9fa; /* Tinted white for layered menus */
+
+    --font-cozy: "Trebuchet MS";
+}
+
+.display-none {
+    display: none;
+}
+
+.screen-reader-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

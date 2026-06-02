@@ -1,0 +1,34 @@
+.filter-container {
+    height: 32px;
+    display: flex;
+    border: 3px solid pink;
+    align-items: center;
+    margin: 8px;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 8px;
+    background-color: var(--bg-filter-default);
+    border: 1px solid var(--border-filter);
+    color: var(--text-primary);
+    transition: all 0.2s ease-in-out;
+}
+
+.active {
+    border: 4px solid pink;
+    font-weight: bold;
+}
+
+.filter-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.filter-title {
+    padding-right: 8px;
+    font-weight: 600;
+    font-family: "Trebuchet MS";
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

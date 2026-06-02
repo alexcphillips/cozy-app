@@ -1,0 +1,9 @@
+.app-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    white-space: nowrap;
+    margin-right: 24px;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+}

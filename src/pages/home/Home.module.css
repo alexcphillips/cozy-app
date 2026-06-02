@@ -1,0 +1,25 @@
+.home-page-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.home-title {
+    font-family: var(--font-cozy);
+    color: var(--text-primary);
+    font-size: 2.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 4px;
+    height: 100%;
+}

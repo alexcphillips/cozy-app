@@ -1,0 +1,78 @@
+.item-container {
+    padding: 8px;
+}
+
+.item-label {
+    user-select: none;
+    font-family: var(--font-cozy);
+}
+
+.item-label:hover {
+    color: var(--text-primary);
+}
+
+.toggle-arrow {
+    margin: 4px;
+    padding: 4px;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+}
+
+.children-container {
+    margin-top: 8px;
+}
+
+.child-row {
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    gap: 8px;
+    border-radius: 6px;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.child-row:hover {
+    background-color: var(--bg-nav-item-hover);
+}
+
+.child-row:hover a {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.child-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+    background-color: var(--border-filter);
+}
+
+.section-row {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.03em;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.row:hover {
+    background-color: var(--bg-filter-default);
+}
+
+.item-label a {
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: color 0.15s ease;
+}
+
+.item-label a:hover {
+    color: var(--text-primary);
+}

@@ -39,6 +39,7 @@ export default function Table<T>({ data, columns }: TableProps<T>) {
             return { key: null, direction: null };
         });
     }
+
     const sortedData = useMemo(() => {
         if (!sort.key || !sort.direction) return data;
         const key = sort.key;
@@ -66,7 +67,7 @@ export default function Table<T>({ data, columns }: TableProps<T>) {
                     {columns.map((col) => (
                         <th
                             key={String(col.key)}
-                            className={styles["cell"]}
+                            className={`${styles["cell"]} ${styles["no-highlight"]}`}
                             onClick={() =>
                                 col.sortable ? handleSort(col.key) : undefined
                             }

@@ -1,0 +1,14 @@
+.login-container {
+    border: 1px solid pink;
+    border-radius: 4.1rem;
+    padding: 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s ease-in-out;
+    font-weight: 500;
+}
+
+.login-container:hover {
+    background-color: var(--bg-nav-item-hover);
+    color: var(--text-primary);
+}

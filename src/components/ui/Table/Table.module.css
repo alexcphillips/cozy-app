@@ -30,3 +30,7 @@ tbody tr:nth-child(odd) {
     float: right;
     margin-left: 5px;
 }
+
+.no-highlight {
+    user-select: none;
+}

@@ -1,0 +1,79 @@
+.sidenav-container {
+    width: 260px;
+    height: 100%;
+    background-color: var(--bg-sidenav-dropdown);
+    border-right: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: var(--cozy-font);
+}
+
+.sidenav-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+
+.sidenav-link:hover {
+    color: var(--text-primary);
+}
+
+.toggle-expand-container {
+    display: flex;
+    color: var(--text-primary);
+    width: 100%;
+    padding: 0.5rem 1rem 0 0;
+    font-size: larger;
+    box-sizing: border-box;
+}
+
+.toggle-expand-container.centered {
+    justify-content: center;
+    padding: 0.5rem 0 0 0;
+}
+
+.toggle-expand-container.end {
+    justify-content: flex-end;
+}
+
+.toggle-expand-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    line-height: 1;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: background-color 0.15s ease;
+}
+
+.toggle-expand-button:hover {
+    background-color: var(--bg-nav-item-hover);
+    border-radius: 8px;
+}
+
+.collapse {
+    width: 60px;
+}
+
+.nav-items.hidden {
+    display: none;
+}
+@media (max-width: 768px) {
+    .sidenav-container {
+        width: 100%;
+    }
+
+    .toggle-expand-button {
+        height: 48px;
+        width: 48px;
+    }
+
+    .collapse {
+        width: 50px;
+    }
+}

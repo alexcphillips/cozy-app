@@ -1,0 +1,24 @@
+.link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: all 0.15s ease-in-out;
+    user-select: none;
+}
+
+.link:hover {
+    background-color: var(--bg-nav-item-hover);
+    color: var(--text-primary);
+}
+
+.external {
+    gap: 16px;
+}
+
+.active {
+    border-bottom: 2px solid var(--bg-filter-active);
+    color: var(--text-primary);
+    font-weight: 600;
+}
