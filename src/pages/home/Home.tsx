@@ -13,13 +13,10 @@ export default function Home() {
     const handleFilterChange = (selectedId: string | null) => {
         setActiveFilter(selectedId);
 
-        // Step 1: Start with all cards
         let currentCards = HOME_CONTENT_CARDS;
 
-        // Step 2: First, filter out any cards that the user disabled in their settings modal
         currentCards = currentCards.filter((item) => item.isEnabled !== false);
 
-        // Step 3: Next, filter by category if a filter tab is currently selected
         if (selectedId) {
             currentCards = currentCards.filter(
                 (item) => item.category === selectedId,
