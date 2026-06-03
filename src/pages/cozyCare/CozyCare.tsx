@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import LineGraph from "../../components/ui/Graphs/LineGraph";
 import { stringIsOnlyNumberOrFloat } from "../../utils/stringIsOnlyNumberOrFloat";
-import styles from "./dietTracker_v2.module.css";
+import styles from "./CozyCare.module.css";
 import "../../globals.css";
 import { apiFetch } from "../../apiFetch";
 import getCurrentStringMonth from "../../utils/getCurrentStringMonth";
+import WaterTracker from "../../components/ui/WaterTracker/WaterTracker";
 
 /* eslint-disable react-hooks/set-state-in-effect */
 
@@ -13,7 +14,7 @@ type WeightEntry = {
     created_at: string;
 };
 
-export default function DietTrackerV2() {
+export default function CozyCare() {
     const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
     const [weightEntryValue, setWeightEntryValue] = useState("");
     const [weightEntryError, setWeightEntryError] = useState("");
@@ -126,7 +127,9 @@ export default function DietTrackerV2() {
 
     return (
         <div className={styles["page"]}>
-            <div className={styles["weight-section"]}>
+            <div
+                className={`${styles["weight-section"]} ${styles["page-section"]}`}
+            >
                 <div className={styles["weight-progress-section"]}>
                     <div className={styles["weight-progress-header"]}>
                         Weight Progress
@@ -175,6 +178,37 @@ export default function DietTrackerV2() {
                         </button>
                     </form>
                 </div>
+            </div>
+            <div
+                className={`${styles["water-section"]} ${styles["page-section"]}`}
+            >
+                <WaterTracker />
+            </div>
+
+            <div
+                className={`${styles["habits-section"]} ${styles["page-section"]}`}
+            >
+                <div className={styles["checkbox-container"]}>
+                    <label className={styles["habit-row"]}>
+                        <input type="checkbox" />
+                        <span className={styles["checkbox"]}></span>
+                        <span>🍓 Healthy snack</span>
+                    </label>
+                    <label className={styles["habit-row"]}>
+                        <input type="checkbox" />
+                        <span className={styles["checkbox"]}></span>
+                        <span>🌸 Skincare</span>
+                    </label>
+                    <label className={styles["habit-row"]}>
+                        <input type="checkbox" />
+                        <span className={styles["checkbox"]}></span>
+                        <span>📖 Daily reading</span>
+                    </label>
+                </div>
+                <img
+                    className={styles["sticker-image"]}
+                    src="/cozy-sticker.png"
+                />
             </div>
         </div>
     );

@@ -3,10 +3,9 @@ import DocsLayout from "./components/layout/DocsLayout";
 import { BasicTableExample } from "./pages/table/BasicTableExample";
 import Home from "./pages/home/Home";
 import "./globals.css";
-import DietTracker from "./pages/dietTracker/DietTracker";
 import ProtectedRoute from "./ProtectedRoute";
 import Login from "./pages/login/Login";
-import DietTrackerV2 from "./pages/dietTracker_v2/dietTracker_v2";
+import CozyCare from "./pages/cozyCare/CozyCare";
 
 export function App() {
     return (
@@ -21,11 +20,7 @@ export function App() {
                             path="components/table"
                             element={<BasicTableExample />}
                         />
-                        <Route path="diet-tracker" element={<DietTracker />} />
-                        <Route
-                            path="/diet-tracker-v2"
-                            element={<DietTrackerV2 />}
-                        />
+                        <Route path="/cozy-care" element={<CozyCare />} />
                     </Route>
                 </Route>
             </Routes>

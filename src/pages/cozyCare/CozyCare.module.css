@@ -1,0 +1,150 @@
+.page {
+    display: grid;
+    grid-template-areas:
+        "weight weight weight"
+        "water water habits";
+    gap: 20px;
+}
+
+.page-section {
+    border: 2px solid pink;
+    border-radius: 1rem;
+    padding: 8px;
+    color: var(--text-primary);
+    font-family: var(--font-cozy);
+    background-color: #ffd3fc44;
+}
+
+.weight-section {
+    grid-area: weight;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.weight-progress-section {
+    text-align: center;
+}
+
+.weight-progress-image {
+    padding-top: 20px;
+    height: 200px;
+    width: auto;
+}
+
+.weight-chart {
+    background-color: #f0d3ffb0;
+    border-radius: 10px;
+    padding: 8px;
+    height: 250px;
+    width: 500px;
+}
+
+.weight-input-section {
+    padding: 8px;
+    width: 100%;
+    justify-items: center;
+    align-self: center;
+}
+
+.weight-input-section form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+
+.weight-input-label {
+    font-weight: bold;
+}
+
+.weight-input {
+    border: none;
+    border-radius: 8px;
+    background-color: #f0d3ffb0;
+    padding: 12px;
+    width: 8rem;
+    height: 2.5rem;
+    font-size: larger;
+}
+
+.weight-input:focus {
+    outline: none;
+}
+
+.weight-submit-button {
+    width: 10rem;
+    height: 3rem;
+    font-size: larger;
+    border-radius: 32px;
+    background-color: #ff9dffb0;
+}
+
+.water-section {
+    grid-area: water;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    background-color: #ffd3fc44;
+    border: 2px solid pink;
+}
+
+.habits-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-area: habits;
+    background-color: #ffd3fc44;
+    border: 2px solid pink;
+    align-items: center;
+    padding-left: 24px;
+}
+
+.habit-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+    padding: 4px;
+}
+
+.habit-row input {
+    display: none;
+}
+
+.checkbox {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    border: 2px solid #f9a8d4;
+    background-color: #fdf2f8;
+    transition: all 0.2s ease;
+}
+
+.habit-row input:checked + .checkbox {
+    background-color: #f9a8d4;
+    border-color: #ec4899;
+}
+
+.habit-row input:checked + .checkbox::after {
+    content: "♡";
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: white;
+    font-size: 14px;
+}
+
+.sticker-image {
+    height: 120px;
+    width: auto;
+    padding-right: 8px;
+}
+
+@media (max-width: 768px) {
+    .page {
+        grid-template-areas:
+            "weight"
+            "water"
+            "habits";
+    }
+}

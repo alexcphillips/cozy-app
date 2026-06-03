@@ -5,6 +5,7 @@ export type HomeItem = {
     icon: string;
     isEnabled: boolean;
     category: string;
+    description?: string;
 };
 
 export const HOME_CONTENT_CARDS: HomeItem[] = [
@@ -49,20 +50,13 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         category: "fun",
     },
     {
-        title: "Diet Tracker",
-        to: "/diet-tracker",
-        border: "1px solid lightblue",
+        title: "Cozy Care",
+        to: "/cozy-care",
+        border: "1px solid #f2b1ff",
         icon: "",
         isEnabled: true,
         category: "fitness",
-    },
-    {
-        title: "Diet Tracker V2",
-        to: "/diet-tracker-v2",
-        border: "1px solid purple",
-        icon: "",
-        isEnabled: true,
-        category: "fitness",
+        description: "Track weight, habits, and water",
     },
     {
         title: "Custom Reminder Emails",
