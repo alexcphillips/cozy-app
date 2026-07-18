@@ -1,0 +1,15 @@
+.sidebar-button {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.sidebar-button svg {
+    width: 20px;
+    height: 20px;
+}

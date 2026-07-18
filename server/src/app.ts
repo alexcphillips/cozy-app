@@ -3,6 +3,7 @@ import * as dietTracking from "./routes/dietTracking";
 import * as users from "./routes/user";
 import requestLogger from "./middleware/requestLogger";
 import { auth } from "./middleware/auth";
+import * as books from "./routes/books";
 
 const app = express();
 
@@ -12,6 +13,7 @@ app.use(requestLogger);
 app.get("/users", auth, users.getAllUsers);
 app.get("/user/:email", auth, users.getUserByEmail);
 app.get("/weight-entries", auth, dietTracking.getWeightEntriesByUser);
+app.get("/book", books.getBook);
 
 app.post("/register", users.register);
 app.post("/login", users.login);

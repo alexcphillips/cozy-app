@@ -10,12 +10,17 @@
     display: flex;
     flex: 1;
     overflow: hidden;
-    background-color: var(--bg-page);
 }
 
-.content > :last-child {
+.pageMode {
     flex: 1;
     overflow-y: auto;
     background-color: var(--bg-surface);
-    padding: 24px;
+}
+
+.gameMode {
+    flex: 1;
+    overflow: hidden;
+    padding: 0;
+    background: black;
 }

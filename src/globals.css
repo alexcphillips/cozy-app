@@ -21,6 +21,10 @@
     --font-cozy: "Trebuchet MS";
 }
 
+body {
+    margin: 0;
+}
+
 .display-none {
     display: none;
 }

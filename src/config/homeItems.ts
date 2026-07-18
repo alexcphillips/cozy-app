@@ -42,8 +42,8 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         category: "fitness",
     },
     {
-        title: "Habits RPG Game",
-        to: "/habit-game",
+        title: "Game",
+        to: "/game",
         border: "1px solid yellow",
         icon: "",
         isEnabled: true,
@@ -81,6 +81,15 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         icon: "",
         isEnabled: true,
         category: "reading",
+    },
+    {
+        title: "My Library",
+        to: "/library",
+        border: "1px solid #f2b1ff",
+        icon: "",
+        isEnabled: true,
+        category: "reading",
+        description: "Super cool library",
     },
     {
         title: "Book Tracker",

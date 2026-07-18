@@ -1,7 +1,5 @@
 import { create } from "zustand";
 
-/* eslint-disable */
-
 type AuthState = {
     token: string | null;
     isAuthenticated: boolean;

@@ -1,0 +1,18 @@
+.game-container {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    height: 100vh;
+}
+
+.world-stage {
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    min-height: 0;
+}

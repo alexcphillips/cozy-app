@@ -1,0 +1,19 @@
+.action-bar {
+    position: absolute;
+    left: 50%;
+    bottom: 0px;
+    transform: translateX(-50%);
+    z-index: 20;
+    width: 100%;
+    height: 4rem;
+    border: 5px solid green;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    text-align: center;
+    align-items: end;
+}
+
+.action-bar-item {
+    border: 1px solid red;
+    height: 10px;
+}

@@ -34,7 +34,6 @@ export default function Home() {
                 filters={FILTER_CONFIG}
                 onChange={handleFilterChange}
             />
-
             <div className={styles["cards-container"]}>
                 {displayedContent.map((item) => (
                     <LinkCard key={item.title} {...item} />

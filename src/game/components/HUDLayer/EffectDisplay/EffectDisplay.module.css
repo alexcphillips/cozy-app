@@ -1,0 +1,13 @@
+.effect-container {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    border: 2px solid orange;
+    width: 14rem;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.effect {
+    margin: 2px 8px 2px 8px;
+}

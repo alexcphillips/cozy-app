@@ -1,0 +1,12 @@
+.hud-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10;
+    border: 5px soild pink;
+}
+
+.hud-widget {
+    position: absolute;
+    pointer-events: auto;
+}
