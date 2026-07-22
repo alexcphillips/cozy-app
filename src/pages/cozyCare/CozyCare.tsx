@@ -6,6 +6,7 @@ import "../../globals.css";
 import { apiFetch } from "../../apiFetch";
 import getCurrentStringMonth from "../../utils/getCurrentStringMonth";
 import WaterTracker from "../../components/ui/WaterTracker/WaterTracker";
+import FileUpload from "../../components/ui/FileUpload/FileUpload";
 
 /* eslint-disable react-hooks/set-state-in-effect */
 
@@ -180,9 +181,12 @@ export default function CozyCare() {
                 </div>
             </div>
             <div
-                className={`${styles["water-section"]} ${styles["page-section"]}`}
+                className={`${styles["upload-section"]} ${styles["page-section"]}`}
             >
-                <WaterTracker />
+                <FileUpload
+                    apiUrl="api/nutrition-facts-entry"
+                    fileName="nutrition-facts"
+                />
             </div>
 
             <div

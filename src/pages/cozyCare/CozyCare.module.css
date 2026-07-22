@@ -2,7 +2,7 @@
     display: grid;
     grid-template-areas:
         "weight weight weight"
-        "water water habits";
+        "upload upload habits";
     gap: 20px;
 }
 
@@ -79,8 +79,8 @@
     background-color: #ff9dffb0;
 }
 
-.water-section {
-    grid-area: water;
+.upload-section {
+    grid-area: upload;
     display: grid;
     grid-template-columns: 1fr auto;
     background-color: #ffd3fc44;
@@ -144,7 +144,7 @@
     .page {
         grid-template-areas:
             "weight"
-            "water"
+            "upload"
             "habits";
     }
 }
