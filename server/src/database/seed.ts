@@ -14,7 +14,7 @@ export async function seedDb() {
         await query(CREATE_FOOD_LOG_TABLE_QUERY);
         await query(CREATE_WEIGHT_ENTRIES_TABLE_QUERY);
 
-        console.log("Database tables verified and ready! 🎉");
+        console.log("Database tables verified and ready");
     } catch (error) {
         console.error("Critical error during database seeding:", error);
         process.exit(1); // Crash the container process if table creation fails
