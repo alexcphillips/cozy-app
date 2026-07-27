@@ -12,7 +12,7 @@ export function useWeightData() {
 
     useEffect(() => {
         async function loadEntries() {
-            const response = await apiFetch("/api/weight-entries");
+            const response = await apiFetch("/weight-entries");
             if (response.ok) setWeightEntries(await response.json());
         }
         loadEntries();
@@ -61,7 +61,7 @@ export function useWeightData() {
             return;
         }
         setIsLoading(true);
-        const response = await apiFetch("/api/weight-entries", {
+        const response = await apiFetch("/weight-entries", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ weight: Number(weightEntryValue) }),

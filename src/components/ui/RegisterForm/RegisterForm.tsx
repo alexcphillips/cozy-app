@@ -33,7 +33,7 @@ export default function RegisterForm() {
 
         setIsLoading(true);
         try {
-            const response = await apiFetch("/api/register", {
+            const response = await apiFetch("/register", {
                 method: "POST",
                 body: JSON.stringify({ email, password, username }),
             });

@@ -20,7 +20,7 @@ export default function DietTracker() {
     const [isLoading, setIsLoading] = useState(false);
 
     async function loadWeightEntries() {
-        const response = await apiFetch("/api/weight-entries");
+        const response = await apiFetch("/weight-entries");
 
         if (!response.ok) {
             return;
@@ -70,7 +70,7 @@ export default function DietTracker() {
 
         setIsLoading(true);
 
-        const response = await apiFetch("/api/weight-entries", {
+        const response = await apiFetch("/weight-entries", {
             method: "POST",
             body: JSON.stringify({
                 weight: Number(weightEntryValue),

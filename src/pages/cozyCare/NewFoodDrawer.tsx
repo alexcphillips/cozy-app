@@ -49,7 +49,7 @@ export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
         setIsLoading(true);
 
         try {
-            const response = await apiFetch("/api/food-entry", {
+            const response = await apiFetch("/food-entry", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

@@ -30,7 +30,7 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
             setIsLoadingItems(true);
             setError("");
             try {
-                const response = await apiFetch("/api/food-items");
+                const response = await apiFetch("/food-items");
                 if (!response.ok) {
                     setError("Failed to load food list.");
                     return;
@@ -66,7 +66,7 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
         setIsSubmitting(true);
 
         try {
-            const response = await apiFetch("/api/food-log", {
+            const response = await apiFetch("/food-log", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
