@@ -2,24 +2,20 @@ FROM node:20-alpine
 
 WORKDIR /usr/src/app
 
-# Force production mode optimizations
 ENV NODE_ENV=production
 
-# 1. Copy the global and local package manifests together to map dependencies correctly
+# Install dependencies from the shared package.json
 COPY package*.json ./
-COPY server/package*.json ./server/
+RUN npm ci && npm install -g tsx
 
-# Install dependencies globally first, then target production modules cleanly
-RUN npm ci --include=dev && npm install -g tsx
-
-# 2. Copy your server application code across
-COPY server/ ./server/
+# Copy the shared TypeScript config
 COPY tsconfig*.json ./
 
-# Expose your standard EC2 api listening channel
+# Copy only the backend source
+COPY server/src ./src
+
 EXPOSE 8080
 
 USER node
 
-# Boots your TypeScript backend instantly using tsx directly from your server directory
-CMD ["tsx", "server/src/index.ts"]
+CMD ["tsx", "src/index.ts"]
