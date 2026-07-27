@@ -4,14 +4,12 @@ WORKDIR /usr/src/app
 
 ENV NODE_ENV=production
 
-# Install dependencies from the shared package.json
 COPY package*.json ./
+
 RUN npm ci && npm install -g tsx
 
-# Copy the shared TypeScript config
 COPY tsconfig*.json ./
 
-# Copy only the backend source
 COPY server/src ./src
 
 EXPOSE 8080
