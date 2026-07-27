@@ -14,4 +14,5 @@ export const APP_CONSTANTS = {
         MISSING_TOKEN_TEXT: "Missing token",
         INVALID_TOKEN_TEXT: "Invalid token",
     },
+    hosts: ["http://localhost:5173", "https://mydomain.com"],
 } as const;

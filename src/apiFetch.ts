@@ -2,6 +2,7 @@ import { useAuthStore } from "./store/auth";
 
 export async function apiFetch(url: string, options: RequestInit = {}) {
     const baseURL = import.meta.env.VITE_API_URL || "";
+    console.log("baseURL?:", !!baseURL);
     let cleanUrl = url;
 
     if (baseURL) {
