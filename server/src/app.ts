@@ -8,9 +8,6 @@ import * as books from "./routes/books";
 
 const app = express();
 
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
-app.use(requestLogger);
 app.use(
     cors({
         origin: ["https://haileysbookshelf.com", "http://localhost:5173"],
@@ -18,6 +15,9 @@ app.use(
         methods: ["GET", "POST", "PUT", "DELETE"],
     }),
 );
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(requestLogger);
 
 app.get("/users", auth, users.getAllUsers);
 app.get("/user/:email", auth, users.getUserByEmail);
