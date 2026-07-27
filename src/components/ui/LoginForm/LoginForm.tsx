@@ -6,6 +6,7 @@ import { isEmailValid } from "../../../utils/validateEmail";
 import { isPasswordValidLength } from "../../../utils/validatePassword";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../../store/auth";
+import { apiFetch } from "../../../apiFetch";
 
 export default function LoginForm() {
     const [email, setEmail] = useState("");
@@ -30,7 +31,7 @@ export default function LoginForm() {
 
         setIsLoading(true);
         try {
-            const response = await fetch("/api/login", {
+            const response = await apiFetch("/api/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),
