@@ -32,9 +32,7 @@ export default function FoodLogSection() {
             const todayString = encodeURIComponent(
                 new Date().toLocaleDateString("en-US"),
             );
-            const response = await apiFetch(
-                `/api/food-log?date=${todayString}`,
-            );
+            const response = await apiFetch(`/food-log?date=${todayString}`);
 
             if (!response.ok) {
                 setIsErrorFetchingFoodLog("Error fetching food log");
@@ -107,7 +105,7 @@ export default function FoodLogSection() {
         if (!window.confirm("Are you sure you want to remove this food item?"))
             return;
         try {
-            const response = await apiFetch(`/api/food-log/${rowId}`, {
+            const response = await apiFetch(`/food-log/${rowId}`, {
                 method: "DELETE",
             });
             if (response.ok) {

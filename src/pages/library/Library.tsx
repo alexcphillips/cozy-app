@@ -28,7 +28,7 @@ export default function Library() {
 
     async function loadBooks() {
         const response = await apiFetch(
-            `api/book?q=${bookQuery || "beach+read"}&page=${paginationPage}`,
+            `/book?q=${bookQuery || "beach+read"}&page=${paginationPage}`,
         );
 
         if (!response.ok) {

@@ -13,7 +13,7 @@ export default function CommunityCenterContent() {
     // const [candidates, setCandidates] = useState(null);
 
     // function fetchElection() {
-    //     const response = apiFetch("api/election");
+    //     const response = apiFetch("/election");
     // }
 
     return (
