@@ -1,39 +1,33 @@
 import express from "express";
 import cors from "cors";
+import { ENV } from "./config/env";
+import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import requestLogger from "./middleware/requestLogger";
-import { auth } from "./middleware/auth";
-import * as dietTracking from "./routes/dietTracking";
-import * as users from "./routes/user";
-import * as books from "./routes/books";
+import { apiRouter } from "./routes";
 
+/**
+ * Express wiring only. The order below is the request lifecycle, top to bottom:
+ * cross-origin check -> body parsing -> logging -> routes -> 404 -> errors.
+ *
+ * No endpoint is declared in this file; they all live in `routes.ts`.
+ */
 const app = express();
 
 app.use(
     cors({
-        origin: ["https://haileysbookshelf.com", "http://localhost:5173"],
+        origin: ENV.CORS_ORIGINS,
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE"],
     }),
 );
+
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(requestLogger);
 
-app.get("/users", auth, users.getAllUsers);
-app.get("/user/:email", auth, users.getUserByEmail);
-app.get("/weight-entries", auth, dietTracking.getWeightEntriesByUser);
-app.get("/book", books.getBook);
-app.get("/food-log", auth, dietTracking.getFoodLogByUser);
-app.get("/food-items", auth, dietTracking.getAllFoodItems);
+app.use(apiRouter);
 
-app.post("/register", users.register);
-app.post("/login", users.login);
-app.post("/weight-entries", auth, dietTracking.createWeightEntry);
-app.post("/food-log", auth, dietTracking.createFoodLog);
-app.post("/food-entry", auth, dietTracking.createFoodItem);
-
-app.delete("/user/:id", auth, users.deleteUserById);
-
-app.delete("/food-log/:itemId", auth, dietTracking.deleteFoodLogItemById);
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 export default app;

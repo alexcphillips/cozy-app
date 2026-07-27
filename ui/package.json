@@ -1,0 +1,29 @@
+{
+    "name": "@cozy/ui",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview",
+        "typecheck": "tsc -p tsconfig.json"
+    },
+    "dependencies": {
+        "@cozy/shared": "*",
+        "chart.js": "^4.5.1",
+        "react": "^19.2.0",
+        "react-chartjs-2": "^5.3.1",
+        "react-dom": "^19.2.0",
+        "react-icons": "^5.6.0",
+        "react-router-dom": "^7.13.1",
+        "zustand": "^5.0.14"
+    },
+    "devDependencies": {
+        "@types/react": "^19.2.7",
+        "@types/react-dom": "^19.2.3",
+        "@vitejs/plugin-react": "^5.1.1",
+        "typescript": "~5.9.3",
+        "vite": "^7.3.1"
+    }
+}
