@@ -4,6 +4,7 @@ import styles from "./RegisterForm.module.css";
 import { useNavigate } from "react-router-dom";
 import { isEmailValid } from "../../../utils/validateEmail";
 import { isPasswordValidLength } from "../../../utils/validatePassword";
+import { apiFetch } from "../../../apiFetch";
 
 export default function RegisterForm() {
     const [email, setEmail] = useState("");
@@ -32,11 +33,8 @@ export default function RegisterForm() {
 
         setIsLoading(true);
         try {
-            const response = await fetch("/api/register", {
+            const response = await apiFetch("/api/register", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
                 body: JSON.stringify({ email, password, username }),
             });
 

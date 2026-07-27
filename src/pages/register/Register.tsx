@@ -8,7 +8,6 @@ export default function Register() {
             <RegisterForm />
             <p>
                 Already have an account? <a href="/login">Log in here</a>
-                VITE_API_URL: {import.meta.env.VITE_API_URL || ""}
             </p>
         </div>
     );
