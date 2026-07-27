@@ -1,14 +1,23 @@
 import { useAuthStore } from "./store/auth";
 
 export async function apiFetch(url: string, options: RequestInit = {}) {
+    const baseURL = import.meta.env.VITE_API_URL || "";
+    let cleanUrl = url;
+
+    if (baseURL) {
+        cleanUrl = url.replace(/^\/?api/, "");
+    }
+
+    const formattedUrl = cleanUrl.startsWith("/") ? cleanUrl : `/${cleanUrl}`;
+    const completeTargetUrl = `${baseURL}${formattedUrl}`;
+
     const token = useAuthStore.getState().token;
 
-    return fetch(url, {
+    return fetch(completeTargetUrl, {
         ...options,
         headers: {
-            ...(token && {
-                Authorization: `Bearer ${token}`,
-            }),
+            "Content-Type": "application/json",
+            ...(token && { Authorization: `Bearer ${token}` }),
             ...options.headers,
         },
     });
