@@ -1,43 +1,25 @@
-# ==========================================
-# STAGE 1: Compiles TypeScript -> JavaScript
-# ==========================================
-FROM node:20-alpine AS builder
+FROM node:20-alpine
 
 WORKDIR /usr/src/app
 
-# Copy dependency files relative to your root layout repository structure
-COPY server/package*.json ./
-
-# Install ALL packages (including TypeScript compiler engine)
-RUN npm ci
-
-# Copy the rest of your server code across
-COPY server/ .
-
-# Compiles everything down to static JS inside a /usr/src/app/dist folder
-RUN npx tsc
-
-# ==========================================
-# STAGE 2: Lightweight Production Runner
-# ==========================================
-FROM node:20-alpine AS runner
-
-WORKDIR /usr/src/app
-
-# Force Node to drop development tracing blocks
+# Force production mode optimizations
 ENV NODE_ENV=production
 
-# Re-copy manifests to pull clean production-only modules
-COPY server/package*.json ./
-RUN npm ci --omit=dev
+# 1. Copy the global and local package manifests together to map dependencies correctly
+COPY package*.json ./
+COPY server/package*.json ./server/
 
-# PULL ONLY THE COMPILED JS (Ditches the compiler and raw TS code completely)
-COPY --from=builder /usr/src/app/dist ./dist
+# Install dependencies globally first, then target production modules cleanly
+RUN npm ci --include=dev && npm install -g tsx
 
-# Expose the application network bridge
+# 2. Copy your server application code across
+COPY server/ ./server/
+COPY tsconfig*.json ./
+
+# Expose your standard EC2 api listening channel
 EXPOSE 8080
 
 USER node
 
-# Boots up your lightning-fast JavaScript file natively on Node
-CMD ["node", "dist/index.js"]
+# Boots your TypeScript backend instantly using tsx directly from your server directory
+CMD ["tsx", "server/src/index.ts"]

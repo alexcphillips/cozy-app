@@ -7,8 +7,8 @@
     "scripts": {
         "dev": "vite",
         "server": "tsx watch server/src/index.ts",
+        "build:backend": "tsc",
         "build:frontend": "vite build",
-        "build:backend": "tsc --project server/tsconfig.json",
         "build": "tsc -b && vite build",
         "lint": "eslint .",
         "preview": "vite preview"
