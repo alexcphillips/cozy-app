@@ -1,0 +1,84 @@
+.drawer-container {
+    z-index: 200;
+    font-family: var(--font-cozy);
+    height: 100%;
+    width: 400px;
+    border: 1px solid black;
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+    position: fixed;
+    top: 0;
+    right: 0;
+    background-color: white;
+    display: grid;
+    grid-template-rows: 100px 1fr 80px;
+}
+
+.drawer-title {
+    font-size: larger;
+}
+
+.drawer-header-section {
+    display: grid;
+    grid-template-columns: 1fr;
+    height: 50px;
+    border-bottom: 1px solid black;
+    align-items: center;
+    position: relative;
+    padding: 14px;
+}
+
+.drawer-content {
+    padding: 14px;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font: inherit;
+    cursor: pointer;
+    padding: 4px;
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 8px;
+    right: 4px;
+}
+
+.close-button:hover {
+    background-color: rgb(234, 234, 234);
+}
+
+.drawer-footer {
+    background-color: rgb(255, 234, 252);
+    border-top: 1px solid black;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    justify-items: center; /* horizontal */
+}
+
+.drawer-footer button {
+    border: 1px solid black;
+    background-color: rgb(255, 195, 225);
+    height: 2.5rem;
+    width: 4rem;
+    border-radius: 8px;
+    cursor: pointer;
+
+    transition:
+        transform 0.15s ease,
+        background-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.drawer-footer button:hover {
+    transform: scale(1.08);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.drawer-footer button:active {
+    transform: scale(0.96);
+}

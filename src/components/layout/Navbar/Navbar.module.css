@@ -8,6 +8,9 @@
     align-items: center;
     gap: 24px;
     font-family: var(--font-cozy);
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .links-container {

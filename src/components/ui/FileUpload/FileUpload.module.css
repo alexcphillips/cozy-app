@@ -1,5 +1,4 @@
 .upload-section {
-    border: 1px solid green;
 }
 
 .display-none {
@@ -10,7 +9,11 @@
     all: unset;
     text-align: center;
     align-items: middle;
-    height: 100%;
-    width: 100%;
-    background-color: #ededed;
+    height: 20%;
+    width: 20%;
+    border-radius: 8px;
+}
+
+.file-upload-button:hover {
+    background-color: #edefff;
 }

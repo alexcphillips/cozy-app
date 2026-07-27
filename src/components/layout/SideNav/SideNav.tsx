@@ -6,7 +6,12 @@ import { useState } from "react";
 import { PiSidebarSimple } from "react-icons/pi";
 
 export default function SideNav() {
-    const [expand, setExpand] = useState(true);
+    const [expand, setExpand] = useState(() => {
+        if (typeof window !== "undefined") {
+            return window.innerWidth >= 768;
+        }
+        return true;
+    });
 
     function handleToggleExpand() {
         return setExpand(!expand);

@@ -7,15 +7,18 @@ import AppFilterSection from "../../components/ui/Filters/AppFilterSection";
 
 export default function Home() {
     const [activeFilter, setActiveFilter] = useState<string | null>(null);
+    const initialCards = HOME_CONTENT_CARDS.filter(
+        (item) => item.isEnabled !== false,
+    );
     const [displayedContent, setDisplayedContent] =
-        useState<HomeItem[]>(HOME_CONTENT_CARDS);
+        useState<HomeItem[]>(initialCards);
 
     const handleFilterChange = (selectedId: string | null) => {
         setActiveFilter(selectedId);
 
-        let currentCards = HOME_CONTENT_CARDS;
-
-        currentCards = currentCards.filter((item) => item.isEnabled !== false);
+        let currentCards = HOME_CONTENT_CARDS.filter(
+            (item) => item.isEnabled !== false,
+        );
 
         if (selectedId) {
             currentCards = currentCards.filter(
@@ -34,6 +37,7 @@ export default function Home() {
                 filters={FILTER_CONFIG}
                 onChange={handleFilterChange}
             />
+
             <div className={styles["cards-container"]}>
                 {displayedContent.map((item) => (
                     <LinkCard key={item.title} {...item} />

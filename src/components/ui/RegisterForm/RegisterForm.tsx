@@ -1,24 +1,26 @@
 import type React from "react";
 import { useState } from "react";
-import styles from "./LoginForm.module.css";
-import "../../../globals.css";
+import styles from "./RegisterForm.module.css";
+import { useNavigate } from "react-router-dom";
 import { isEmailValid } from "../../../utils/validateEmail";
 import { isPasswordValidLength } from "../../../utils/validatePassword";
-import { useNavigate } from "react-router-dom";
-import { useAuthStore } from "../../../store/auth";
 
-export default function LoginForm() {
+export default function RegisterForm() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [username, setUsername] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const navigate = useNavigate();
-    const login = useAuthStore((s) => s.login);
 
     async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
         e.preventDefault();
         setError("");
 
+        if (!username || username.length < 4) {
+            setError("Username must be at least 4 characters");
+            return; // FIXED: Added missing return statement
+        }
         if (!isEmailValid(email)) {
             setError("Invalid email");
             return;
@@ -30,57 +32,73 @@ export default function LoginForm() {
 
         setIsLoading(true);
         try {
-            const response = await fetch("/api/login", {
+            const response = await fetch("/api/register", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ email, password, username }),
             });
 
             setIsLoading(false);
-            const result = await response.json();
 
             if (!response.ok) {
-                setError("Invalid email or password");
+                setError("Error registering user");
                 return;
             }
 
-            login(result.token);
-            navigate("/diet-tracker");
+            navigate("/login");
         } catch (err) {
             setIsLoading(false);
-            setError("Something went wrong. Please try again.");
+            setError("Connection error. Please try again later.");
         }
     }
 
     return (
         <div className={styles["form-container"]}>
-            <form onSubmit={handleSubmit} noValidate autoComplete="off">
+            <form
+                className={styles["register-form"]}
+                onSubmit={handleSubmit}
+                noValidate
+                autoComplete="off"
+            >
                 {error && <p className={styles["error-text"]}>{error}</p>}
 
-                <div className={styles["email-container"]}>
+                <div>
+                    <label htmlFor="username" className="screen-reader-only">
+                        Username:
+                    </label>
+                    <input
+                        id="username"
+                        placeholder="Username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        disabled={isLoading}
+                    />
+                </div>
+
+                <div>
                     <label htmlFor="email" className="screen-reader-only">
                         Email:
                     </label>
                     <input
-                        className={styles["email-input"]}
                         id="email"
-                        type="email"
                         placeholder="Email"
+                        type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         disabled={isLoading}
                     />
                 </div>
 
-                <div className={styles["password-container"]}>
+                <div>
                     <label htmlFor="password" className="screen-reader-only">
                         Password:
                     </label>
                     <input
-                        className={styles["password-input"]}
                         id="password"
-                        type="password"
                         placeholder="Password"
+                        type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         disabled={isLoading}
@@ -92,7 +110,7 @@ export default function LoginForm() {
                     className={styles["submit-button"]}
                     disabled={isLoading}
                 >
-                    {isLoading ? "Logging in..." : "Login"}
+                    {isLoading ? "Registering..." : "Register"}
                 </button>
             </form>
         </div>

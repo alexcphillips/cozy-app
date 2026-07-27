@@ -1,0 +1,27 @@
+.inputs-container {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.inputs-container :global(input),
+.inputs-container input {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-right: none !important;
+}
+
+.inputs-container :global(select),
+.inputs-container select {
+    width: 100% !important;
+    min-width: 75px !important;
+    background-color: pink !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-left: none !important;
+    box-sizing: border-box !important;
+    padding: 0 8px !important;
+}

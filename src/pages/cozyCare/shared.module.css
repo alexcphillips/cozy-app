@@ -1,0 +1,28 @@
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #757575;
+}
+
+.base-input {
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 8px;
+    border: 2px solid rgb(163, 163, 163);
+    padding: 6px;
+}
+
+.base-input:focus {
+    outline: none;
+    border: 2px solid rgb(255, 133, 153);
+}
+
+.error-message {
+    background: rgba(255, 146, 146, 0.722);
+    padding: 6px;
+    border-radius: 4px;
+}

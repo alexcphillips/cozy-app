@@ -1,12 +1,17 @@
 .sidenav-container {
     width: 260px;
-    height: 100%;
     background-color: var(--bg-sidenav-dropdown);
     border-right: 1px solid var(--border-subtle);
     display: flex;
     flex-direction: column;
     transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     font-family: var(--cozy-font);
+    box-sizing: border-box;
+    position: sticky;
+    top: 60px;
+    height: calc(100vh - 60px);
+    overflow-y: auto;
+    z-index: 90;
 }
 
 .sidenav-link {
@@ -63,9 +68,14 @@
 .nav-items.hidden {
     display: none;
 }
+
 @media (max-width: 768px) {
     .sidenav-container {
+        position: static;
+        height: auto;
         width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
     }
 
     .toggle-expand-button {

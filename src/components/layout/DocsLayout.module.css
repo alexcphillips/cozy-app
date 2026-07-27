@@ -1,7 +1,7 @@
 .container {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    min-height: 100vh;
     background-color: var(--bg-page);
     color: var(--text-primary);
 }
@@ -9,17 +9,17 @@
 .content {
     display: flex;
     flex: 1;
-    overflow: hidden;
 }
 
 .pageMode {
     flex: 1;
-    overflow-y: auto;
     background-color: var(--bg-surface);
+    min-width: 0;
 }
 
 .gameMode {
     flex: 1;
+    height: calc(100vh - 64px);
     overflow: hidden;
     padding: 0;
     background: black;

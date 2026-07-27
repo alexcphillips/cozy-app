@@ -1,0 +1,25 @@
+.weight-progress-section {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.weight-progress-header {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.weight-progress-this-month {
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin-top: 4px;
+}
+
+.weight-progress-image {
+    margin-top: 16px;
+    height: 180px;
+    width: auto;
+    object-fit: contain;
+}
