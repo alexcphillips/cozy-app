@@ -7,10 +7,10 @@ import { PiTreasureChestFill } from "react-icons/pi";
 import { IoMdHelpCircle } from "react-icons/io";
 import { FaTrophy } from "react-icons/fa6";
 import type { ReactNode } from "react";
-import type { ActivePanel } from "../../../../stores/ui/ui.types";
+import type { ActivePanel, MenuPanel } from "../../../../stores/ui/ui.types";
 
 export default function ButtonsSection() {
-    const openPanel = useUIStore((s) => s.openPanel);
+    const openMenu = useUIStore((s) => s.openMenu);
 
     const sidebarButtons: {
         id: string;
@@ -20,27 +20,27 @@ export default function ButtonsSection() {
         {
             id: "settings",
             icon: <FaCog />,
-            panel: "settings",
+            panel: { kind: "menu", panel: "settings" },
         },
         {
             id: "inventory",
             icon: <PiTreasureChestFill />,
-            panel: "inventory",
+            panel: { kind: "menu", panel: "inventory" },
         },
         {
             id: "deck",
             icon: <TbPlayCardStarFilled />,
-            panel: "deck",
+            panel: { kind: "menu", panel: "deck" },
         },
         {
             id: "help",
             icon: <IoMdHelpCircle />,
-            panel: "help",
+            panel: { kind: "menu", panel: "help" },
         },
         {
             id: "achievements",
             icon: <FaTrophy />,
-            panel: "achievements",
+            panel: { kind: "menu", panel: "achievements" },
         },
     ];
 
@@ -49,7 +49,9 @@ export default function ButtonsSection() {
             {sidebarButtons.map((sidebarButtonData) => (
                 <SidebarButton
                     key={sidebarButtonData.id}
-                    onClick={() => openPanel(sidebarButtonData.panel)}
+                    onClick={() =>
+                        openMenu(sidebarButtonData.panel!.panel as MenuPanel)
+                    }
                     icon={sidebarButtonData.icon}
                 />
             ))}

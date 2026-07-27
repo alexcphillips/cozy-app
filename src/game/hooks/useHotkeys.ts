@@ -2,16 +2,16 @@ import { useEffect } from "react";
 import { useUIStore } from "../stores/ui/ui.store";
 
 export function useHotkeys() {
-    const openPanel = useUIStore((s) => s.openPanel);
+    const openMenu = useUIStore((s) => s.openMenu);
     const closePanel = useUIStore((s) => s.closePanel);
 
     useEffect(() => {
         function handleKeyDown(event: KeyboardEvent) {
             const hotkeyMap: Record<string, () => void> = {
-                i: () => openPanel("inventory"),
-                k: () => openPanel("skills"),
-                d: () => openPanel("deck"),
-                h: () => openPanel("help"),
+                i: () => openMenu("inventory"),
+                k: () => openMenu("skills"),
+                d: () => openMenu("deck"),
+                h: () => openMenu("help"),
                 escape: () => closePanel(),
             };
 
@@ -23,5 +23,5 @@ export function useHotkeys() {
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, [openPanel, closePanel]);
+    }, [openMenu, closePanel]);
 }

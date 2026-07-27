@@ -41,7 +41,7 @@ const data = {
             },
         },
     ],
-};
+} as const;
 
 export default function TownPanel() {
     const dispatch = useGameActions();
@@ -54,7 +54,7 @@ export default function TownPanel() {
                 {data.options.map((opt) => (
                     <button
                         key={opt.label}
-                        onClick={() => dispatch(opt.action.type)}
+                        onClick={() => dispatch(opt.action)}
                     >
                         {opt.label}
                     </button>
