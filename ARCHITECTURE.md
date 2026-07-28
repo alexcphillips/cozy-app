@@ -32,16 +32,16 @@ than a web.
 
 ### Commands
 
-| Command                | Does                                              |
-| ---------------------- | ------------------------------------------------- |
-| `npm install`          | installs all three workspaces                      |
-| `npm run dev`          | API + Vite together                                |
-| `npm run dev:ui`       | Vite only (port 5173)                              |
-| `npm run dev:server`   | API only (port 3000)                               |
-| `npm run typecheck`    | `tsc` in each workspace                            |
-| `npm run lint`         | eslint over the repo                               |
-| `npm run build`        | server typecheck + `vite build`                    |
-| `npm run verify`       | all three, in order — run this before you commit   |
+| Command              | Does                                             |
+| -------------------- | ------------------------------------------------ |
+| `npm install`        | installs all three workspaces                    |
+| `npm run dev`        | API + Vite together                              |
+| `npm run dev:ui`     | Vite only (port 5173)                            |
+| `npm run dev:server` | API only (port 3000)                             |
+| `npm run typecheck`  | `tsc` in each workspace                          |
+| `npm run lint`       | eslint over the repo                             |
+| `npm run build`      | server typecheck + `vite build`                  |
+| `npm run verify`     | all three, in order — run this before you commit |
 
 ---
 
@@ -69,7 +69,7 @@ server with a message the client never showed. Two files, one rule, one silent
 divergence. Now there is one `validatePassword`, imported by both.
 
 The same argument applies to URLs. `API_PATHS.diet.foodLog` is the string the
-Express router registers *and* the string the React API client calls. Renaming
+Express router registers _and_ the string the React API client calls. Renaming
 an endpoint is one edit, and TypeScript finds every caller.
 
 **Rules for `shared/`:**
@@ -141,7 +141,7 @@ the types side by side — no jumping between `routes/`, `controllers/`,
 
 Controllers do not build error responses. They `throw AppError.badRequest(...)`
 and the central `errorHandler` turns it into `{ error: message }` with the right
-status. Anything that is *not* an `AppError` is treated as a bug: logged in
+status. Anything that is _not_ an `AppError` is treated as a bug: logged in
 full, returned as a bare 500, so SQL text and stack traces never reach a client.
 This replaced ~15 hand-written `res.status(500).send("Db error")` blocks that
 each formatted errors slightly differently.
@@ -183,13 +183,13 @@ ui/src/
 
 ### Feature-first, not type-first
 
-The old tree grouped by *what a file is*: `pages/`, `components/ui/`, `hooks/`,
+The old tree grouped by _what a file is_: `pages/`, `components/ui/`, `hooks/`,
 `store/`, `config/`. Working on the food log meant touching
 `pages/cozyCare/`, `components/ui/WeightInputForm/`, `hooks/useWeightData.ts`,
 and `config/` — four directories, none of which mention "diet". Deleting the
 feature meant hunting for its parts.
 
-Now it groups by *what a file is for*. `features/diet/` holds the pages, the
+Now it groups by _what a file is for_. `features/diet/` holds the pages, the
 components only it uses, its hook, and its API client. Deleting the feature is
 `rm -rf` on one directory plus one line in `routes.tsx`.
 
@@ -219,11 +219,14 @@ Components call the feature API, never `fetch` and never `apiFetch`:
 ```ts
 // before — in a component, repeated at every call site
 const response = await apiFetch("/food-log?date=" + encodeURIComponent(today));
-if (!response.ok) { setError("Error fetching food log"); return; }
-const result = await response.json();     // : any
+if (!response.ok) {
+    setError("Error fetching food log");
+    return;
+}
+const result = await response.json(); // : any
 
 // after
-const entries = await dietApi.listFoodLog(today);   // : FoodLogEntry[]
+const entries = await dietApi.listFoodLog(today); // : FoodLogEntry[]
 ```
 
 The response type is no longer `any`, the URL comes from `API_PATHS`, and error
@@ -280,16 +283,16 @@ finds every database boundary in the repo.
 
 **Where does X go?**
 
-| You are adding...             | It goes in                                  |
-| ----------------------------- | ------------------------------------------- |
-| an API endpoint               | `server/src/modules/<feature>/` + `routes.ts` |
-| a request/response type       | `shared/src/contracts/`                     |
-| a validation rule both use    | `shared/src/validation/`                    |
-| a page                        | `ui/src/features/<feature>/pages/` + `routes.tsx` |
-| a component one feature uses  | `ui/src/features/<feature>/components/`     |
-| a component two features use  | `ui/src/components/`                        |
-| a call to a new endpoint      | `ui/src/features/<feature>/api/`            |
-| an env var                    | `server/src/config/env.ts` + `.env.example` |
+| You are adding...            | It goes in                                        |
+| ---------------------------- | ------------------------------------------------- |
+| an API endpoint              | `server/src/modules/<feature>/` + `routes.ts`     |
+| a request/response type      | `shared/src/contracts/`                           |
+| a validation rule both use   | `shared/src/validation/`                          |
+| a page                       | `ui/src/features/<feature>/pages/` + `routes.tsx` |
+| a component one feature uses | `ui/src/features/<feature>/components/`           |
+| a component two features use | `ui/src/components/`                              |
+| a call to a new endpoint     | `ui/src/features/<feature>/api/`                  |
+| an env var                   | `server/src/config/env.ts` + `.env.example`       |
 
 **Anchors.** Four files are the entry points for navigation, and each says so
 in its own header comment:
@@ -305,18 +308,18 @@ in its own header comment:
 
 The restructure surfaced these. All are fixed:
 
-| Issue | Was |
-| ----- | --- |
-| Password rules diverged | client `>= 8`, server `8..32`; long passwords failed server-side with an unshown message |
-| `nextPageExists` vs `doesNextPageExist` | the server sent one name, `Library.tsx` read the other — so "next page" was permanently `false` |
-| Books search cost 2x | every search fetched the next page too, just to test whether it existed; now derived from `totalItems` |
-| `Content-Type: application/json` on uploads | `apiFetch` forced it even for `FormData`, breaking the multipart boundary |
+| Issue                                         | Was                                                                                                     |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Password rules diverged                       | client `>= 8`, server `8..32`; long passwords failed server-side with an unshown message                |
+| `nextPageExists` vs `doesNextPageExist`       | the server sent one name, `Library.tsx` read the other — so "next page" was permanently `false`         |
+| Books search cost 2x                          | every search fetched the next page too, just to test whether it existed; now derived from `totalItems`  |
+| `Content-Type: application/json` on uploads   | `apiFetch` forced it even for `FormData`, breaking the multipart boundary                               |
 | `setWeightEntries([...newEntry, ...current])` | spread the returned object as if it were an array — a `TypeError` on every successful weight submission |
-| `DietTracker` duplicated `useWeightData` | two implementations of the same fetch/derive logic; the page now uses the hook |
-| `/diet-tracker` was unreachable | login redirected there but no route was declared, so it silently bounced home |
-| Library search race | a slow early request could overwrite a newer result; the effect now cancels |
-| Errors leaked internals | `res.status(500).send(err.message)` returned raw SQL text in production |
-| `HUDLayer.tsx` (game/ui) | fully commented out, duplicating the live `components/HUDLayer` — deleted |
+| `DietTracker` duplicated `useWeightData`      | two implementations of the same fetch/derive logic; the page now uses the hook                          |
+| `/diet-tracker` was unreachable               | login redirected there but no route was declared, so it silently bounced home                           |
+| Library search race                           | a slow early request could overwrite a newer result; the effect now cancels                             |
+| Errors leaked internals                       | `res.status(500).send(err.message)` returned raw SQL text in production                                 |
+| `HUDLayer.tsx` (game/ui)                      | fully commented out, duplicating the live `components/HUDLayer` — deleted                               |
 
 Structural moves: 247 files relocated with `git mv` (history preserved), server
 routes split into 4-file modules, `src/` → `ui/src/`, `config/` dissolved into
@@ -332,7 +335,7 @@ Deliberately left alone, so you are not surprised:
   makes repositories and controllers straightforward to test in isolation —
   that is the natural next step.
 - **`schema.ts` is not a migration runner.** Additive `CREATE TABLE IF NOT
-  EXISTS` only. Introduce real migrations before the first destructive change.
+EXISTS` only. Introduce real migrations before the first destructive change.
 - **Placeholder files.** Roughly 30 empty `.ts`/`.tsx` files exist as
   scaffolding, mostly under `features/game/components/ZoneButtons/` and
   `modules/game/`. They were preserved and renamed to match their directories
