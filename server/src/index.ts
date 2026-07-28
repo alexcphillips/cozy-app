@@ -1,10 +1,17 @@
 import app from "./app";
-import { APP_CONFIG } from "./app.config";
-import { seedDb } from "./database/seed";
+import { ENV } from "./config/env";
+import { ensureSchema } from "./db";
 
-(async () => {
-    await seedDb();
-    app.listen(APP_CONFIG.PORT, () => {
-        console.log("Server started on port", APP_CONFIG.PORT);
+/**
+ * Process entry point: bring the schema up to date, then listen. Everything
+ * about *what* the server does lives in `app.ts` and `routes.ts`.
+ */
+async function start() {
+    await ensureSchema();
+
+    app.listen(ENV.PORT, () => {
+        console.log(`Server listening on port ${ENV.PORT} (${ENV.NODE_ENV})`);
     });
-})();
+}
+
+start();

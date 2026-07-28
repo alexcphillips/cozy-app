@@ -20,7 +20,7 @@ services:
     api:
         build:
             context: ..
-            dockerfile: server/dockerfile
+            dockerfile: server/Dockerfile
         container_name: express-api
         restart: always
         ports:

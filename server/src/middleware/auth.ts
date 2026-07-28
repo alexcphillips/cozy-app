@@ -1,23 +1,24 @@
 import { type NextFunction, type Request, type Response } from "express";
-import { APP_CONSTANTS } from "../app.constants";
-import { jwtUtil } from "../utils/jwt";
+import { AUTH } from "../config/constants";
+import { AppError } from "../http/AppError";
+import { jwtUtil } from "../lib/jwt";
 
-export function auth(req: Request, res: Response, next: NextFunction) {
+/**
+ * Populates `req.user` from the bearer token, or rejects. Any route mounted
+ * with this guard may safely read `req.user!` in its controller.
+ */
+export function auth(req: Request, _res: Response, next: NextFunction) {
+    const header = req.headers.authorization;
+    const token = header?.split(" ")[1];
+
+    if (!token) {
+        return next(AppError.unauthorized(AUTH.MISSING_TOKEN_TEXT));
+    }
+
     try {
-        const header = req.headers.authorization;
-
-        if (!header)
-            return res.status(400).send(APP_CONSTANTS.auth.MISSING_TOKEN_TEXT);
-
-        const token = header.split(" ")[1];
-
-        const decoded = jwtUtil.verifyToken(token);
-
-        req.user = decoded;
-
+        req.user = jwtUtil.verifyToken(token);
         next();
-    } catch (err) {
-        console.error(err);
-        return res.status(401).send(APP_CONSTANTS.auth.INVALID_TOKEN_TEXT);
+    } catch {
+        next(AppError.unauthorized(AUTH.INVALID_TOKEN_TEXT));
     }
 }
