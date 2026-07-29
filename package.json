@@ -12,7 +12,7 @@
         "dev": "npm run dev --workspace @cozy/server & npm run dev --workspace @cozy/ui; wait",
         "dev:ui": "npm run dev --workspace @cozy/ui",
         "dev:server": "npm run dev --workspace @cozy/server",
-        "build": "npm run build --workspaces --if-present",
+        "build": "npm run build --workspace @cozy/ui",
         "typecheck": "npm run typecheck --workspaces --if-present",
         "lint": "eslint .",
         "verify": "npm run typecheck && npm run lint && npm run build"
