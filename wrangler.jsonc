@@ -1,7 +1,12 @@
 {
+    "$schema": "node_modules/wrangler/config-schema.json",
     "name": "cozy-app",
-    "compatibility_date": "2026-07-28",
+    "compatibility_date": "2026-07-27",
+    "observability": {
+        "enabled": true,
+    },
     "assets": {
         "directory": "./ui/dist",
     },
+    "compatibility_flags": ["nodejs_compat"],
 }
