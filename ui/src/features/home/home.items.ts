@@ -48,6 +48,7 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         icon: "",
         isEnabled: true,
         category: "fun",
+        description: "very not finished",
     },
     {
         title: "Cozy Care",
