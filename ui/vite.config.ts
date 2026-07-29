@@ -5,7 +5,14 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 
 // https://vite.dev/config/
 export default defineConfig({
-    plugins: [react(), cloudflare()],
+    plugins: [
+        react(),
+        cloudflare({
+            viteEnvironment: {
+                name: "ssr",
+            },
+        }),
+    ],
     resolve: {
         alias: {
             // Mirrors the `paths` entry in tsconfig.json. Keep the two in sync:
