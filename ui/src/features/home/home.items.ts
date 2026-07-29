@@ -14,7 +14,7 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         to: "/react-docs",
         border: "1px solid red",
         icon: "",
-        isEnabled: true,
+        isEnabled: false,
         category: "coding",
     },
     {
@@ -22,7 +22,7 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         to: "/budgeting",
         border: "1px solid blue",
         icon: "",
-        isEnabled: true,
+        isEnabled: false,
         category: "finance",
     },
     {
@@ -30,7 +30,7 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         to: "/subscription-manager",
         border: "1px solid green",
         icon: "",
-        isEnabled: true,
+        isEnabled: false,
         category: "finance",
     },
     {
@@ -38,7 +38,7 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         to: "/gym-tracker",
         border: "1px solid silver",
         icon: "",
-        isEnabled: true,
+        isEnabled: false,
         category: "fitness",
     },
     {
@@ -63,7 +63,7 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         to: "/custom-email-reminders",
         border: "1px solid lightpink",
         icon: "",
-        isEnabled: true,
+        isEnabled: false,
         category: "utility",
     },
     {
@@ -71,7 +71,7 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         to: "/spotify-tracker",
         border: "1px solid lime",
         icon: "",
-        isEnabled: true,
+        isEnabled: false,
         category: "fun",
     },
     {
@@ -79,7 +79,7 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         to: "/book-club",
         border: "1px solid purple",
         icon: "",
-        isEnabled: true,
+        isEnabled: false,
         category: "reading",
     },
     {
@@ -96,7 +96,7 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         to: "/book-tracker",
         border: "1px solid salmon",
         icon: "",
-        isEnabled: true,
+        isEnabled: false,
         category: "reading",
     },
 ];
