@@ -1,7 +1,3 @@
-import dotenv from "dotenv";
-
-dotenv.config();
-
 function required(name: string): string {
     const value = process.env[name];
 
