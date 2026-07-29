@@ -56,7 +56,7 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         icon: "",
         isEnabled: true,
         category: "fitness",
-        description: "Track weight, habits, and water",
+        description: "Track weight, diet, and excercise",
     },
     {
         title: "Custom Reminder Emails",
