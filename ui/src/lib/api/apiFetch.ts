@@ -17,8 +17,6 @@ export async function apiFetch(
     const formattedPath = path.startsWith("/") ? path : `/${path}`;
     const token = useAuthStore.getState().token;
 
-    // The browser must set its own multipart boundary, so never force a
-    // Content-Type when the caller is sending FormData.
     const isFormData = options.body instanceof FormData;
 
     return fetch(`${API_BASE_URL}${formattedPath}`, {
