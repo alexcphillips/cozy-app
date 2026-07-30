@@ -100,7 +100,7 @@ export default function FoodLogSection() {
                             data={data}
                             columns={[
                                 { key: "name", label: "name" },
-                                { key: "measurmentText", label: "qty" },
+                                { key: "measurementText", label: "qty" },
                                 { key: "calories", label: "calories" },
                                 { key: "protein", label: "protein" },
                                 { key: "sugar", label: "sugar" },
