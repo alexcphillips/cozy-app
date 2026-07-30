@@ -1,10 +1,10 @@
-import AnalyticsDashboard from "../components/AnalyticsDashboard/AnalyticsDashboard";
+import AdminDashboard from "../components/AdminDashboard/AdminDashboard";
 
 export default function Admin() {
     return (
         <div>
             <p>admin screen</p>
-            <AnalyticsDashboard />
+            <AdminDashboard />
         </div>
     );
 }

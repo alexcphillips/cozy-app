@@ -1,3 +1,4 @@
+import { ENV } from "../config/env";
 import { query } from "./pool";
 
 /**
@@ -23,6 +24,11 @@ export async function ensureSchema() {
         await query(CREATE_WEIGHT_ENTRIES_TABLE_QUERY);
         await query(CREATE_ANALYTICS_EVENT_TABLE_QUERY);
         await query(ADD_ANALYTICS_TABLE_INDEXES);
+
+        // Seed a test admin if local env
+        if (ENV.NODE_ENV === "development") {
+            await query(INSERT_LOCAL_ADMIN_USER);
+        }
 
         console.log("Database tables verified and ready");
     } catch (error) {
@@ -99,4 +105,15 @@ const CREATE_WEIGHT_ENTRIES_TABLE_QUERY = `
 const ADD_ANALYTICS_TABLE_INDEXES = `
   CREATE INDEX IF NOT EXISTS idx_analytics_event_lookup
   ON analytics_event (created_at DESC, user_id);
+`;
+
+const INSERT_LOCAL_ADMIN_USER = `
+INSERT INTO users (username, email, password_hash, is_admin)
+VALUES (
+  'testadmin',
+  'testadmin@gmail.com',
+  'password',
+  TRUE
+)
+ON CONFLICT (email) DO NOTHING;
 `;
