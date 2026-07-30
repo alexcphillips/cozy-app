@@ -1,17 +1,17 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout/AppLayout";
 import ProtectedRoute from "./ProtectedRoute";
+import AdminRoute from "./AdminRoute";
 import { ROUTES } from "./routes.paths";
 
 import Login from "../features/auth/pages/Login";
 import Register from "../features/auth/pages/Register";
 import Home from "../features/home/pages/Home";
 import CozyCare from "../features/diet/pages/CozyCare";
-import DietTracker from "../features/diet/pages/DietTracker";
 import Library from "../features/library/pages/Library";
 import Game from "../features/game/pages/Game";
 import Profile from "../features/profile/pages/Profile";
-import { BasicTableExample } from "../features/docs/pages/BasicTableExample";
+import Admin from "@/features/admin/pages/Admin";
 
 /**
  * THE route manifest - the client-side mirror of `server/src/routes.ts`.
@@ -30,30 +30,23 @@ export function AppRoutes() {
             <Route path={ROUTES.login} element={<Login />} />
             <Route path={ROUTES.register} element={<Register />} />
 
-            {/* Authenticated, inside the app chrome (nav + sidebar) */}
+            {/* Authenticated */}
             <Route element={<ProtectedRoute />}>
                 <Route path={ROUTES.home} element={<AppLayout />}>
                     <Route index element={<Home />} />
                     <Route path={ROUTES.cozyCare} element={<CozyCare />} />
-                    <Route
-                        path={ROUTES.dietTracker}
-                        element={<DietTracker />}
-                    />
                     <Route path={ROUTES.library} element={<Library />} />
                     <Route path={ROUTES.game} element={<Game />} />
                     <Route path={ROUTES.profile} element={<Profile />} />
-                    <Route
-                        path={ROUTES.docsTable}
-                        element={<BasicTableExample />}
-                    />
+
+                    <Route element={<AdminRoute />}>
+                        <Route path={ROUTES.admin} element={<Admin />} />
+                    </Route>
                 </Route>
             </Route>
 
-            {/* Unknown URL: send the user home rather than showing nothing. */}
-            <Route
-                path="*"
-                element={<Navigate to={ROUTES.home} replace />}
-            />
+            {/* Send the user home rather than showing nothing. */}
+            <Route path="*" element={<Navigate to={ROUTES.home} replace />} />
         </Routes>
     );
 }

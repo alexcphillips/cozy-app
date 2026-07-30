@@ -43,5 +43,5 @@ export type FoodLogEntryRow = {
     sugar: number;
     carbs: number;
     sodium: number;
-    measurmentText: string;
+    measurementText: string;
 };

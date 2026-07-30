@@ -49,7 +49,8 @@ export async function register(req: Request, res: Response) {
     ]) {
         if (!result.isValid) {
             throw AppError.badRequest(
-                result.errorMessage ?? VALIDATION_MESSAGES.INVALID_EMAIL_OR_PASSWORD,
+                result.errorMessage ??
+                    VALIDATION_MESSAGES.INVALID_EMAIL_OR_PASSWORD,
             );
         }
     }
@@ -57,7 +58,9 @@ export async function register(req: Request, res: Response) {
     // Same message as an invalid password, so this endpoint cannot be used to
     // enumerate which addresses have accounts.
     if (await usersRepository.findUserByEmail(email)) {
-        throw AppError.badRequest(VALIDATION_MESSAGES.INVALID_EMAIL_OR_PASSWORD);
+        throw AppError.badRequest(
+            VALIDATION_MESSAGES.INVALID_EMAIL_OR_PASSWORD,
+        );
     }
 
     const user = await usersRepository.insertUser({
@@ -91,7 +94,10 @@ export async function login(req: Request, res: Response) {
         );
     }
 
-    const body: LoginResponse = { token: jwtUtil.signToken(user.id) };
+    const body: LoginResponse = {
+        token: jwtUtil.signToken(user.id),
+        isAdmin: user.is_admin,
+    };
 
     res.status(200).json(body);
 }

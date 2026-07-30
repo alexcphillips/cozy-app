@@ -6,10 +6,12 @@ import { useAuthStore } from "../../features/auth/stores/auth.store";
 import LogoutButton from "../../features/auth/components/LogoutButton/LogoutButton";
 import AppTitle from "../../components/AppTitle/AppTitle";
 import LoginButton from "../../features/auth/components/LoginButton/LoginButton";
+import AdminLink from "@/features/admin/components/AdminLink/AdminLink";
 
 export function Navbar() {
     const isGameRoute = location.pathname.startsWith("/game");
     const isLoggedIn = useAuthStore((s) => s.isAuthenticated);
+    const isAdmin = useAuthStore((s) => s.isAdmin);
 
     const leftLinks = navItems.filter((item) => !item.path.startsWith("http"));
 
@@ -24,6 +26,7 @@ export function Navbar() {
                     ))}
 
                     <div className={`${styles["right-links-container"]}`}>
+                        {isAdmin ? <AdminLink /> : ""}
                         {isLoggedIn ? (
                             <>
                                 <LogoutButton />

@@ -18,6 +18,10 @@ export const API_PATHS = {
         byEmail: "/user/:email",
         byId: "/user/:id",
     },
+    analytics: {
+        event: "/event", // Record an event
+        events: "/events", // Fetch recorded events
+    },
     diet: {
         weightEntries: "/weight-entries",
         foodLog: "/food-log",
@@ -42,7 +46,9 @@ export function buildPath(
         const value = params[key];
 
         if (value === undefined) {
-            throw new Error(`buildPath: missing param ":${key}" for ${pattern}`);
+            throw new Error(
+                `buildPath: missing param ":${key}" for ${pattern}`,
+            );
         }
 
         return encodeURIComponent(String(value));
