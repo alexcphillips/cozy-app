@@ -1,37 +1,42 @@
-// import { useState } from "react";
+import { useState } from "react";
 import styles from "./TabsCard.module.css";
-// import Tab from "../Tab/Tab";
-
-type TabsCardProps = {
-    defaultTab: string;
-    tabs: TabConfig[];
-    cardTitle: string;
-};
+import Tab from "../Tab/Tab";
 
 export type TabConfig = {
-    title: string;
+    id: string;
+    label: string;
+    content: React.ReactNode;
 };
 
-export default function TabsCard(config: TabsCardProps) {
-    // const [activeTabIndex, setActiveTabIndex] = useState(config.defaultTab);
+type TabsCardProps = {
+    title: string;
+    tabs: TabConfig[];
+    defaultTab: string;
+};
 
-    // function handleChangeTab(index: string) {
-    // setActiveTabIndex(index);
-    // }
+export default function TabsCard({ title, tabs, defaultTab }: TabsCardProps) {
+    const [activeTabId, setActiveTabId] = useState<string>(defaultTab);
+
+    const activeTab = tabs.find((tab) => tab.id === activeTabId) || tabs[0];
 
     return (
         <div className={styles["card-container"]}>
-            <h1>{config.cardTitle}</h1>
+            <header className={styles["card-header"]}>
+                <h1>{title}</h1>
+            </header>
+
             <div className={styles["tabs-container"]}>
-                {/* {config.tabs.map((tab, i) => (
+                {tabs.map((tab) => (
                     <Tab
-                        key={`${tab.title}-${i}`}
-                        title={tab.title}
-                        handleClick={() => handleChangeTab(i)}
+                        key={tab.id}
+                        title={tab.label}
+                        isActive={tab.id === activeTabId}
+                        handleClick={() => setActiveTabId(tab.id)}
                     />
-                ))} */}
+                ))}
             </div>
-            <div className={styles["active-content"]}>content here</div>
+
+            <div className={styles["active-content"]}>{activeTab?.content}</div>
         </div>
     );
 }

@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import styles from "./Table.module.css";
+import { FaSort } from "react-icons/fa6";
+import { FaSortUp } from "react-icons/fa";
+import { FaSortDown } from "react-icons/fa6";
 
 export type Column<T> = {
     key: keyof T;
@@ -55,9 +58,9 @@ export default function Table<T>({ data, columns }: TableProps<T>) {
     }, [sort, data]);
 
     function getSortIcon(key: keyof T) {
-        if (sort.key !== key) return "↕";
-        if (sort.direction === "asc") return "↑";
-        if (sort.direction === "desc") return "↓";
+        if (sort.key !== key) return <FaSort />;
+        if (sort.direction === "asc") return <FaSortUp />;
+        if (sort.direction === "desc") return <FaSortDown />;
     }
 
     return (

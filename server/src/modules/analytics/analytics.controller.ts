@@ -6,14 +6,19 @@ import { AppError } from "../../http/AppError";
 export async function getAnalyticsEvents(req: Request, res: Response) {
     const startDate = req.query.startDate;
     const endDate = req.query.endDate;
+    const eventParam = req.query.event;
+    const userIdParam = req.query.userId;
 
     if (typeof startDate !== "string" || typeof endDate !== "string") {
         throw new AppError(400, "startDate and endDate are required");
     }
 
-    const userIdParam = req.query.userId;
-    let userId: number | undefined;
+    let event: string | undefined;
+    if (typeof eventParam === "string" && eventParam.trim() !== "") {
+        event = eventParam;
+    }
 
+    let userId: number | undefined;
     if (typeof userIdParam === "string") {
         userId = Number(userIdParam);
         if (!Number.isInteger(userId) || userId <= 0) {
@@ -25,6 +30,7 @@ export async function getAnalyticsEvents(req: Request, res: Response) {
         startDate,
         endDate,
         userId,
+        event,
     );
 
     return res.status(200).json(events);

@@ -3,7 +3,7 @@ import { API_PATHS, type RecordedAnalyticsEvent } from "@cozy/shared";
 import { useEffect, useState } from "react";
 
 export function useAnalyticsData(params: {
-    dates: { start: string; end: string };
+    dates: { startDate: string; endDate: string };
     userId?: string;
     event?: string;
 }) {
@@ -21,8 +21,8 @@ export function useAnalyticsData(params: {
                 const result = await api.get<RecordedAnalyticsEvent[]>(
                     API_PATHS.analytics.events,
                     {
-                        start: params.start,
-                        end: params.end,
+                        startDate: params.dates.startDate,
+                        endDate: params.dates.endDate,
                         userId: params.userId,
                         event: params.event,
                     },
@@ -50,7 +50,12 @@ export function useAnalyticsData(params: {
         return () => {
             active = false;
         };
-    }, [params.start, params.end, params.userId, params.event]);
+    }, [
+        params.dates.startDate,
+        params.dates.endDate,
+        params.userId,
+        params.event,
+    ]);
 
     return { data, loading, error };
 }

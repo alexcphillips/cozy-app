@@ -1,0 +1,179 @@
+.manage-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+}
+
+.search-row {
+    display: flex;
+    background-color: #ffd3fc22;
+    border: 2px solid #ffd4db;
+    border-radius: 12px;
+    padding: 16px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    max-width: 300px;
+}
+
+.input-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #8a6870;
+}
+
+.input-group input {
+    background-color: #ffffff;
+    border: 2px solid #ffdee4;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    color: #4a3c3f;
+    outline: none;
+}
+
+.input-group input:focus {
+    border-color: #d48896;
+    box-shadow: 0 0 0 4px rgba(212, 136, 150, 0.12);
+}
+
+.table-wrapper {
+    background-color: #ffffff;
+    border: 2px solid #ffd4db;
+    border-radius: 1rem;
+    box-sizing: border-box;
+    overflow-x: auto;
+}
+
+.inline-input {
+    border: 2px solid #ffdee4 !important;
+    border-radius: 8px !important;
+    padding: 6px 10px !important;
+    font-size: 0.9rem !important;
+    color: #4a3c3f !important;
+    outline: none;
+    background-color: #fffbfb;
+    width: 100%;
+    max-width: 180px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+}
+
+.inline-select {
+    border: 2px solid #ffdee4 !important;
+    border-radius: 8px !important;
+    padding: 6px 8px !important;
+    font-size: 0.9rem !important;
+    color: #4a3c3f !important;
+    outline: none;
+    background-color: #fffbfb;
+    width: 100%;
+    max-width: 120px;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.inline-input:focus,
+.inline-select:focus {
+    border-color: #d48896 !important;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.btn-edit,
+.btn-save,
+.btn-cancel {
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-edit {
+    background-color: #ffd3fc44;
+    color: #a46271;
+}
+
+.btn-edit:hover {
+    background-color: #ffd3fc88;
+}
+
+.btn-save {
+    background-color: #e2f8e6;
+    color: #3b7a4a;
+}
+
+.btn-save:hover {
+    background-color: #cbf3d2;
+}
+
+.btn-cancel {
+    background-color: #fff0f2;
+    color: #ba6070;
+}
+
+.btn-cancel:hover {
+    background-color: #ffd4db;
+}
+
+.btn-delete {
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    background-color: #ffeef0;
+    color: #ba6070;
+    transition: all 0.2s ease;
+}
+
+.btn-delete:hover {
+    background-color: #ffd4db;
+    color: #9c4655;
+    transform: translateY(-1px);
+}
+
+.btn-delete:active {
+    transform: translateY(0);
+}
+
+.badge-admin,
+.badge-user {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.badge-admin {
+    background-color: #ffeef0;
+    color: #ba6070;
+    border: 1px solid #ffd4db;
+}
+
+.badge-user {
+    background-color: #f6f7f9;
+    color: #6c757d;
+}
+
+.empty-state {
+    padding: 48px;
+    text-align: center;
+    color: #8a6870;
+    font-weight: 500;
+}

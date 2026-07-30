@@ -7,4 +7,5 @@ export type PublicUser = {
     username: string;
     email: string;
     createdAt: string;
+    is_admin: string;
 };

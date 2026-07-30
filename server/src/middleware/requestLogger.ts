@@ -6,7 +6,7 @@ export default function requestLogger(
     next: NextFunction,
 ) {
     const timestamp = new Date().toISOString();
-    console.log(timestamp, "Handling a request!", req.url);
+    console.log(timestamp, "Handling a request!", req.method, req.url);
 
     next();
 }

@@ -1,6 +1,7 @@
 import type { PublicUser } from "@cozy/shared";
 import { execute, query } from "../../db";
 import {
+    buildPatchUserQuery,
     DELETE_USER_BY_ID,
     FIND_ALL_USERS,
     FIND_USER_BY_EMAIL,
@@ -15,6 +16,7 @@ function toPublicUser(row: UserRow): PublicUser {
         username: row.username,
         email: row.email,
         createdAt: row.created_at,
+        is_admin: row.is_admin,
     };
 }
 
@@ -57,6 +59,35 @@ export async function insertUser(input: {
     }
 
     return toPublicUser(row);
+}
+
+export async function patchUserFields(input: {
+    id: number;
+    updates: {
+        username?: string;
+        email?: string;
+        is_admin?: boolean;
+    };
+}): Promise<PublicUser | null> {
+    const setClauses: string[] = [];
+    const queryParams: any[] = [input.id];
+
+    Object.entries(input.updates).forEach(([key, value]) => {
+        if (value !== undefined) {
+            queryParams.push(value);
+            setClauses.push(`${key} = $${queryParams.length}`);
+        }
+    });
+
+    if (setClauses.length === 0) {
+        return null;
+    }
+
+    const queryText = buildPatchUserQuery(setClauses);
+
+    const rows = await query<UserRow>(queryText, queryParams);
+    const updatedRow = rows[0];
+    return updatedRow ? toPublicUser(updatedRow) : null;
 }
 
 /** @returns whether a row was actually removed. */
