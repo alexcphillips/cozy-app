@@ -1,5 +1,6 @@
 import { ENV } from "../config/env";
 import { query } from "./pool";
+import { seedLocalAdminUser } from "./seedLocalAdminUser";
 
 /**
  * Idempotent `CREATE TABLE IF NOT EXISTS` pass, run once at boot. This is the
@@ -27,7 +28,7 @@ export async function ensureSchema() {
 
         // Seed a test admin if local env
         if (ENV.NODE_ENV === "development") {
-            await query(INSERT_LOCAL_ADMIN_USER);
+            await seedLocalAdminUser();
         }
 
         console.log("Database tables verified and ready");
@@ -105,15 +106,4 @@ const CREATE_WEIGHT_ENTRIES_TABLE_QUERY = `
 const ADD_ANALYTICS_TABLE_INDEXES = `
   CREATE INDEX IF NOT EXISTS idx_analytics_event_lookup
   ON analytics_event (created_at DESC, user_id);
-`;
-
-const INSERT_LOCAL_ADMIN_USER = `
-INSERT INTO users (username, email, password_hash, is_admin)
-VALUES (
-  'testadmin',
-  'testadmin@gmail.com',
-  'password',
-  TRUE
-)
-ON CONFLICT (email) DO NOTHING;
 `;
