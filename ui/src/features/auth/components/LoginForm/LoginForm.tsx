@@ -35,7 +35,7 @@ export default function LoginForm() {
             const { token, isAdmin } = await authApi.login({ email, password });
 
             login(token, isAdmin);
-            navigate(ROUTES.dietTracker);
+            navigate(ROUTES.home);
         } catch (err) {
             setError(toErrorMessage(err));
         } finally {

@@ -12,7 +12,7 @@ INSERT INTO users (username, email, password_hash, is_admin)
 VALUES (
   'testadmin',
   'testadmin@gmail.com',
-  $1, 
+  $1,
   TRUE
 )
 ON CONFLICT (email) DO NOTHING;
