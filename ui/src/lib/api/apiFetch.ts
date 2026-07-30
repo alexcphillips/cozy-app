@@ -1,7 +1,7 @@
 import { useAuthStore } from "../../features/auth/stores/auth.store";
 
 const API_BASE_URL: string =
-    import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+    import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 /**
  * The transport: prefixes the API origin and attaches the bearer token. Returns

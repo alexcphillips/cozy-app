@@ -15,6 +15,7 @@ export type LoginRequest = {
 
 export type LoginResponse = {
     token: string;
+    isAdmin: boolean;
 };
 
 /** Claims carried by the bearer token. Mirrored in `server/src/types/express.d.ts`. */

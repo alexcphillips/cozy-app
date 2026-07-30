@@ -4,13 +4,13 @@
  * reading a single screen.
  */
 export const FIND_ALL_USERS = `
-  SELECT id, username, email, created_at, updated_at
+  SELECT id, username, email, created_at, updated_at, is_admin
   FROM users
   ORDER BY created_at DESC
 `;
 
 export const FIND_USER_BY_EMAIL = `
-  SELECT id, username, email, password_hash, created_at, updated_at
+  SELECT id, username, email, password_hash, created_at, updated_at, is_admin
   FROM users
   WHERE email = $1
 `;

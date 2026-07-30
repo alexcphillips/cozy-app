@@ -9,10 +9,9 @@ export const ROUTES = {
     register: "/register",
     profile: "/profile",
     cozyCare: "/cozy-care",
-    dietTracker: "/diet-tracker",
     library: "/library",
     game: "/game",
-    docsTable: "/components/table",
+    admin: "/admin",
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];

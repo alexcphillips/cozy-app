@@ -47,7 +47,7 @@ export type FoodLogEntry = {
     quantity: number;
     unit_of_measurement: UnitOfMeasurement;
     /** Pre-formatted "2 cups" label for table display. */
-    measurmentText: string;
+    measurementText: string;
     calories: number;
     protein: number;
     sugar: number;

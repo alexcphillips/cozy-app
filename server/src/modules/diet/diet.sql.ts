@@ -27,7 +27,7 @@ export const INSERT_FOOD_ITEM = `
 
 /**
  * One row per logged food, with nutrition already scaled by the logged quantity
- * so the client renders it directly. `measurmentText` is the display label.
+ * so the client renders it directly. `measurementText` is the display label.
  */
 export const FIND_FOOD_LOG_BY_USER_AND_DATE = `
   SELECT
@@ -40,7 +40,7 @@ export const FIND_FOOD_LOG_BY_USER_AND_DATE = `
     ROUND((COALESCE(fi.sugar, 0) * fl.quantity)::numeric, 1) AS sugar,
     ROUND((COALESCE(fi.carbs, 0) * fl.quantity)::numeric, 1) AS carbs,
     ROUND((COALESCE(fi.sodium, 0) * fl.quantity)::numeric, 0) AS sodium,
-    CONCAT(fl.quantity, ' ', fi.unit_of_measurement) AS "measurmentText"
+    CONCAT(fl.quantity, ' ', fi.unit_of_measurement) AS "measurementText"
   FROM food_log fl
   JOIN food_item fi ON fl.food_item_id = fi.id
   WHERE fl.user_id = $1 AND fl.created_at::date = $2

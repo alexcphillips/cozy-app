@@ -21,6 +21,8 @@ export async function ensureSchema() {
         // Dependent Child Tables
         await query(CREATE_FOOD_LOG_TABLE_QUERY);
         await query(CREATE_WEIGHT_ENTRIES_TABLE_QUERY);
+        await query(CREATE_ANALYTICS_EVENT_TABLE_QUERY);
+        await query(ADD_ANALYTICS_TABLE_INDEXES);
 
         console.log("Database tables verified and ready");
     } catch (error) {
@@ -35,8 +37,19 @@ const CREATE_USERS_TABLE_QUERY = `
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  );
+`;
+
+const CREATE_ANALYTICS_EVENT_TABLE_QUERY = `
+  CREATE TABLE IF NOT EXISTS analytics_event (
+    id BIGSERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_name VARCHAR(100) NOT NULL,
+    properties JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
   );
 `;
 
@@ -81,4 +94,9 @@ const CREATE_WEIGHT_ENTRIES_TABLE_QUERY = `
     weight NUMERIC(5, 2) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
   );
+`;
+
+const ADD_ANALYTICS_TABLE_INDEXES = `
+  CREATE INDEX IF NOT EXISTS idx_analytics_event_lookup
+  ON analytics_event (created_at DESC, user_id);
 `;

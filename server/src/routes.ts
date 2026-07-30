@@ -2,6 +2,7 @@ import { Router } from "express";
 import { booksRouter } from "./modules/books/books.routes";
 import { dietRouter } from "./modules/diet/diet.routes";
 import { usersRouter } from "./modules/users/users.routes";
+import { analyticsRouter } from "./modules/analytics/analytics.routes";
 
 /**
  * THE route manifest. Every module that serves HTTP is mounted here and
@@ -15,5 +16,6 @@ import { usersRouter } from "./modules/users/users.routes";
 export const apiRouter: Router = Router();
 
 apiRouter.use(usersRouter);
+apiRouter.use(analyticsRouter);
 apiRouter.use(dietRouter);
 apiRouter.use(booksRouter);
