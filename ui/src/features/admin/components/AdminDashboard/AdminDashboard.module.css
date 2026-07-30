@@ -1,3 +1,32 @@
+/* Clean layout pass: No more pink box here! */
 .dashboard-container {
-    border: 1px solid green;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 95%; /* Matches your app structure */
+    box-sizing: border-box;
+}
+
+.dashboard-header {
+    width: 100%;
+    margin-bottom: 4px;
+}
+
+.dashboard-header h1 {
+    color: #d48896;
+    font-size: 2.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.error-banner {
+    width: 100%;
+    background-color: #ffeef0;
+    border: 2px solid #f2a6b4;
+    color: #ba6070;
+    padding: 16px;
+    border-radius: 1rem;
+    font-weight: 500;
+    box-sizing: border-box;
 }

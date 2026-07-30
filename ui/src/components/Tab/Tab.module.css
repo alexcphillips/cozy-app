@@ -1,0 +1,61 @@
+.tab-button {
+    background: transparent;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #a6848d;
+    outline: none;
+    font-family: inherit;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: transparent;
+    border-radius: 8px 8px 0 0;
+    margin-right: 4px;
+}
+
+.tab-button:hover {
+    color: #d48896;
+    background-color: #ffd3fc15;
+}
+
+.tab-button.active {
+    color: #b35667;
+    font-weight: 600;
+    background-color: #ffffff;
+}
+
+.tab-button.active::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 12%;
+    right: 12%;
+    height: 3px;
+    background-color: #d48896;
+    border-radius: 2px;
+    animation: slide-in 0.2s ease-out;
+}
+
+.tab-title {
+    margin: 0;
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+}
+
+.tab-button:active {
+    transform: scale(0.96);
+}
+
+@keyframes slide-in {
+    from {
+        transform: scaleX(0);
+        opacity: 0;
+    }
+    to {
+        transform: scaleX(1);
+        opacity: 1;
+    }
+}

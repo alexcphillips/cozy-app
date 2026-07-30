@@ -66,6 +66,20 @@ export const api = {
         }).then(parse<T>);
     },
 
+    put<T>(path: string, body?: unknown): Promise<T> {
+        return apiFetch(path, {
+            method: "PUT",
+            body: body === undefined ? undefined : JSON.stringify(body),
+        }).then(parse<T>);
+    },
+
+    patch<T>(path: string, body?: unknown): Promise<T> {
+        return apiFetch(path, {
+            method: "PATCH",
+            body: body === undefined ? undefined : JSON.stringify(body),
+        }).then(parse<T>);
+    },
+
     delete<T>(path: string): Promise<T> {
         return apiFetch(path, { method: "DELETE" }).then(parse<T>);
     },

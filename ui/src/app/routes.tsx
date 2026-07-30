@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout/AppLayout";
 import ProtectedRoute from "./ProtectedRoute";
 import AdminRoute from "./AdminRoute";
+import RouteAnalyticsTracker from "@/app/RouteAnalyticsTracker";
 import { ROUTES } from "./routes.paths";
 
 import Login from "../features/auth/pages/Login";
@@ -25,28 +26,34 @@ import Admin from "@/features/admin/pages/Admin";
  */
 export function AppRoutes() {
     return (
-        <Routes>
-            {/* Public */}
-            <Route path={ROUTES.login} element={<Login />} />
-            <Route path={ROUTES.register} element={<Register />} />
+        <>
+            <RouteAnalyticsTracker />
+            <Routes>
+                {/* Public */}
+                <Route path={ROUTES.login} element={<Login />} />
+                <Route path={ROUTES.register} element={<Register />} />
 
-            {/* Authenticated */}
-            <Route element={<ProtectedRoute />}>
-                <Route path={ROUTES.home} element={<AppLayout />}>
-                    <Route index element={<Home />} />
-                    <Route path={ROUTES.cozyCare} element={<CozyCare />} />
-                    <Route path={ROUTES.library} element={<Library />} />
-                    <Route path={ROUTES.game} element={<Game />} />
-                    <Route path={ROUTES.profile} element={<Profile />} />
+                {/* Authenticated */}
+                <Route element={<ProtectedRoute />}>
+                    <Route path={ROUTES.home} element={<AppLayout />}>
+                        <Route index element={<Home />} />
+                        <Route path={ROUTES.cozyCare} element={<CozyCare />} />
+                        <Route path={ROUTES.library} element={<Library />} />
+                        <Route path={ROUTES.game} element={<Game />} />
+                        <Route path={ROUTES.profile} element={<Profile />} />
 
-                    <Route element={<AdminRoute />}>
-                        <Route path={ROUTES.admin} element={<Admin />} />
+                        <Route element={<AdminRoute />}>
+                            <Route path={ROUTES.admin} element={<Admin />} />
+                        </Route>
                     </Route>
                 </Route>
-            </Route>
 
-            {/* Send the user home rather than showing nothing. */}
-            <Route path="*" element={<Navigate to={ROUTES.home} replace />} />
-        </Routes>
+                {/* Send the user home rather than showing nothing. */}
+                <Route
+                    path="*"
+                    element={<Navigate to={ROUTES.home} replace />}
+                />
+            </Routes>
+        </>
     );
 }

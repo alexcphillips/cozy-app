@@ -21,6 +21,17 @@ export const INSERT_USER = `
   RETURNING id, username, email, created_at, updated_at
 `;
 
+export function buildPatchUserQuery(setClauses: string[]): string {
+    return `
+    UPDATE users
+    SET
+      ${setClauses.join(", ")},
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = $1
+    RETURNING id, username, email, is_admin, created_at;
+  `;
+}
+
 export const DELETE_USER_BY_ID = `
   DELETE FROM users
   WHERE id = $1

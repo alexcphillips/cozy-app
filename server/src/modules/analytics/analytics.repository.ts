@@ -7,11 +7,13 @@ export async function getAnalyticsEvents(
     startDate: string,
     endDate: string,
     userId?: number,
+    event?: string,
 ): Promise<AnalyticsEventRow[]> {
     return await query<AnalyticsEventRow>(GET_ANALYTICS_EVENTS, [
         startDate,
         endDate,
         userId ?? null,
+        event ?? null,
     ]);
 }
 
