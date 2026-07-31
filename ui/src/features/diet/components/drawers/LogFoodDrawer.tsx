@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
-import Drawer from "../../../../components/Drawer/Drawer";
+import { useState, useEffect, useMemo } from "react";
+import Drawer from "@/components/Drawer/Drawer";
+import Table from "@/components/Table/Table";
+import type { Column } from "@/components/Table/Table";
 import styles from "./LogFoodDrawer.module.css";
 import sharedStyles from "./drawers.shared.module.css";
 import type { FoodItem } from "@cozy/shared";
-import { toErrorMessage } from "../../../../lib/api";
+import { toErrorMessage } from "@/lib/api";
 import { dietApi } from "../../api/diet.api";
 
 export type LogFoodDrawerProps = {
@@ -13,6 +15,7 @@ export type LogFoodDrawerProps = {
 
 export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
     const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
+    const [searchQuery, setSearchQuery] = useState("");
     const [selectedFoodId, setSelectedFoodId] = useState("");
     const [quantity, setQuantity] = useState("");
     const [isLoadingItems, setIsLoadingItems] = useState(false);
@@ -37,7 +40,53 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
         loadFoodInventory();
     }, [isOpen]);
 
+    const filteredFoodItems = useMemo(() => {
+        return foodItems.filter((item) =>
+            item.name.toLowerCase().includes(searchQuery.toLowerCase()),
+        );
+    }, [foodItems, searchQuery]);
+
     const selectedFood = foodItems.find((item) => item.id === selectedFoodId);
+
+    const columns: Column<FoodItem>[] = useMemo(
+        () => [
+            {
+                key: "id",
+                label: "Selection",
+                render: (row) => (
+                    <button
+                        type="button"
+                        className={`${styles["select-row-btn"]} ${selectedFoodId === row.id ? styles["row-selected"] : ""}`}
+                        onClick={() => setSelectedFoodId(row.id)}
+                    >
+                        {selectedFoodId === row.id ? "Selected ✓" : "Select"}
+                    </button>
+                ),
+            },
+            {
+                key: "name",
+                label: "Food Name",
+                sortable: true,
+                render: (row) => (
+                    <span
+                        className={
+                            selectedFoodId === row.id
+                                ? styles["highlight-text"]
+                                : ""
+                        }
+                    >
+                        {row.name}
+                    </span>
+                ),
+            },
+            {
+                key: "unit_of_measurement",
+                label: "Unit",
+                sortable: true,
+            },
+        ],
+        [selectedFoodId],
+    );
 
     async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
         e.preventDefault();
@@ -70,6 +119,7 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
     }
 
     function handleClose() {
+        setSearchQuery("");
         setSelectedFoodId("");
         setQuantity("");
         setError("");
@@ -93,29 +143,31 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
                     autoComplete="off"
                 >
                     <div className={sharedStyles["input-group"]}>
-                        <label htmlFor="food-select">select food</label>
+                        <label htmlFor="food-search">search food</label>
+                        <input
+                            id="food-search"
+                            type="text"
+                            className={sharedStyles["base-input"]}
+                            placeholder="Type food name..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+
+                    <div className={styles["table-wrapper"]}>
                         {isLoadingItems ? (
                             <p className={styles["loading-text"]}>
                                 Loading available options...
                             </p>
+                        ) : filteredFoodItems.length === 0 ? (
+                            <p className={styles["no-results"]}>
+                                No foods found matching your search.
+                            </p>
                         ) : (
-                            <select
-                                id="food-select"
-                                className={sharedStyles["base-input"]}
-                                value={selectedFoodId}
-                                onChange={(e) =>
-                                    setSelectedFoodId(e.target.value)
-                                }
-                            >
-                                <option value="" disabled hidden>
-                                    choose from foods
-                                </option>
-                                {foodItems.map((item) => (
-                                    <option key={item.id} value={item.id}>
-                                        {item.name}
-                                    </option>
-                                ))}
-                            </select>
+                            <Table
+                                data={filteredFoodItems as unknown as any[]}
+                                columns={columns as unknown as any[]}
+                            />
                         )}
                     </div>
 
@@ -137,7 +189,7 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
                             placeholder={
                                 selectedFoodId
                                     ? "How much?"
-                                    : "Select food first"
+                                    : "Select food from the table first"
                             }
                         />
                     </div>
