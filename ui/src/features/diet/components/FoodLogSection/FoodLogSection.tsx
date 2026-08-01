@@ -17,12 +17,13 @@ export default function FoodLogSection() {
     const [newFoodDrawerIsOpen, setNewFoodDrawerIsOpen] = useState(false);
     const [logFoodDrawerIsOpen, setLogFoodDrawerIsOpen] = useState(false);
 
+    const localDate = new Intl.DateTimeFormat("sv-SE").format(new Date());
+
     const fetchFoodLogData = useCallback(async () => {
         try {
             setIsFoodLogLoading(true);
-            const today = new Date().toLocaleDateString("en-US");
 
-            setData(await dietApi.listFoodLog(today));
+            setData(await dietApi.listFoodLog(localDate));
             setIsErrorFetchingFoodLog(null);
         } catch (err) {
             setData(null);

@@ -43,14 +43,14 @@ export const FIND_FOOD_LOG_BY_USER_AND_DATE = `
     CONCAT(fl.quantity, ' ', fi.unit_of_measurement) AS "measurementText"
   FROM food_log fl
   JOIN food_item fi ON fl.food_item_id = fi.id
-  WHERE fl.user_id = $1 AND fl.log_date = $2
+  WHERE fl.user_id = $1 AND fl.log_user_date = $2
   ORDER BY fl.created_at DESC
 `;
 
 export const INSERT_FOOD_LOG = `
-  INSERT INTO food_log (user_id, food_item_id, quantity)
-  VALUES ($1, $2, $3)
-  RETURNING id, user_id, food_item_id, quantity, created_at, updated_at
+  INSERT INTO food_log (user_id, food_item_id, quantity, log_user_date)
+  VALUES ($1, $2, $3, $4)
+  RETURNING id, user_id, food_item_id, quantity, created_at, updated_at, log_user_date
 `;
 
 /** Scoped by `user_id` as well as `id` so one user cannot delete another's row. */

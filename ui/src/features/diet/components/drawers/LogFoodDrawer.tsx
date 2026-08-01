@@ -113,6 +113,7 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
             await dietApi.createFoodLog({
                 foodItemId: selectedFoodId,
                 quantity: Number(quantity),
+                localDate: new Intl.DateTimeFormat("sv-SE").format(new Date()),
             });
 
             handleClose();

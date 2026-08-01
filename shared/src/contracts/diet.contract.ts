@@ -35,6 +35,7 @@ export type CreateFoodItemRequest = {
     sodium?: number;
     /** When true the new item is also written to today's log in one round trip. */
     iAteThisToday?: boolean;
+    localDate?: string;
 };
 
 /**
@@ -58,6 +59,7 @@ export type FoodLogEntry = {
 export type CreateFoodLogRequest = {
     foodItemId: string;
     quantity: number;
+    localDate?: string;
 };
 
 export type FoodLogQuery = {

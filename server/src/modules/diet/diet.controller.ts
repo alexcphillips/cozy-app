@@ -6,6 +6,7 @@ import type {
 } from "@cozy/shared";
 import { AppError } from "../../http/AppError";
 import * as dietRepository from "./diet.repository";
+import { isValidsvSEFormat } from "@cozy/shared";
 
 /** Every route in this module is mounted behind `auth`, so `req.user` is set. */
 function requireUserId(req: Request): number {
@@ -57,6 +58,13 @@ export async function createFoodItem(req: Request, res: Response) {
         );
     }
 
+    if (
+        (body.iAteThisToday && !body.localDate) ||
+        typeof body.localDate !== "string"
+    ) {
+        throw AppError.badRequest("Missing log date");
+    }
+
     const quantity = Number(body.quantity);
 
     if (!Number.isFinite(quantity) || quantity <= 0) {
@@ -74,13 +82,12 @@ export async function createFoodItem(req: Request, res: Response) {
         sodium: toNonNegativeNumber(body.sodium),
     });
 
-    // Convenience path: creating a food you just ate also logs it, so the UI
-    // does not need a second round trip.
     if (body.iAteThisToday) {
         await dietRepository.insertFoodLog(
             requireUserId(req),
             foodItem.id,
             foodItem.quantity,
+            body.localDate,
         );
     }
 
@@ -90,37 +97,19 @@ export async function createFoodItem(req: Request, res: Response) {
 /* -------------------------------------------------------------- food log -- */
 
 export async function getFoodLog(req: Request, res: Response) {
-    const date = req.query.date;
+    const { localDate } = req.query;
 
-    const dateRegex = /^\d{1,2}\/\d{1,2}\/\d{4}$/;
-    if (typeof date !== "string" || !dateRegex.test(date)) {
-        throw AppError.badRequest(
-            "Invalid date format. Expected M/D/YYYY (e.g., 7/31/2026)",
-        );
-    }
-
-    // the regex check makes this operation safe
-    const [month, day, year] = date.split("/") as [string, string, string];
-
-    const paddedMonth = month.padStart(2, "0");
-    const paddedDay = day.padStart(2, "0");
-    const dbDateParam = `${year}-${paddedMonth}-${paddedDay}`;
-
-    // validate real calendar date (rejects 2/31/2026)
-    const isoCheck = new Date(`${dbDateParam}T00:00:00.000Z`);
-    if (Number.isNaN(isoCheck.getTime())) {
-        throw AppError.badRequest(
-            "Provided string is not a valid calendar date",
-        );
+    if (typeof localDate !== "string" || !isValidsvSEFormat(localDate)) {
+        throw AppError.badRequest("Invalid date");
     }
 
     res.status(200).json(
-        await dietRepository.findFoodLog(requireUserId(req), dbDateParam),
+        await dietRepository.findFoodLog(requireUserId(req), localDate),
     );
 }
 
 export async function createFoodLog(req: Request, res: Response) {
-    const { foodItemId, quantity } = (req.body ??
+    const { foodItemId, quantity, localDate } = (req.body ??
         {}) as Partial<CreateFoodLogRequest>;
 
     const parsedQuantity = Number(quantity);
@@ -133,11 +122,23 @@ export async function createFoodLog(req: Request, res: Response) {
         throw AppError.badRequest("Missing or invalid foodItemId or quantity");
     }
 
+    console.log(
+        "localDate:",
+        localDate,
+        typeof localDate,
+        isValidsvSEFormat(String(localDate)),
+    );
+
+    if (typeof localDate !== "string" || !isValidsvSEFormat(localDate)) {
+        throw AppError.badRequest("Invalid date");
+    }
+
     res.status(201).json(
         await dietRepository.insertFoodLog(
             requireUserId(req),
             foodItemId,
             parsedQuantity,
+            localDate,
         ),
     );
 }

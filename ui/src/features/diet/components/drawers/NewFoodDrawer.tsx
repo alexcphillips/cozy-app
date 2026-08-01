@@ -60,6 +60,7 @@ export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
                 carbs: Number(carbsValue) || 0,
                 sodium: Number(sodiumValue) || 0,
                 iAteThisToday,
+                localDate: new Intl.DateTimeFormat("sv-SE").format(new Date()),
             });
 
             handleClose();

@@ -105,13 +105,11 @@ export async function insertFoodItem(input: {
 
 export async function findFoodLog(
     userId: number,
-    date: string,
+    localDate: string,
 ): Promise<FoodLogEntry[]> {
-    const q = await query("select * from food_log");
-    console.log(q);
     return query<FoodLogEntryRow>(FIND_FOOD_LOG_BY_USER_AND_DATE, [
         userId,
-        date,
+        localDate,
     ]);
 }
 
@@ -119,11 +117,13 @@ export async function insertFoodLog(
     userId: number,
     foodItemId: string,
     quantity: number,
+    localDate: string,
 ): Promise<FoodLogRow> {
     const rows = await query<FoodLogRow>(INSERT_FOOD_LOG, [
         userId,
         foodItemId,
         quantity,
+        localDate,
     ]);
 
     const row = rows[0];

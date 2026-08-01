@@ -28,9 +28,10 @@ export const dietApi = {
         return api.post<FoodItem>(API_PATHS.diet.foodItems_create, input);
     },
 
-    /** @param date any `Date.parse`-able day, e.g. `new Date().toLocaleDateString("en-US")` */
-    listFoodLog(date: string): Promise<FoodLogEntry[]> {
-        return api.get<FoodLogEntry[]>(API_PATHS.diet.foodLog, { date });
+    listFoodLog(localDate: string): Promise<FoodLogEntry[]> {
+        return api.get<FoodLogEntry[]>(API_PATHS.diet.foodLog, {
+            localDate,
+        });
     },
 
     createFoodLog(input: CreateFoodLogRequest): Promise<unknown> {
