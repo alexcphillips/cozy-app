@@ -47,7 +47,11 @@ export async function getAllFoodItems(_req: Request, res: Response) {
 export async function createFoodItem(req: Request, res: Response) {
     const body = (req.body ?? {}) as Partial<CreateFoodItemRequest>;
 
-    if (!body.name?.trim() || !body.unitOfMeasurement || body.quantity == null) {
+    if (
+        !body.name?.trim() ||
+        !body.unitOfMeasurement ||
+        body.quantity == null
+    ) {
         throw AppError.badRequest(
             "Missing name, unitOfMeasurement, or quantity",
         );
@@ -92,8 +96,10 @@ export async function getFoodLog(req: Request, res: Response) {
         throw AppError.badRequest("Invalid or missing date parameter");
     }
 
+    const UTCDate = new Date(date).toISOString();
+
     res.status(200).json(
-        await dietRepository.findFoodLog(requireUserId(req), date),
+        await dietRepository.findFoodLog(requireUserId(req), UTCDate),
     );
 }
 
@@ -103,7 +109,11 @@ export async function createFoodLog(req: Request, res: Response) {
 
     const parsedQuantity = Number(quantity);
 
-    if (!foodItemId || !Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+    if (
+        !foodItemId ||
+        !Number.isFinite(parsedQuantity) ||
+        parsedQuantity <= 0
+    ) {
         throw AppError.badRequest("Missing or invalid foodItemId or quantity");
     }
 
