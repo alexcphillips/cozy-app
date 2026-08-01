@@ -43,7 +43,7 @@ export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
         }
 
         if (!foodName.trim() || !quantityValue) {
-            setError("Please fill out name, quantity, and unit.");
+            setError("please fill out name and quantity");
             return;
         }
 

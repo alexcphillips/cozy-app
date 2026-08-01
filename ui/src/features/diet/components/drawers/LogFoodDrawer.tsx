@@ -5,6 +5,7 @@ import sharedStyles from "./drawers.shared.module.css";
 import type { FoodItem } from "@cozy/shared";
 import { toErrorMessage } from "../../../../lib/api";
 import { dietApi } from "../../api/diet.api";
+import { GrRadial, GrRadialSelected } from "react-icons/gr";
 
 export type LogFoodDrawerProps = {
     isOpen: boolean;
@@ -38,6 +39,50 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
     }, [isOpen]);
 
     const selectedFood = foodItems.find((item) => item.id === selectedFoodId);
+
+    const columns: Column<FoodItem>[] = useMemo(
+        () => [
+            {
+                key: "id",
+                label: "Selection",
+                render: (row) => (
+                    <button
+                        type="button"
+                        className={`${styles["select-row-btn"]} ${selectedFoodId === row.id ? styles["row-selected"] : ""}`}
+                        onClick={() => setSelectedFoodId(row.id)}
+                    >
+                        {selectedFoodId === row.id ? (
+                            <GrRadialSelected />
+                        ) : (
+                            <GrRadial />
+                        )}
+                    </button>
+                ),
+            },
+            {
+                key: "name",
+                label: "Food Name",
+                sortable: true,
+                render: (row) => (
+                    <span
+                        className={
+                            selectedFoodId === row.id
+                                ? styles["highlight-text"]
+                                : ""
+                        }
+                    >
+                        {row.name}
+                    </span>
+                ),
+            },
+            {
+                key: "unit_of_measurement",
+                label: "Unit",
+                sortable: true,
+            },
+        ],
+        [selectedFoodId],
+    );
 
     async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
         e.preventDefault();
