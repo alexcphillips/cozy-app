@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Drawer from "../../../../components/Drawer/Drawer";
 import styles from "./LogFoodDrawer.module.css";
 import sharedStyles from "./drawers.shared.module.css";
@@ -6,6 +6,7 @@ import type { FoodItem } from "@cozy/shared";
 import { toErrorMessage } from "../../../../lib/api";
 import { dietApi } from "../../api/diet.api";
 import { GrRadial, GrRadialSelected } from "react-icons/gr";
+import type { Column } from "@/components/Table/Table";
 
 export type LogFoodDrawerProps = {
     isOpen: boolean;
