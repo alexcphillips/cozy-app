@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import TabsCard from "@/components/TabsCard/TabsCard";
-import AnalyticsTab from "../AnalyticsTab/AnalyticsTab";
+import AnalyticsTab from "./AnalyticsTab/AnalyticsTab";
 import styles from "./AdminDashboard.module.css";
 import ManageUsersTab from "./ManageUsersTab/ManageUsersTab";
+import UtilitiesTab from "./UtilitiesTab/UtilitiesTab";
 
 export default function AdminDashboard() {
     const tabsConfig = useMemo(() => {
@@ -16,6 +17,11 @@ export default function AdminDashboard() {
                 id: "manage-users",
                 label: "Manage Users",
                 content: <ManageUsersTab />,
+            },
+            {
+                id: "utilities",
+                label: "Utilities",
+                content: <UtilitiesTab />,
             },
         ];
     }, []);

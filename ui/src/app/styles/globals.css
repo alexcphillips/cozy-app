@@ -25,6 +25,10 @@ body {
     margin: 0;
 }
 
+body.global-body-fixed {
+    overflow: hidden;
+}
+
 .display-none {
     display: none;
 }

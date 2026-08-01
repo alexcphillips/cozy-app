@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAnalyticsData } from "../../hooks/useAnalyticsData";
+import { useAnalyticsData } from "../../../hooks/useAnalyticsData";
 import Table, { type Column } from "@/components/Table/Table";
 import styles from "./AnalyticsTab.module.css";
 

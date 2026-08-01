@@ -88,6 +88,23 @@ export default function FoodLogSection() {
             <div className={styles["food-log-container"]}>
                 <p className={styles["food-log-title"]}>your food log 🍓</p>
 
+                <div className={styles["action-buttons"]}>
+                    <button
+                        type="button"
+                        className={styles["log-food-button"]}
+                        onClick={() => setLogFoodDrawerIsOpen(true)}
+                    >
+                        log food
+                    </button>
+
+                    <button
+                        type="button"
+                        className={styles["new-food-button"]}
+                        onClick={() => setNewFoodDrawerIsOpen(true)}
+                    >
+                        create food
+                    </button>
+                </div>
                 <div className={styles["food-log"]}>
                     {isFoodLogLoading && (
                         <p className={styles["loading-text"]}>
@@ -131,22 +148,6 @@ export default function FoodLogSection() {
                         </p>
                     )}
                 </div>
-
-                <button
-                    type="button"
-                    className={styles["log-food-button"]}
-                    onClick={() => setLogFoodDrawerIsOpen(true)}
-                >
-                    log food
-                </button>
-
-                <button
-                    type="button"
-                    className={styles["new-food-button"]}
-                    onClick={() => setNewFoodDrawerIsOpen(true)}
-                >
-                    create food
-                </button>
 
                 {!isErrorFetchingFoodLog && !isFoodLogLoading && data && (
                     <div className={styles["summed"]}>

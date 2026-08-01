@@ -1,0 +1,22 @@
+.utilities-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.utility-card {
+    display: flex;
+    background-color: #ffd3fc22;
+    border: 2px solid #ffd4db;
+    border-radius: 12px;
+    padding: 16px;
+    width: 100%;
+    box-sizing: border-box;
+    height: 8rem;
+}
+
+@media (max-width: 768px) {
+    .utilities-container {
+        grid-template-columns: 1fr;
+    }
+}
