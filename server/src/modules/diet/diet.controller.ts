@@ -90,16 +90,22 @@ export async function createFoodItem(req: Request, res: Response) {
 /* -------------------------------------------------------------- food log -- */
 
 export async function getFoodLog(req: Request, res: Response) {
-    const date = req.query.date;
+    const dateStr = req.query.date;
 
-    if (typeof date !== "string" || Number.isNaN(Date.parse(date))) {
+    if (typeof dateStr !== "string" || Number.isNaN(Date.parse(dateStr))) {
         throw AppError.badRequest("Invalid or missing date parameter");
     }
 
-    const UTCDate = new Date(date).toISOString();
+    const parsedDate = new Date(dateStr);
+
+    const year = parsedDate.getFullYear();
+    const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+    const day = String(parsedDate.getDate()).padStart(2, "0");
+
+    const dbDateParam = `${year}-${month}-${day}`;
 
     res.status(200).json(
-        await dietRepository.findFoodLog(requireUserId(req), UTCDate),
+        await dietRepository.findFoodLog(requireUserId(req), dbDateParam),
     );
 }
 
