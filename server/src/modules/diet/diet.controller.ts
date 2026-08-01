@@ -90,19 +90,29 @@ export async function createFoodItem(req: Request, res: Response) {
 /* -------------------------------------------------------------- food log -- */
 
 export async function getFoodLog(req: Request, res: Response) {
-    const dateStr = req.query.date;
+    const date = req.query.date;
 
-    if (typeof dateStr !== "string" || Number.isNaN(Date.parse(dateStr))) {
-        throw AppError.badRequest("Invalid or missing date parameter");
+    const dateRegex = /^\d{1,2}\/\d{1,2}\/\d{4}$/;
+    if (typeof date !== "string" || !dateRegex.test(date)) {
+        throw AppError.badRequest(
+            "Invalid date format. Expected M/D/YYYY (e.g., 7/31/2026)",
+        );
     }
 
-    const parsedDate = new Date(dateStr);
+    // the regex check makes this operation safe
+    const [month, day, year] = date.split("/") as [string, string, string];
 
-    const year = parsedDate.getFullYear();
-    const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
-    const day = String(parsedDate.getDate()).padStart(2, "0");
+    const paddedMonth = month.padStart(2, "0");
+    const paddedDay = day.padStart(2, "0");
+    const dbDateParam = `${year}-${paddedMonth}-${paddedDay}`;
 
-    const dbDateParam = `${year}-${month}-${day}`;
+    // validate real calendar date (rejects 2/31/2026)
+    const isoCheck = new Date(`${dbDateParam}T00:00:00.000Z`);
+    if (Number.isNaN(isoCheck.getTime())) {
+        throw AppError.badRequest(
+            "Provided string is not a valid calendar date",
+        );
+    }
 
     res.status(200).json(
         await dietRepository.findFoodLog(requireUserId(req), dbDateParam),

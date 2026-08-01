@@ -1,8 +1,4 @@
-import type {
-    FoodItem,
-    FoodLogEntry,
-    WeightEntry,
-} from "@cozy/shared";
+import type { FoodItem, FoodLogEntry, WeightEntry } from "@cozy/shared";
 import { query } from "../../db";
 import {
     DELETE_FOOD_LOG_ITEM,
@@ -22,7 +18,9 @@ import type {
 
 /* ---------------------------------------------------------------- weight -- */
 
-export async function findWeightEntries(userId: number): Promise<WeightEntry[]> {
+export async function findWeightEntries(
+    userId: number,
+): Promise<WeightEntry[]> {
     const rows = await query<WeightEntryRow>(FIND_WEIGHT_ENTRIES_BY_USER, [
         userId,
     ]);
@@ -109,6 +107,8 @@ export async function findFoodLog(
     userId: number,
     date: string,
 ): Promise<FoodLogEntry[]> {
+    const q = await query("select * from food_log");
+    console.log(q);
     return query<FoodLogEntryRow>(FIND_FOOD_LOG_BY_USER_AND_DATE, [
         userId,
         date,

@@ -43,7 +43,7 @@ export const FIND_FOOD_LOG_BY_USER_AND_DATE = `
     CONCAT(fl.quantity, ' ', fi.unit_of_measurement) AS "measurementText"
   FROM food_log fl
   JOIN food_item fi ON fl.food_item_id = fi.id
-  WHERE fl.user_id = $1 AND fl.created_at::date = $2
+  WHERE fl.user_id = $1 AND fl.log_date = $2
   ORDER BY fl.created_at DESC
 `;
 
