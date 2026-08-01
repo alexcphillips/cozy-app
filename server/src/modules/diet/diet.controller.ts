@@ -122,13 +122,6 @@ export async function createFoodLog(req: Request, res: Response) {
         throw AppError.badRequest("Missing or invalid foodItemId or quantity");
     }
 
-    console.log(
-        "localDate:",
-        localDate,
-        typeof localDate,
-        isValidsvSEFormat(String(localDate)),
-    );
-
     if (typeof localDate !== "string" || !isValidsvSEFormat(localDate)) {
         throw AppError.badRequest("Invalid date");
     }
