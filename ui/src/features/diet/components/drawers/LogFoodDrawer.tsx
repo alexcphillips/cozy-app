@@ -7,6 +7,7 @@ import sharedStyles from "./drawers.shared.module.css";
 import type { FoodItem } from "@cozy/shared";
 import { toErrorMessage } from "@/lib/api";
 import { dietApi } from "../../api/diet.api";
+import { GrRadial, GrRadialSelected } from "react-icons/gr";
 
 export type LogFoodDrawerProps = {
     isOpen: boolean;
@@ -59,7 +60,11 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
                         className={`${styles["select-row-btn"]} ${selectedFoodId === row.id ? styles["row-selected"] : ""}`}
                         onClick={() => setSelectedFoodId(row.id)}
                     >
-                        {selectedFoodId === row.id ? "Selected ✓" : "Select"}
+                        {selectedFoodId === row.id ? (
+                            <GrRadialSelected />
+                        ) : (
+                            <GrRadial />
+                        )}
                     </button>
                 ),
             },
