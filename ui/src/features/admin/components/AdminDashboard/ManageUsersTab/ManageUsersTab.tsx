@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { api } from "@/lib/api"; // Centralized Axios/fetch wrapper instance
+import { api } from "@/lib/api";
 import Table, { type Column } from "@/components/Table/Table";
 import styles from "./ManageUsersTab.module.css";
 
@@ -52,7 +52,6 @@ export default function ManageUsersTab() {
         }
     }
 
-    // ── NEW ADDITION: Type-Safe Asynchronous Deletion Handler ──
     async function handleDelete(id: number, username: string) {
         const confirmed = window.confirm(
             `Are you sure you want to remove user "${username}" (ID: #${id}) from the system?`,
@@ -60,13 +59,10 @@ export default function ManageUsersTab() {
         if (!confirmed) return;
 
         try {
-            // Hits your backend DELETE router endpoint at /user/:id
             await api.delete(`/user/${id}`);
 
-            // Optimistically clear the row from local memory array immediately on successful response
             setUsers((prev) => prev.filter((user) => user.id !== id));
 
-            // If the row being deleted was currently open for editing, close the edit window
             if (editingId === id) {
                 setEditingId(null);
             }

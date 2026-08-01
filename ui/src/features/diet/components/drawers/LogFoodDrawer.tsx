@@ -130,7 +130,7 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
         <Drawer
             isOpen={isOpen}
             onClose={handleClose}
-            drawerTitle="log your foods"
+            drawerTitle="log a food item"
             formId="log-food-form"
             isLoading={isSubmitting}
         >
