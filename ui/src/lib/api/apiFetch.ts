@@ -19,7 +19,7 @@ export async function apiFetch(
 
     const isFormData = options.body instanceof FormData;
 
-    return fetch(`${API_BASE_URL}${formattedPath}`, {
+    const response = await fetch(`${API_BASE_URL}${formattedPath}`, {
         ...options,
         headers: {
             ...(isFormData ? {} : { "Content-Type": "application/json" }),
@@ -27,4 +27,13 @@ export async function apiFetch(
             ...options.headers,
         },
     });
+
+    // A token we sent was rejected (expired/invalid) - clear it so
+    // `isAuthenticated` flips false and `ProtectedRoute` redirects to login,
+    // instead of leaving the stale token in place and every request failing.
+    if (response.status === 401 && token) {
+        useAuthStore.getState().logout();
+    }
+
+    return response;
 }
