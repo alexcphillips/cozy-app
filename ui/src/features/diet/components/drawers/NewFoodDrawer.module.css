@@ -11,7 +11,14 @@
     align-items: start;
 }
 
+@media (max-width: 420px) {
+    .food-entry-form {
+        grid-template-columns: 1fr;
+    }
+}
+
 .checkbox-container {
+    grid-column: span 2;
     display: flex;
     flex-direction: row-reverse;
     justify-content: flex-end;
@@ -28,7 +35,7 @@
     width: 18px;
     height: 18px;
     cursor: pointer;
-    accent-color: rgb(255, 133, 153);
+    accent-color: var(--accent-pink);
     margin: 0;
     padding: 8px;
 }

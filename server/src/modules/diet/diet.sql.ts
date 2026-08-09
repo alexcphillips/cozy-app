@@ -53,6 +53,24 @@ export const INSERT_FOOD_LOG = `
   RETURNING id, user_id, food_item_id, quantity, created_at, updated_at, log_user_date
 `;
 
+/**
+ * Builds a multi-row INSERT for `rowCount` food log entries in one statement.
+ * `rowCount` only controls how many `$n` placeholders are generated - actual
+ * values always flow through `query()`'s params array, never interpolated here.
+ */
+export function buildInsertFoodLogBatchSql(rowCount: number): string {
+    const valuesSql = Array.from({ length: rowCount }, (_, i) => {
+        const base = i * 4;
+        return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`;
+    }).join(", ");
+
+    return `
+  INSERT INTO food_log (user_id, food_item_id, quantity, log_user_date)
+  VALUES ${valuesSql}
+  RETURNING id, user_id, food_item_id, quantity, created_at, updated_at, log_user_date
+`;
+}
+
 /** Scoped by `user_id` as well as `id` so one user cannot delete another's row. */
 export const DELETE_FOOD_LOG_ITEM = `
   DELETE FROM food_log

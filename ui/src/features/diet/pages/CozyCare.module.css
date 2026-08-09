@@ -6,12 +6,12 @@
 }
 
 .page-section {
-    border: 2px solid pink;
+    border: 2px solid var(--accent-pink-soft);
     border-radius: 1rem;
     padding: 16px;
     color: var(--text-primary);
     font-family: var(--font-cozy);
-    background-color: #ffd3fc44;
+    background-color: var(--accent-pink-tint);
     box-sizing: border-box;
     width: 95%;
 }

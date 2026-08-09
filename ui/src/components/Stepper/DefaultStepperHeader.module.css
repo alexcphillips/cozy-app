@@ -1,0 +1,15 @@
+.header {
+    padding: 14px 40px 0 14px;
+    box-sizing: border-box;
+}
+
+.title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.stepper-container {
+    margin-top: 12px;
+    border-bottom: 1px solid black;
+}

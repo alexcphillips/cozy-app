@@ -19,6 +19,20 @@
     --bg-sidenav-dropdown: #fff9fa; /* Tinted white for layered menus */
 
     --font-cozy: "Trebuchet MS";
+
+    /* Accent — the pink family shared by drawers, steppers, tables, and
+       selection states. Previously each component hardcoded its own close-but-
+       different shade; these are the single source of truth for that family. */
+    --accent-pink-wash: #fff4f6; /* lightest background wash (table header) */
+    --accent-pink-soft: #ffd4db; /* soft border / inactive track */
+    --accent-pink-tint: rgba(255, 211, 252, 0.25); /* hover / selected overlay */
+    --accent-pink-muted: #d48896; /* muted icon (sort button, selection icon) */
+    --accent-pink: #ff85a3; /* primary accent - active border, focus ring */
+    --accent-pink-deep: #ba1c5a; /* selected / emphasized text */
+    --accent-pink-surface: #ffc3e1; /* button surface */
+    --accent-pink-surface-wash: #ffeafc; /* footer background */
+    --border-input: rgb(163, 163, 163);
+    --color-error-bg: rgba(255, 146, 146, 0.722);
 }
 
 body {

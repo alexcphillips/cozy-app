@@ -1,0 +1,40 @@
+.footer {
+    background-color: var(--accent-pink-surface-wash);
+    border-top: 1px solid black;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    align-items: center;
+    justify-items: center;
+    position: sticky;
+    bottom: 0;
+}
+
+.footer button {
+    border: 1px solid black;
+    background-color: var(--accent-pink-surface);
+    height: 2.5rem;
+    width: 4rem;
+    border-radius: 8px;
+    cursor: pointer;
+
+    transition:
+        transform 0.15s ease,
+        background-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.footer button:hover {
+    transform: scale(1.08);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.footer button:active {
+    transform: scale(0.96);
+}
+
+.footer button:disabled {
+    transform: none;
+    box-shadow: none;
+    opacity: 0.55;
+    cursor: not-allowed;
+}

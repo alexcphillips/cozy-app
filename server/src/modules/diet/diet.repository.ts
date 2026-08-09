@@ -1,6 +1,7 @@
 import type { FoodItem, FoodLogEntry, WeightEntry } from "@cozy/shared";
 import { query } from "../../db";
 import {
+    buildInsertFoodLogBatchSql,
     DELETE_FOOD_LOG_ITEM,
     FIND_ALL_FOOD_ITEMS,
     FIND_FOOD_LOG_BY_USER_AND_DATE,
@@ -133,6 +134,24 @@ export async function insertFoodLog(
     }
 
     return row;
+}
+
+export async function insertFoodLogBatch(
+    userId: number,
+    items: { foodItemId: string; quantity: number }[],
+    localDate: string,
+): Promise<FoodLogRow[]> {
+    const params = items.flatMap((item) => [
+        userId,
+        item.foodItemId,
+        item.quantity,
+        localDate,
+    ]);
+
+    return query<FoodLogRow>(
+        buildInsertFoodLogBatchSql(items.length),
+        params,
+    );
 }
 
 /** @returns the deleted row, or `null` if it did not exist for this user. */

@@ -1,0 +1,62 @@
+.content {
+    height: 100%;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.log-food-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+}
+
+.loading-text {
+    font-size: 0.85rem;
+    color: #757575;
+    margin: 4px 0;
+}
+
+.table-wrapper {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.select-row-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 8px;
+    min-width: 36px;
+    min-height: 36px;
+    box-sizing: border-box;
+    font-size: 1.15rem;
+    line-height: 1;
+    color: var(--accent-pink-muted);
+    cursor: pointer;
+    border-radius: 50%;
+    transition:
+        color 0.15s ease,
+        background-color 0.15s ease,
+        transform 0.15s ease;
+}
+
+.select-row-btn:hover {
+    background-color: var(--accent-pink-tint);
+    transform: scale(1.12);
+}
+
+.select-row-btn:active {
+    transform: scale(0.9);
+}
+
+.row-selected {
+    color: var(--accent-pink-deep);
+}
+
+.highlight-text {
+    color: var(--accent-pink-deep);
+    font-weight: 700;
+}

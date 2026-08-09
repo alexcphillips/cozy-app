@@ -1,9 +1,14 @@
 import { useState } from "react";
-import Drawer from "../../../../components/Drawer/Drawer";
+import Drawer from "@/components/Drawer/Drawer";
+import BackdropOverlay from "@/components/BackdropOverlay/BackdropOverlay";
+import DefaultDismissButton from "@/components/Drawer/DefaultDismissButton";
+import { DefaultFooter } from "@/components/Drawer/DefaultFooter";
+import DefaultHeaderComponent from "@/components/Drawer/DefaultHeaderComponent";
 import styles from "./NewFoodDrawer.module.css";
 import sharedStyles from "./drawers.shared.module.css";
-import TextInputWithSmallSelect from "../../../../components/TextInputWithSmallSelect/TextInputWithSmallSelect";
-import { toErrorMessage } from "../../../../lib/api";
+import FormField from "@/components/FormField/FormField";
+import TextInputWithSmallSelect from "@/components/TextInputWithSmallSelect/TextInputWithSmallSelect";
+import { toErrorMessage } from "@/lib/api";
 import { dietApi } from "../../api/diet.api";
 
 export type NewFoodDrawerProps = {
@@ -11,30 +16,52 @@ export type NewFoodDrawerProps = {
     onClose: () => void;
 };
 
+type FoodFormState = {
+    name: string;
+    quantity: string;
+    unit: string;
+    calories: string;
+    protein: string;
+    sugar: string;
+    carbs: string;
+    sodium: string;
+};
+
+const EMPTY_FORM: FoodFormState = {
+    name: "",
+    quantity: "",
+    unit: "",
+    calories: "",
+    protein: "",
+    sugar: "",
+    carbs: "",
+    sodium: "",
+};
+
 export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
-    const [foodName, setFoodName] = useState("");
-    const [quantityValue, setQuantityValue] = useState("");
-    const [unitValue, setUnitValue] = useState("");
-    const [caloriesValue, setCaloriesValue] = useState("");
-    const [proteinValue, setProteinValue] = useState("");
-    const [sugarValue, setSugarValue] = useState("");
-    const [carbsValue, setCarbsValue] = useState("");
-    const [sodiumValue, setSodiumValue] = useState("");
+    const [form, setForm] = useState<FoodFormState>(EMPTY_FORM);
     const [iAteThisToday, setIAteThisToday] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+
+    function updateField<K extends keyof FoodFormState>(
+        key: K,
+        value: FoodFormState[K],
+    ) {
+        setForm((prev) => ({ ...prev, [key]: value }));
+    }
 
     async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
         e.preventDefault();
         setError("");
 
         const isNegativeValueError = [
-            quantityValue,
-            caloriesValue,
-            proteinValue,
-            sugarValue,
-            carbsValue,
-            sodiumValue,
+            form.quantity,
+            form.calories,
+            form.protein,
+            form.sugar,
+            form.carbs,
+            form.sodium,
         ].some((value) => value !== "" && Number(value) < 0);
 
         if (isNegativeValueError) {
@@ -42,7 +69,7 @@ export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
             return;
         }
 
-        if (!foodName.trim() || !quantityValue) {
+        if (!form.name.trim() || !form.quantity) {
             setError("please fill out name, and quantity");
             return;
         }
@@ -51,16 +78,15 @@ export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
 
         try {
             await dietApi.createFoodItem({
-                name: foodName.trim(),
-                quantity: Number(quantityValue),
-                unitOfMeasurement: unitValue || "unit",
-                calories: Number(caloriesValue) || 0,
-                protein: Number(proteinValue) || 0,
-                sugar: Number(sugarValue) || 0,
-                carbs: Number(carbsValue) || 0,
-                sodium: Number(sodiumValue) || 0,
+                name: form.name.trim(),
+                quantity: Number(form.quantity),
+                unitOfMeasurement: form.unit || "unit",
+                calories: Number(form.calories) || 0,
+                protein: Number(form.protein) || 0,
+                sugar: Number(form.sugar) || 0,
+                carbs: Number(form.carbs) || 0,
+                sodium: Number(form.sodium) || 0,
                 iAteThisToday,
-                localDate: new Intl.DateTimeFormat("sv-SE").format(new Date()),
             });
 
             handleClose();
@@ -72,26 +98,25 @@ export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
     }
 
     function handleClose() {
-        setFoodName("");
-        setQuantityValue("");
-        setUnitValue("");
-        setCaloriesValue("");
-        setProteinValue("");
-        setSugarValue("");
-        setCarbsValue("");
-        setSodiumValue("");
+        setForm(EMPTY_FORM);
         setIAteThisToday(false);
         setError("");
-        return onClose();
+        onClose();
     }
 
     return (
         <Drawer
             isOpen={isOpen}
-            onClose={handleClose}
-            drawerTitle="new food item"
-            formId="food-entry-form"
-            isLoading={isLoading}
+            header={<DefaultHeaderComponent title="new food item" />}
+            footer={
+                <DefaultFooter
+                    onClose={handleClose}
+                    formId="food-entry-form"
+                    isLoading={isLoading}
+                />
+            }
+            backdrop={<BackdropOverlay onClose={handleClose} />}
+            dismissButton={<DefaultDismissButton onClose={handleClose} />}
         >
             <div className={styles["content"]}>
                 <form
@@ -101,37 +126,30 @@ export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
                     noValidate
                     autoComplete="off"
                 >
-                    <div className={sharedStyles["input-group"]}>
-                        <label htmlFor="food-name">name</label>
-                        <input
-                            id="food-name"
-                            type="text"
-                            className={sharedStyles["base-input"]}
-                            value={foodName}
-                            onChange={(e) => setFoodName(e.target.value)}
-                        />
-                    </div>
+                    <FormField
+                        id="food-name"
+                        label="name"
+                        value={form.name}
+                        onChange={(value) => updateField("name", value)}
+                    />
 
-                    <div className={styles["quantity-section"]}>
-                        <TextInputWithSmallSelect
-                            className={sharedStyles["input-group"]}
-                            inputClassName={sharedStyles["base-input"]}
-                            labelText="quantity"
-                            selectLabelText="unit"
-                            inputId="quantity"
-                            selectId="unit"
-                            inputValue={quantityValue}
-                            setInputValue={setQuantityValue}
-                            selectValue={unitValue}
-                            setSelectValue={setUnitValue}
-                            selectOptions={["grams", "lbs", "cups", "units"]}
-                        />
-                    </div>
+                    <TextInputWithSmallSelect
+                        className={sharedStyles["input-group"]}
+                        inputClassName={sharedStyles["base-input"]}
+                        labelText="quantity"
+                        selectLabelText="unit"
+                        inputId="quantity"
+                        selectId="unit"
+                        inputValue={form.quantity}
+                        setInputValue={(value) => updateField("quantity", value)}
+                        selectValue={form.unit}
+                        setSelectValue={(value) => updateField("unit", value)}
+                        selectOptions={["grams", "lbs", "cups", "units"]}
+                    />
 
                     <div className={styles["checkbox-container"]}>
                         <label htmlFor="i-ate-this-today">
-                            {" "}
-                            i ate this today{" "}
+                            i ate this today
                         </label>
                         <input
                             type="checkbox"
@@ -142,73 +160,63 @@ export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
                     </div>
 
                     <p className={styles["nutrition-section-header"]}>
-                        {" "}
-                        nutrition information{" "}
+                        nutrition information
                     </p>
 
-                    <div className={sharedStyles["input-group"]}>
-                        <label htmlFor="calories">calories</label>
-                        <input
-                            id="calories"
-                            type="number"
-                            min="0"
-                            className={sharedStyles["base-input"]}
-                            value={caloriesValue}
-                            onChange={(e) => setCaloriesValue(e.target.value)}
-                        />
-                    </div>
+                    <FormField
+                        id="calories"
+                        label="calories"
+                        type="number"
+                        min="0"
+                        value={form.calories}
+                        onChange={(value) => updateField("calories", value)}
+                    />
 
-                    <div className={sharedStyles["input-group"]}>
-                        <label htmlFor="protein">protein (g)</label>
-                        <input
-                            id="protein"
-                            type="number"
-                            min="0"
-                            className={sharedStyles["base-input"]}
-                            value={proteinValue}
-                            onChange={(e) => setProteinValue(e.target.value)}
-                        />
-                    </div>
+                    <FormField
+                        id="protein"
+                        label="protein"
+                        suffix="g"
+                        type="number"
+                        min="0"
+                        value={form.protein}
+                        onChange={(value) => updateField("protein", value)}
+                    />
 
-                    <div className={sharedStyles["input-group"]}>
-                        <label htmlFor="sugar">sugar (g)</label>
-                        <input
-                            id="sugar"
-                            type="number"
-                            min="0"
-                            className={sharedStyles["base-input"]}
-                            value={sugarValue}
-                            onChange={(e) => setSugarValue(e.target.value)}
-                        />
-                    </div>
+                    <FormField
+                        id="sugar"
+                        label="sugar"
+                        suffix="g"
+                        type="number"
+                        min="0"
+                        value={form.sugar}
+                        onChange={(value) => updateField("sugar", value)}
+                    />
 
-                    <div className={sharedStyles["input-group"]}>
-                        <label htmlFor="carbs">carbs (g)</label>
-                        <input
-                            id="carbs"
-                            type="number"
-                            min="0"
-                            className={sharedStyles["base-input"]}
-                            value={carbsValue}
-                            onChange={(e) => setCarbsValue(e.target.value)}
-                        />
-                    </div>
+                    <FormField
+                        id="carbs"
+                        label="carbs"
+                        suffix="g"
+                        type="number"
+                        min="0"
+                        value={form.carbs}
+                        onChange={(value) => updateField("carbs", value)}
+                    />
 
-                    <div className={sharedStyles["input-group"]}>
-                        <label htmlFor="sodium">sodium (mg)</label>
-                        <input
-                            id="sodium"
-                            type="number"
-                            min="0"
-                            className={sharedStyles["base-input"]}
-                            value={sodiumValue}
-                            onChange={(e) => setSodiumValue(e.target.value)}
-                        />
-                    </div>
+                    <FormField
+                        id="sodium"
+                        label="sodium"
+                        suffix="mg"
+                        type="number"
+                        min="0"
+                        value={form.sodium}
+                        onChange={(value) => updateField("sodium", value)}
+                    />
 
-                    {error && (
-                        <p className={sharedStyles["error-message"]}>{error}</p>
-                    )}
+                    <p
+                        className={`${sharedStyles["error-message"]} ${error ? sharedStyles["error-message-visible"] : ""}`}
+                    >
+                        {error}
+                    </p>
                 </form>
             </div>
         </Drawer>

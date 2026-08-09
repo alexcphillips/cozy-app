@@ -56,9 +56,13 @@ export type FoodLogEntry = {
     sodium: number;
 };
 
-export type CreateFoodLogRequest = {
+export type CreateFoodLogEntry = {
     foodItemId: string;
     quantity: number;
+};
+
+export type CreateFoodLogRequest = {
+    items: CreateFoodLogEntry[];
     localDate?: string;
 };
 

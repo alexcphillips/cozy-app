@@ -12,17 +12,25 @@
     width: 100%;
     box-sizing: border-box;
     border-radius: 8px;
-    border: 2px solid rgb(163, 163, 163);
+    border: 2px solid var(--border-input);
     padding: 6px;
 }
 
 .base-input:focus {
     outline: none;
-    border: 2px solid rgb(255, 133, 153);
+    border: 2px solid var(--accent-pink);
 }
 
 .error-message {
-    background: rgba(255, 146, 146, 0.722);
+    box-sizing: border-box;
+    min-height: 32px;
+    margin: 0;
     padding: 6px;
     border-radius: 4px;
+    background: transparent;
+    transition: background-color 0.15s ease;
+}
+
+.error-message-visible {
+    background: var(--color-error-bg);
 }

@@ -7,6 +7,7 @@ import type {
 import { AppError } from "../../http/AppError";
 import * as dietRepository from "./diet.repository";
 import { isValidsvSEFormat } from "@cozy/shared";
+import { normalizeText } from "@cozy/shared";
 
 /** Every route in this module is mounted behind `auth`, so `req.user` is set. */
 function requireUserId(req: Request): number {
@@ -72,7 +73,7 @@ export async function createFoodItem(req: Request, res: Response) {
     }
 
     const foodItem = await dietRepository.insertFoodItem({
-        name: body.name.trim(),
+        name: normalizeText(body.name.trim()),
         unitOfMeasurement: body.unitOfMeasurement,
         quantity,
         calories: toNonNegativeNumber(body.calories),
@@ -109,28 +110,36 @@ export async function getFoodLog(req: Request, res: Response) {
 }
 
 export async function createFoodLog(req: Request, res: Response) {
-    const { foodItemId, quantity, localDate } = (req.body ??
-        {}) as Partial<CreateFoodLogRequest>;
-
-    const parsedQuantity = Number(quantity);
-
-    if (
-        !foodItemId ||
-        !Number.isFinite(parsedQuantity) ||
-        parsedQuantity <= 0
-    ) {
-        throw AppError.badRequest("Missing or invalid foodItemId or quantity");
-    }
+    const { items, localDate } = (req.body ?? {}) as Partial<
+        CreateFoodLogRequest
+    >;
 
     if (typeof localDate !== "string" || !isValidsvSEFormat(localDate)) {
         throw AppError.badRequest("Invalid date");
     }
 
+    if (!Array.isArray(items) || items.length === 0) {
+        throw AppError.badRequest("Missing food log items");
+    }
+
+    const parsedItems: { foodItemId: string; quantity: number }[] = [];
+
+    for (const item of items) {
+        const quantity = Number(item?.quantity);
+
+        if (!item?.foodItemId || !Number.isFinite(quantity) || quantity <= 0) {
+            throw AppError.badRequest(
+                "Missing or invalid foodItemId or quantity",
+            );
+        }
+
+        parsedItems.push({ foodItemId: item.foodItemId, quantity });
+    }
+
     res.status(201).json(
-        await dietRepository.insertFoodLog(
+        await dietRepository.insertFoodLogBatch(
             requireUserId(req),
-            foodItemId,
-            parsedQuantity,
+            parsedItems,
             localDate,
         ),
     );

@@ -1,13 +1,16 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Drawer from "@/components/Drawer/Drawer";
-import Table from "@/components/Table/Table";
-import type { Column } from "@/components/Table/Table";
-import styles from "./LogFoodDrawer.module.css";
-import sharedStyles from "./drawers.shared.module.css";
-import type { FoodItem } from "@cozy/shared";
 import { toErrorMessage } from "@/lib/api";
 import { dietApi } from "../../api/diet.api";
-import { GrRadial, GrRadialSelected } from "react-icons/gr";
+import { LogFoodDrawerSelectStepContent } from "./LogFoodDrawerSelectStepContent";
+import { useStepper } from "../../hooks/useStepper";
+import LogFoodDrawerAdjustStepContent from "./LogFoodDrawerAdjustStepContent";
+import BackdropOverlay from "@/components/BackdropOverlay/BackdropOverlay";
+import DefaultDismissButton from "@/components/Drawer/DefaultDismissButton";
+import type { FoodItem } from "@cozy/shared";
+import StepperFooter from "@/components/Stepper/StepperFooter";
+import Stepper from "@/components/Stepper/Stepper";
+import DefaultStepperHeader from "@/components/Stepper/DefaultStepperHeader";
 
 export type LogFoodDrawerProps = {
     isOpen: boolean;
@@ -15,13 +18,12 @@ export type LogFoodDrawerProps = {
 };
 
 export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
-    const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [selectedFoodId, setSelectedFoodId] = useState("");
-    const [quantity, setQuantity] = useState("");
-    const [isLoadingItems, setIsLoadingItems] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const [isLoadingItems, setIsLoadingItems] = useState(true);
+    const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
+    const [selectedFoodItems, setSelectedFoodItems] = useState<FoodItem[]>([]);
+    const [quantities, setQuantities] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (!isOpen) return;
@@ -41,69 +43,26 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
         loadFoodInventory();
     }, [isOpen]);
 
-    const filteredFoodItems = useMemo(() => {
-        return foodItems.filter((item) =>
-            item.name.toLowerCase().includes(searchQuery.toLowerCase()),
-        );
-    }, [foodItems, searchQuery]);
+    const steps = ["select foods", "adjust foods"];
 
-    const selectedFood = foodItems.find((item) => item.id === selectedFoodId);
-
-    const columns: Column<FoodItem>[] = useMemo(
-        () => [
-            {
-                key: "id",
-                label: "Selection",
-                render: (row) => (
-                    <button
-                        type="button"
-                        className={`${styles["select-row-btn"]} ${selectedFoodId === row.id ? styles["row-selected"] : ""}`}
-                        onClick={() => setSelectedFoodId(row.id)}
-                    >
-                        {selectedFoodId === row.id ? (
-                            <GrRadialSelected />
-                        ) : (
-                            <GrRadial />
-                        )}
-                    </button>
-                ),
-            },
-            {
-                key: "name",
-                label: "Food Name",
-                sortable: true,
-                render: (row) => (
-                    <span
-                        className={
-                            selectedFoodId === row.id
-                                ? styles["highlight-text"]
-                                : ""
-                        }
-                    >
-                        {row.name}
-                    </span>
-                ),
-            },
-            {
-                key: "unit_of_measurement",
-                label: "Unit",
-                sortable: true,
-            },
-        ],
-        [selectedFoodId],
+    const { stepIndex, next, previous, reset, isFirst, isLast } = useStepper(
+        steps.length,
     );
 
-    async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
-        e.preventDefault();
+    async function handleSubmit() {
         setError("");
 
-        if (!selectedFoodId) {
-            setError("Please select a food item.");
-            return;
-        }
+        const invalidItem = selectedFoodItems.find((item) => {
+            const parsedQuantity = Number(quantities[item.id]);
+            return (
+                !quantities[item.id] ||
+                !Number.isFinite(parsedQuantity) ||
+                parsedQuantity <= 0
+            );
+        });
 
-        if (!quantity || Number(quantity) <= 0) {
-            setError("Please enter a valid quantity greater than 0.");
+        if (invalidItem) {
+            setError(`Please enter a valid quantity for ${invalidItem.name}.`);
             return;
         }
 
@@ -111,9 +70,10 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
 
         try {
             await dietApi.createFoodLog({
-                foodItemId: selectedFoodId,
-                quantity: Number(quantity),
-                localDate: new Intl.DateTimeFormat("sv-SE").format(new Date()),
+                items: selectedFoodItems.map((item) => ({
+                    foodItemId: item.id,
+                    quantity: Number(quantities[item.id]),
+                })),
             });
 
             handleClose();
@@ -124,87 +84,88 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
         }
     }
 
-    function handleClose() {
-        setSearchQuery("");
-        setSelectedFoodId("");
-        setQuantity("");
+    function handleSelectionChange(nextSelection: FoodItem[]) {
         setError("");
-        return onClose();
+        setSelectedFoodItems(nextSelection);
+
+        const nextIds = new Set(nextSelection.map((item) => item.id));
+        setQuantities((prev) =>
+            Object.fromEntries(
+                Object.entries(prev).filter(([id]) => nextIds.has(id)),
+            ),
+        );
+    }
+
+    function handleQuantitiesChange(nextQuantities: Record<string, string>) {
+        setError("");
+        setQuantities(nextQuantities);
+    }
+
+    function handleNextStep() {
+        if (!selectedFoodItems.length) {
+            setError("select items first");
+            return false;
+        }
+        next();
+    }
+
+    function handlePrevious() {
+        setError("");
+        previous();
+    }
+
+    if (!steps[stepIndex]) return;
+
+    function handleClose() {
+        setSelectedFoodItems([]);
+        setQuantities({});
+        setError("");
+        reset();
+        onClose();
     }
 
     return (
         <Drawer
             isOpen={isOpen}
-            onClose={handleClose}
-            drawerTitle="log a food item"
-            formId="log-food-form"
-            isLoading={isSubmitting}
-        >
-            <div className={styles["content"]}>
-                <form
-                    id="log-food-form"
-                    className={styles["log-food-form"]}
-                    onSubmit={handleSubmit}
-                    noValidate
-                    autoComplete="off"
-                >
-                    <div className={sharedStyles["input-group"]}>
-                        <label htmlFor="food-search">search food</label>
-                        <input
-                            id="food-search"
-                            type="text"
-                            className={sharedStyles["base-input"]}
-                            placeholder="Type food name..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-
-                    <div className={styles["table-wrapper"]}>
-                        {isLoadingItems ? (
-                            <p className={styles["loading-text"]}>
-                                Loading available options...
-                            </p>
-                        ) : filteredFoodItems.length === 0 ? (
-                            <p className={styles["no-results"]}>
-                                No foods found matching your search.
-                            </p>
-                        ) : (
-                            <Table
-                                data={filteredFoodItems as unknown as any[]}
-                                columns={columns as unknown as any[]}
-                            />
-                        )}
-                    </div>
-
-                    <div className={sharedStyles["input-group"]}>
-                        <label htmlFor="log-quantity">
-                            quantity{" "}
-                            {selectedFood &&
-                                `(${selectedFood.unit_of_measurement})`}
-                        </label>
-                        <input
-                            id="log-quantity"
-                            type="number"
-                            min="0"
-                            step="any"
-                            className={sharedStyles["base-input"]}
-                            value={quantity}
-                            onChange={(e) => setQuantity(e.target.value)}
-                            disabled={!selectedFoodId}
-                            placeholder={
-                                selectedFoodId
-                                    ? "How much?"
-                                    : "Select food from the table first"
-                            }
-                        />
-                    </div>
-
-                    {error && (
-                        <p className={sharedStyles["error-message"]}>{error}</p>
+            header={
+                <DefaultStepperHeader
+                    title="log a food"
+                    StepperComponent={() => (
+                        <Stepper steps={steps} currentStep={stepIndex} />
                     )}
-                </form>
-            </div>
+                />
+            }
+            footer={
+                <StepperFooter
+                    onCancel={handleClose}
+                    onPrevious={handlePrevious}
+                    onNext={isLast ? handleSubmit : handleNextStep}
+                    previousDisabled={isFirst}
+                    nextLabel={isLast ? "submit" : "next"}
+                    isLoading={isSubmitting}
+                />
+            }
+            backdrop={<BackdropOverlay onClose={handleClose} />}
+            dismissButton={<DefaultDismissButton onClose={handleClose} />}
+        >
+            {stepIndex === 0 && (
+                <LogFoodDrawerSelectStepContent
+                    foodItems={foodItems}
+                    selectedFoodItems={selectedFoodItems}
+                    onSelectionChange={handleSelectionChange}
+                    isLoadingItems={isLoadingItems}
+                    error={error}
+                />
+            )}
+
+            {stepIndex === 1 && (
+                <LogFoodDrawerAdjustStepContent
+                    selectedFoodItems={selectedFoodItems}
+                    quantities={quantities}
+                    onQuantitiesChange={handleQuantitiesChange}
+                    error={error}
+                />
+            )}
         </Drawer>
     );
 }

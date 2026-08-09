@@ -1,0 +1,18 @@
+.close-button {
+    background: none;
+    border: none;
+    font: inherit;
+    cursor: pointer;
+    padding: 4px;
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 8px;
+    right: 4px;
+}
+
+.close-button:hover {
+    background-color: rgb(234, 234, 234);
+}

@@ -24,8 +24,10 @@ export const dietApi = {
         return api.get<FoodItem[]>(API_PATHS.diet.foodItems);
     },
 
-    createFoodItem(input: CreateFoodItemRequest): Promise<FoodItem> {
-        return api.post<FoodItem>(API_PATHS.diet.foodItems_create, input);
+    createFoodItem(log: CreateFoodItemRequest): Promise<FoodItem> {
+        if (log.iAteThisToday)
+            log.localDate = Intl.DateTimeFormat("sv-SE").format(new Date());
+        return api.post<FoodItem>(API_PATHS.diet.foodItems_create, log);
     },
 
     listFoodLog(localDate: string): Promise<FoodLogEntry[]> {
@@ -34,8 +36,9 @@ export const dietApi = {
         });
     },
 
-    createFoodLog(input: CreateFoodLogRequest): Promise<unknown> {
-        return api.post(API_PATHS.diet.foodLog, input);
+    createFoodLog(log: CreateFoodLogRequest): Promise<unknown> {
+        log.localDate = new Intl.DateTimeFormat("sv-SE").format(new Date());
+        return api.post(API_PATHS.diet.foodLog, log);
     },
 
     deleteFoodLogItem(itemId: string): Promise<unknown> {
