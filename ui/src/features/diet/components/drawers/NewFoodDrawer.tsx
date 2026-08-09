@@ -80,7 +80,7 @@ export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
             await dietApi.createFoodItem({
                 name: form.name.trim(),
                 quantity: Number(form.quantity),
-                unitOfMeasurement: form.unit || "unit",
+                unitOfMeasurement: form.unit || "units",
                 calories: Number(form.calories) || 0,
                 protein: Number(form.protein) || 0,
                 sugar: Number(form.sugar) || 0,
@@ -141,7 +141,9 @@ export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
                         inputId="quantity"
                         selectId="unit"
                         inputValue={form.quantity}
-                        setInputValue={(value) => updateField("quantity", value)}
+                        setInputValue={(value) =>
+                            updateField("quantity", value)
+                        }
                         selectValue={form.unit}
                         setSelectValue={(value) => updateField("unit", value)}
                         selectOptions={["grams", "lbs", "cups", "units"]}

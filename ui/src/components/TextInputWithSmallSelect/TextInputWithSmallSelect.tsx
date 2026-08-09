@@ -48,7 +48,7 @@ export default function TextInputWithSmallSelect({
                     value={selectValue}
                 >
                     <option value="" disabled hidden>
-                        Unit
+                        units
                     </option>
                     {selectOptions.map((opt, i) => (
                         <option key={`${opt}-${i}`} value={opt}>

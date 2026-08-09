@@ -60,8 +60,8 @@ export async function createFoodItem(req: Request, res: Response) {
     }
 
     if (
-        (body.iAteThisToday && !body.localDate) ||
-        typeof body.localDate !== "string"
+        body.iAteThisToday &&
+        (!body.localDate || typeof body.localDate !== "string")
     ) {
         throw AppError.badRequest("Missing log date");
     }
@@ -88,7 +88,7 @@ export async function createFoodItem(req: Request, res: Response) {
             requireUserId(req),
             foodItem.id,
             foodItem.quantity,
-            body.localDate,
+            body.localDate!,
         );
     }
 
@@ -110,9 +110,8 @@ export async function getFoodLog(req: Request, res: Response) {
 }
 
 export async function createFoodLog(req: Request, res: Response) {
-    const { items, localDate } = (req.body ?? {}) as Partial<
-        CreateFoodLogRequest
-    >;
+    const { items, localDate } = (req.body ??
+        {}) as Partial<CreateFoodLogRequest>;
 
     if (typeof localDate !== "string" || !isValidsvSEFormat(localDate)) {
         throw AppError.badRequest("Invalid date");

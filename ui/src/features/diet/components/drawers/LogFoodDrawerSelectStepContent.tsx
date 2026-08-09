@@ -48,7 +48,7 @@ export function LogFoodDrawerSelectStepContent({
         return [
             {
                 key: "id",
-                label: "Selection",
+                label: "selection",
                 render: (row) => {
                     const isSelected = selectedFoodItems.some(
                         (item) => item.id === row.id,
@@ -66,7 +66,7 @@ export function LogFoodDrawerSelectStepContent({
             },
             {
                 key: "name",
-                label: "Food Name",
+                label: "name",
                 sortable: true,
                 render: (row) => {
                     const isSelected = selectedFoodItems.some(
@@ -86,7 +86,7 @@ export function LogFoodDrawerSelectStepContent({
             },
             {
                 key: "unit_of_measurement",
-                label: "Unit",
+                label: "unit",
                 sortable: true,
             },
         ];

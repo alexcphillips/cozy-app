@@ -25,6 +25,7 @@ export const dietApi = {
     },
 
     createFoodItem(log: CreateFoodItemRequest): Promise<FoodItem> {
+        console.log("create item:", log);
         if (log.iAteThisToday)
             log.localDate = Intl.DateTimeFormat("sv-SE").format(new Date());
         return api.post<FoodItem>(API_PATHS.diet.foodItems_create, log);
