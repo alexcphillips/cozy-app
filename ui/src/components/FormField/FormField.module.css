@@ -26,3 +26,14 @@
     outline: none;
     border: 2px solid var(--accent-pink);
 }
+
+.field-input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.field-input[type="number"]::-webkit-outer-spin-button,
+.field-input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}

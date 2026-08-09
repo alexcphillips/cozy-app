@@ -32,6 +32,11 @@ export default function FormField({
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 {...inputProps}
+                onWheel={
+                    inputProps.type === "number"
+                        ? (e) => e.currentTarget.blur()
+                        : undefined
+                }
             />
         </div>
     );

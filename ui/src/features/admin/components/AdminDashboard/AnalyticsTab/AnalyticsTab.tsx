@@ -93,6 +93,7 @@ export default function AnalyticsTab() {
                         placeholder="All Users"
                         value={userIdValue}
                         onChange={(e) => setUserIdValue(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
                     />
                 </div>
 

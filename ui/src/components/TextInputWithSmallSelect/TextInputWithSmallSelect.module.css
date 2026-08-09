@@ -12,6 +12,14 @@
     border-top-right-radius: 0 !important;
     border-bottom-right-radius: 0 !important;
     border-right: none !important;
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.inputs-container input::-webkit-outer-spin-button,
+.inputs-container input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .inputs-container :global(select),

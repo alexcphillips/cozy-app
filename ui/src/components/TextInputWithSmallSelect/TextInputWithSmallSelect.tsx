@@ -38,6 +38,7 @@ export default function TextInputWithSmallSelect({
                     step="any"
                     className={`${inputClassName} ${styles["compound-input"]}`}
                     onChange={(e) => setInputValue(e.target.value)}
+                    onWheel={(e) => e.currentTarget.blur()}
                     value={inputValue}
                 />
                 <select

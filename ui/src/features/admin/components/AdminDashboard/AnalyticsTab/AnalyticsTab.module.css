@@ -56,6 +56,17 @@
     box-shadow: 0 0 0 4px rgba(212, 136, 150, 0.12);
 }
 
+.input-group input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.input-group input[type="number"]::-webkit-outer-spin-button,
+.input-group input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 .content-body {
     background-color: #fcf6fcb0;
     border: 2px dashed #f2d2ee;

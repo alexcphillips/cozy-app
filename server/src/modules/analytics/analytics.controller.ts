@@ -54,5 +54,5 @@ export async function createAnalyticsEvent(req: Request, res: Response) {
         properties,
     );
 
-    return res.sendStatus(201);
+    return res.sendStatus(204);
 }
