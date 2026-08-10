@@ -20,7 +20,7 @@ export default function Budgeting() {
                             label: "expenses",
                             backgroundColor: "#FFE1E6",
                             borderColor: "#FF6484",
-                            data: [3000, 2000, 4000, 6000].map(
+                            data: [600, 1000, 1500, 200].map(
                                 (num) => -Math.abs(num),
                             ),
                         },
