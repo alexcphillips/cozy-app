@@ -1,0 +1,12 @@
+.page {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin: 16px;
+}
+
+.income-expenses-chart {
+    height: 100px;
+    width: 100%;
+    position: relative;
+}

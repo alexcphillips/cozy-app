@@ -32,6 +32,16 @@ export const API_PATHS = {
     books: {
         search: "/book",
     },
+    finance: {
+        cashFlow: "/cash-flow",
+        budget: "/budget",
+        transactions: "/transactions",
+        transactionItem: "/transactions/:transactionId",
+        milestones: "/milestones",
+        milestoneItem: "/milestones/:milestoneId",
+        debts: "/debts",
+        debtItem: "/debts/:debtId",
+    },
 } as const;
 
 /**

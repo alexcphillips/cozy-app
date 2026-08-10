@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { booksRouter } from "./modules/books/books.routes";
 import { dietRouter } from "./modules/diet/diet.routes";
+import { financeRouter } from "./modules/finance/finance.routes";
 import { usersRouter } from "./modules/users/users.routes";
 import { analyticsRouter } from "./modules/analytics/analytics.routes";
 
@@ -19,3 +20,4 @@ apiRouter.use(usersRouter);
 apiRouter.use(analyticsRouter);
 apiRouter.use(dietRouter);
 apiRouter.use(booksRouter);
+apiRouter.use(financeRouter);

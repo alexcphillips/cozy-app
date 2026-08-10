@@ -22,8 +22,9 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         to: "/budgeting",
         border: "1px solid blue",
         icon: "",
-        isEnabled: false,
+        isEnabled: true,
         category: "finance",
+        description: "money",
     },
     {
         title: "Subscription Manager",
