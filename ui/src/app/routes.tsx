@@ -14,6 +14,7 @@ import Game from "../features/game/pages/Game";
 import Profile from "../features/profile/pages/Profile";
 import Admin from "@/features/admin/pages/Admin";
 import Budgeting from "@/features/finance/pages/Budgeting";
+import ChessCoordinates from "@/features/chessCoordinates/chessCoordinates";
 
 /**
  * THE route manifest - the client-side mirror of `server/src/routes.ts`.
@@ -40,13 +41,16 @@ export function AppRoutes() {
                         <Route index element={<Home />} />
                         <Route path={ROUTES.cozyCare} element={<CozyCare />} />
                         <Route path={ROUTES.library} element={<Library />} />
-                        <Route path={ROUTES.game} element={<Game />} />
+                        <Route path={ROUTES.game} element={<Game />} />{" "}
+                        <Route
+                            path={ROUTES.chessCoordinates}
+                            element={<ChessCoordinates />}
+                        />
                         <Route path={ROUTES.profile} element={<Profile />} />
                         <Route
                             path={ROUTES.budgeting}
                             element={<Budgeting />}
                         />
-
                         <Route element={<AdminRoute />}>
                             <Route path={ROUTES.admin} element={<Admin />} />
                         </Route>

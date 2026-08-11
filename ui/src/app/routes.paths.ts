@@ -11,6 +11,7 @@ export const ROUTES = {
     cozyCare: "/cozy-care",
     library: "/library",
     game: "/game",
+    chessCoordinates: "/chess-coordinates",
     budgeting: "/budgeting",
     admin: "/admin",
 } as const;

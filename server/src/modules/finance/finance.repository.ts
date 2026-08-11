@@ -25,20 +25,20 @@ function notImplemented(fn: string): never {
 
 /* ---------------------------------------------------------------- budget -- */
 
-export async function findBudget(userId: number): Promise<Budget | null> {
+export async function findBudget(_userId: number): Promise<Budget | null> {
     notImplemented("findBudget");
 }
 
 export async function insertBudget(
-    userId: number,
-    input: CreateBudgetRequest,
+    _userId: number,
+    _input: CreateBudgetRequest,
 ): Promise<Budget> {
     notImplemented("insertBudget");
 }
 
 export async function updateBudget(
-    userId: number,
-    edit: BudgetEdit,
+    _userId: number,
+    _edit: BudgetEdit,
 ): Promise<Budget> {
     notImplemented("updateBudget");
 }
@@ -46,85 +46,85 @@ export async function updateBudget(
 /* ---------------------------------------------------------- transactions -- */
 
 export async function findTransactions(
-    userId: number,
+    _userId: number,
 ): Promise<Transaction[]> {
     notImplemented("findTransactions");
 }
 
 export async function insertTransactions(
-    userId: number,
-    items: CreateTransactionRequest[],
+    _userId: number,
+    _items: CreateTransactionRequest[],
 ): Promise<Transaction[]> {
     notImplemented("insertTransactions");
 }
 
 export async function updateTransactions(
-    userId: number,
-    edits: TransactionEdit[],
+    _userId: number,
+    _edits: TransactionEdit[],
 ): Promise<Transaction[]> {
     notImplemented("updateTransactions");
 }
 
 /** @returns the deleted row, or `null` if it did not exist for this user. */
 export async function deleteTransaction(
-    transactionId: number,
-    userId: number,
+    _transactionId: number,
+    _userId: number,
 ): Promise<Transaction | null> {
     notImplemented("deleteTransaction");
 }
 
 /* ------------------------------------------------------------ milestones -- */
 
-export async function findMilestones(userId: number): Promise<Milestone[]> {
+export async function findMilestones(_userId: number): Promise<Milestone[]> {
     notImplemented("findMilestones");
 }
 
 export async function insertMilestone(
-    userId: number,
-    input: CreateMilestoneRequest,
+    _userId: number,
+    _input: CreateMilestoneRequest,
 ): Promise<Milestone> {
     notImplemented("insertMilestone");
 }
 
 export async function updateMilestones(
-    userId: number,
-    edits: MilestoneEdit[],
+    _userId: number,
+    _edits: MilestoneEdit[],
 ): Promise<Milestone[]> {
     notImplemented("updateMilestones");
 }
 
 /** @returns the deleted row, or `null` if it did not exist for this user. */
 export async function deleteMilestone(
-    milestoneId: number,
-    userId: number,
+    _milestoneId: number,
+    _userId: number,
 ): Promise<Milestone | null> {
     notImplemented("deleteMilestone");
 }
 
 /* ----------------------------------------------------------------- debts -- */
 
-export async function findDebts(userId: number): Promise<Debt[]> {
+export async function findDebts(_userId: number): Promise<Debt[]> {
     notImplemented("findDebts");
 }
 
 export async function insertDebt(
-    userId: number,
-    input: CreateDebtRequest,
+    _userId: number,
+    _input: CreateDebtRequest,
 ): Promise<Debt> {
     notImplemented("insertDebt");
 }
 
 export async function updateDebts(
-    userId: number,
-    edits: DebtEdit[],
+    _userId: number,
+    _edits: DebtEdit[],
 ): Promise<Debt[]> {
     notImplemented("updateDebts");
 }
 
 /** @returns the deleted row, or `null` if it did not exist for this user. */
 export async function deleteDebt(
-    debtId: number,
-    userId: number,
+    _debtId: number,
+    _userId: number,
 ): Promise<Debt | null> {
     notImplemented("deleteDebt");
 }
@@ -132,6 +132,6 @@ export async function deleteDebt(
 /* -------------------------------------------------------------- cash flow -- */
 
 /** One row per month: income transactions summed against expense transactions. */
-export async function findCashFlow(userId: number): Promise<CashFlow[]> {
+export async function findCashFlow(_userId: number): Promise<CashFlow[]> {
     notImplemented("findCashFlow");
 }

@@ -88,9 +88,7 @@ export async function editBudget(req: Request, res: Response) {
 
 /* ---------------------------------------------------------- transactions -- */
 
-function parseTransactionInput(
-    input: unknown,
-): CreateTransactionRequest {
+function parseTransactionInput(input: unknown): CreateTransactionRequest {
     const body = (input ?? {}) as Partial<CreateTransactionRequest>;
 
     if (
@@ -154,10 +152,7 @@ export async function editTransactions(req: Request, res: Response) {
     });
 
     res.status(200).json(
-        await financeRepository.updateTransactions(
-            requireUserId(req),
-            parsed,
-        ),
+        await financeRepository.updateTransactions(requireUserId(req), parsed),
     );
 }
 
@@ -246,9 +241,7 @@ export async function deleteMilestone(req: Request, res: Response) {
 /* ----------------------------------------------------------------- debts -- */
 
 export async function getDebts(req: Request, res: Response) {
-    res.status(200).json(
-        await financeRepository.findDebts(requireUserId(req)),
-    );
+    res.status(200).json(await financeRepository.findDebts(requireUserId(req)));
 }
 
 export async function createDebt(req: Request, res: Response) {

@@ -52,6 +52,15 @@ export const HOME_CONTENT_CARDS: HomeItem[] = [
         description: "very not finished",
     },
     {
+        title: "Chess Coordinates",
+        to: "/chess-coordinates",
+        border: "1px solid green",
+        icon: "",
+        isEnabled: true,
+        category: "fun",
+        description: "Do you know square coordinates?",
+    },
+    {
         title: "Cozy Care",
         to: "/cozy-care",
         border: "1px solid #f2b1ff",
