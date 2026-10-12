@@ -1,0 +1,12 @@
+import { Router } from "express";
+import { GEO_API_PATHS } from "@cozy/shared/geo";
+import { asyncHandler } from "../../../http/asyncHandler";
+import { geoAuth } from "../../middleware/geo-auth";
+import * as vendorsController from "./geo-vendors.controller";
+
+/** NPC vendors: what they sell and buy, and trading with them. */
+export const geoVendorsRouter: Router = Router();
+
+geoVendorsRouter.get(GEO_API_PATHS.vendors.list, geoAuth, asyncHandler(vendorsController.listVendors));
+geoVendorsRouter.post(GEO_API_PATHS.vendors.buy, geoAuth, asyncHandler(vendorsController.buy));
+geoVendorsRouter.post(GEO_API_PATHS.vendors.sell, geoAuth, asyncHandler(vendorsController.sell));

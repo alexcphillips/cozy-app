@@ -1,0 +1,130 @@
+.my-library {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    font-family: var(--font-cozy);
+}
+
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background-color: var(--bg-filter-default);
+    border: 1px solid var(--border-filter);
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition:
+        background-color 0.15s ease,
+        color 0.15s ease;
+}
+
+.filter-chip:hover {
+    background-color: var(--accent-pink-surface-wash);
+}
+
+.filter-chip:focus-visible {
+    outline: 2px solid var(--accent-pink);
+    outline-offset: 2px;
+}
+
+.filter-chip-active {
+    background-color: var(--bg-filter-active);
+    border-color: var(--accent-pink);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.filter-count {
+    font-size: 0.72rem;
+    opacity: 0.75;
+}
+
+.shelf-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    box-sizing: border-box;
+    background-color: var(--bg-surface);
+    border: 2px solid var(--accent-pink-soft);
+    border-radius: 1rem;
+}
+
+.tile-meta {
+    flex: 1;
+    min-width: 0;
+}
+
+.tile-title {
+    margin: 0 0 2px 0;
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text-primary);
+
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.tile-author,
+.tile-progress {
+    margin: 0;
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tile-progress {
+    margin-top: 4px;
+    font-weight: 600;
+    color: var(--accent-pink-deep);
+}
+
+.status-field {
+    display: block;
+}
+
+.status-select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    background-color: var(--accent-pink-wash);
+    border: 1px solid var(--accent-pink-soft);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.status-select:focus-visible {
+    outline: 2px solid var(--accent-pink);
+    outline-offset: 1px;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

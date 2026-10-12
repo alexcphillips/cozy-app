@@ -1,5 +1,4 @@
 import styles from "./LogFoodDrawerSelectStepContent.module.css";
-import sharedStyles from "./drawers.shared.module.css";
 import type { Column } from "@/components/Table/Table";
 import Table from "@/components/Table/Table";
 import FormField from "@/components/FormField/FormField";
@@ -13,7 +12,6 @@ type LogFoodDrawerSelectStepContentProps = {
     selectedFoodItems: FoodItem[];
     onSelectionChange: (selectedFoodItems: FoodItem[]) => void;
     isLoadingItems: boolean;
-    error: string;
 };
 
 export function LogFoodDrawerSelectStepContent({
@@ -21,7 +19,6 @@ export function LogFoodDrawerSelectStepContent({
     selectedFoodItems,
     onSelectionChange,
     isLoadingItems,
-    error,
 }: LogFoodDrawerSelectStepContentProps) {
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -29,7 +26,7 @@ export function LogFoodDrawerSelectStepContent({
         const query = normalizeSearchText(searchQuery);
 
         return foodItems.filter((item) =>
-            item.name.toLowerCase().includes(query),
+            normalizeSearchText(item.name).includes(query),
         );
     }, [foodItems, searchQuery]);
 
@@ -58,6 +55,8 @@ export function LogFoodDrawerSelectStepContent({
                             type="button"
                             className={`${styles["select-row-btn"]} ${isSelected ? styles["row-selected"] : ""}`}
                             onClick={() => handleSelection(row)}
+                            aria-pressed={isSelected}
+                            aria-label={`select ${row.name}`}
                         >
                             {isSelected ? <GrRadialSelected /> : <GrRadial />}
                         </button>
@@ -94,25 +93,17 @@ export function LogFoodDrawerSelectStepContent({
 
     return (
         <div className={styles["content"]}>
-            <form
-                id="log-food-form"
-                className={styles["log-food-form"]}
-                noValidate
-                autoComplete="off"
-            >
+            {/* Not a <form>: nothing here submits, and a lone text input inside
+                a form submits on Enter, which would reload the page. */}
+            <div className={styles["log-food-form"]}>
                 <FormField
                     id="food-search"
                     label="search food"
                     placeholder="Type food name..."
                     value={searchQuery}
                     onChange={setSearchQuery}
+                    autoComplete="off"
                 />
-
-                <p
-                    className={`${sharedStyles["error-message"]} ${error ? sharedStyles["error-message-visible"] : ""}`}
-                >
-                    {error}
-                </p>
 
                 {isLoadingItems ? (
                     <p className={styles["loading-text"]}>loading foods...</p>
@@ -121,7 +112,7 @@ export function LogFoodDrawerSelectStepContent({
                         <Table data={filteredFoodItems} columns={columns} />
                     </div>
                 )}
-            </form>
+            </div>
         </div>
     );
 }

@@ -1,0 +1,79 @@
+.discover {
+    display: flex;
+    flex-direction: column;
+}
+
+.search-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.search-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 260px;
+    max-width: 420px;
+    padding: 0 14px;
+    background-color: var(--bg-surface);
+    border: 2px solid var(--accent-pink-soft);
+    border-radius: 999px;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+/* Focus ring lives on the pill, not the bare input, so the whole field lights
+   up as one control. */
+.search-field:focus-within {
+    border-color: var(--accent-pink);
+    box-shadow: 0 0 0 4px var(--accent-pink-surface-wash);
+}
+
+.search-icon {
+    font-size: 0.9rem;
+    line-height: 1;
+}
+
+.search-input {
+    flex: 1;
+    min-width: 0;
+    height: 40px;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: var(--font-cozy);
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.search-input::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
+/* Hide the native clear affordance so the pill keeps its shape. */
+.search-input::-webkit-search-cancel-button {
+    appearance: none;
+}
+
+.result-count {
+    margin: 0;
+    font-family: var(--font-cozy);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.results {
+    transition: opacity 0.15s ease;
+}
+
+/* Dim rather than unmount while re-fetching, so paging doesn't flash an empty
+   grid between pages. */
+.results-loading {
+    opacity: 0.55;
+}

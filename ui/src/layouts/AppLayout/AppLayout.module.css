@@ -4,6 +4,7 @@
     min-height: 100vh;
     background-color: var(--bg-page);
     color: var(--text-primary);
+    font-family: var(--font-cozy);
 }
 
 .content {

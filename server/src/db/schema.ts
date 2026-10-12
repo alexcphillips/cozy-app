@@ -19,12 +19,16 @@ export async function ensureSchema() {
         // Independent Parent Tables
         await query(CREATE_USERS_TABLE_QUERY);
         await query(CREATE_FOOD_ITEM_TABLE_QUERY);
+        await query(CREATE_BOOK_TABLE_QUERY);
 
         // Dependent Child Tables
         await query(CREATE_FOOD_LOG_TABLE_QUERY);
         await query(CREATE_WEIGHT_ENTRIES_TABLE_QUERY);
         await query(CREATE_ANALYTICS_EVENT_TABLE_QUERY);
+        await query(CREATE_READING_INSTANCE_TABLE_QUERY);
+        await query(CREATE_READING_LOG_TABLE_QUERY);
         await query(ADD_ANALYTICS_TABLE_INDEXES);
+        await query(ADD_READING_TABLE_INDEXES);
 
         // Seed a test admin if local env
         if (ENV.NODE_ENV === "development") {
@@ -103,7 +107,81 @@ const CREATE_WEIGHT_ENTRIES_TABLE_QUERY = `
   );
 `;
 
+/**
+ * Books we have seen, keyed by Google's volume id so the same book saved by two
+ * users is one row. `authors` is a comma-joined string because it is only ever
+ * rendered, never queried by individual author.
+ */
+const CREATE_BOOK_TABLE_QUERY = `
+  CREATE TABLE IF NOT EXISTS book (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    google_volume_id VARCHAR(64) UNIQUE NOT NULL,
+    title VARCHAR(512) NOT NULL,
+    authors TEXT NOT NULL DEFAULT '',
+    thumbnail_url TEXT,
+    page_count INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_positive_page_count CHECK (page_count IS NULL OR page_count >= 0)
+  );
+`;
+
+/**
+ * One row per *time a user reads a book*, not per user-book pair. A re-read
+ * inserts a second instance so the first read's log survives intact, which is
+ * why progress hangs off this table rather than off `book`.
+ */
+const CREATE_READING_INSTANCE_TABLE_QUERY = `
+  CREATE TABLE IF NOT EXISTS reading_instance (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    book_id UUID NOT NULL REFERENCES book(id) ON DELETE CASCADE,
+    status VARCHAR(16) NOT NULL DEFAULT 'tbr',
+    progress_unit VARCHAR(16) NOT NULL DEFAULT 'page',
+    started_on DATE,
+    finished_on DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_reading_status
+      CHECK (status IN ('tbr', 'reading', 'finished', 'dnf')),
+    CONSTRAINT check_progress_unit
+      CHECK (progress_unit IN ('page', 'percent', 'minute'))
+  );
+`;
+
+/**
+ * The position reached on a given day, one row per instance per day. The UNIQUE
+ * constraint is load-bearing: because the value is an absolute position rather
+ * than a delta, re-logging the same day must overwrite (ON CONFLICT DO UPDATE)
+ * instead of appending a second row that would corrupt the pace calculation.
+ */
+const CREATE_READING_LOG_TABLE_QUERY = `
+  CREATE TABLE IF NOT EXISTS reading_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reading_instance_id UUID NOT NULL REFERENCES reading_instance(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    progress_value NUMERIC(10, 2) NOT NULL,
+    log_user_date DATE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_positive_progress CHECK (progress_value >= 0),
+    CONSTRAINT unique_instance_per_day UNIQUE (reading_instance_id, log_user_date)
+  );
+`;
+
 const ADD_ANALYTICS_TABLE_INDEXES = `
   CREATE INDEX IF NOT EXISTS idx_analytics_event_lookup
   ON analytics_event (created_at DESC, user_id);
 `;
+
+const ADD_READING_TABLE_INDEXES = `
+  CREATE INDEX IF NOT EXISTS idx_reading_instance_user
+  ON reading_instance (user_id, status);
+
+  CREATE INDEX IF NOT EXISTS idx_reading_log_instance_date
+  ON reading_log (reading_instance_id, log_user_date DESC);
+`;
+
+// const CREATE_PLAYER_TABLE_QUERY = `
+
+// `

@@ -1,0 +1,39 @@
+.button {
+    border: 1px solid var(--accent-pink-soft);
+    background-color: var(--accent-pink-surface);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    height: 2.25rem;
+    min-width: 4rem;
+    padding: 0 0.9rem;
+    border-radius: 8px;
+    cursor: pointer;
+
+    transition:
+        transform 0.15s ease,
+        background-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.button:hover:not(:disabled) {
+    transform: scale(1.06);
+    box-shadow: 0 4px 10px rgba(212, 136, 150, 0.25);
+}
+
+.button:focus-visible {
+    outline: 2px solid var(--accent-pink);
+    outline-offset: 2px;
+}
+
+.button:active:not(:disabled) {
+    transform: scale(0.96);
+}
+
+.button:disabled {
+    transform: none;
+    box-shadow: none;
+    opacity: 0.55;
+    cursor: not-allowed;
+}

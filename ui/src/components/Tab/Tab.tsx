@@ -9,6 +9,9 @@ interface TabProps {
 export default function Tab({ title, handleClick, isActive }: TabProps) {
     return (
         <button
+            type="button"
+            role="tab"
+            aria-selected={isActive}
             className={`${styles["tab-button"]} ${isActive ? styles["active"] : ""}`}
             onClick={handleClick}
         >

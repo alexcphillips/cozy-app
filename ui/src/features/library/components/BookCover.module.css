@@ -1,0 +1,24 @@
+.cover {
+    /* Reserved before load so the grid never reflows. */
+    aspect-ratio: 2 / 3;
+    width: 100%;
+    object-fit: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: linear-gradient(
+        160deg,
+        var(--accent-pink-surface-wash),
+        var(--accent-pink-soft)
+    );
+    box-shadow: 0 2px 8px rgba(212, 136, 150, 0.18);
+}
+
+.fallback-initial {
+    font-family: var(--font-cozy);
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 0 1px 4px rgba(186, 28, 90, 0.35);
+}

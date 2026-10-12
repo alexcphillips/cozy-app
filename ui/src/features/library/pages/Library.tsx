@@ -1,124 +1,110 @@
-import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import styles from "./Library.module.css";
-import type { Book } from "@cozy/shared";
-import { useDebounce } from "../../../hooks/useDebounce";
-import { toErrorMessage } from "../../../lib/api";
-import { booksApi } from "../api/books.api";
+import PageHeader from "@/components/PageHeader/PageHeader";
+import Tab from "@/components/Tab/Tab";
+import ErrorMessage from "@/components/ErrorMessage/ErrorMessage";
+import { useBookSearch } from "../hooks/useBookSearch";
+import { useLibrary } from "../hooks/useLibrary";
+import MeTab from "../tabs/MeTab";
+import DiscoverTab from "../tabs/DiscoverTab";
+import MyLibraryTab from "../tabs/MyLibraryTab";
+import BookClubTab from "../tabs/BookClubTab";
 
-/** Titles that indicate a boxed set rather than a single book. */
-const BOXED_SET_TITLES = ["collection set", "book collection", "book boxed set"];
+const TABS = [
+    { id: "me", label: "Me", subText: "What you're reading right now" },
+    { id: "discover", label: "Discover", subText: "Find your next read" },
+    {
+        id: "my-library",
+        label: "My Library",
+        subText: "Everything on your shelf",
+    },
+    {
+        id: "book-club",
+        label: "Book Club",
+        subText: "What everyone's reading together",
+    },
+] as const;
+
+type TabId = (typeof TABS)[number]["id"];
+
+/** Me, not Discover: you log reading daily and search for books occasionally. */
+const DEFAULT_TAB: TabId = "me";
+
+function isTabId(value: string | null): value is TabId {
+    return TABS.some((tab) => tab.id === value);
+}
 
 export default function Library() {
-    const [bookQuery, setBookQuery] = useState("");
-    const debouncedSearchTerm = useDebounce(bookQuery, 500);
-    const [booksResult, setBooksResult] = useState<Book[]>([]);
-    const [paginationPage, setPaginationPage] = useState(0);
-    const [doesNextPageExist, setDoesNextPageExist] = useState(false);
-    const [searchError, setSearchError] = useState<string | null>(null);
+    // The tab lives in the URL so refresh, back/forward, and shared links all
+    // land on the same tab.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tabParam = searchParams.get("tab");
+    const activeTabId: TabId = isTabId(tabParam) ? tabParam : DEFAULT_TAB;
 
-    // Search runs on the DEBOUNCED term, so the effect depends on that and on
-    // the page - never on `bookQuery`, which changes on every keystroke.
-    useEffect(() => {
-        const searchTerm = debouncedSearchTerm.trim();
+    // Both held here rather than inside the tabs, so switching tabs doesn't
+    // discard an in-progress search or refetch the shelf.
+    const search = useBookSearch();
+    const library = useLibrary();
 
-        if (!searchTerm) return;
-
-        let cancelled = false;
-
-        async function loadBooks() {
-            try {
-                const data = await booksApi.search(searchTerm, paginationPage);
-
-                if (cancelled) return;
-
-                // Boxed sets and omnibuses crowd out the actual books.
-                const results = data.books.filter((book) => {
-                    const title = book.volumeInfo.title.toLowerCase();
-                    return !BOXED_SET_TITLES.some((phrase) =>
-                        title.includes(phrase),
-                    );
-                });
-
-                setDoesNextPageExist(data.nextPageExists);
-                setBooksResult(results);
-                setSearchError(null);
-            } catch (err) {
-                if (!cancelled) setSearchError(toErrorMessage(err));
-            }
-        }
-
-        loadBooks();
-
-        // A slower earlier request must not overwrite a newer one's results.
-        return () => {
-            cancelled = true;
-        };
-    }, [debouncedSearchTerm, paginationPage]);
-
-    function handleNextPage() {
-        if (doesNextPageExist) setPaginationPage((s) => s + 1);
+    function handleSelectTab(tabId: TabId) {
+        setSearchParams(
+            (previous) => {
+                const next = new URLSearchParams(previous);
+                next.set("tab", tabId);
+                return next;
+            },
+            { replace: true },
+        );
     }
 
-    return (
-        <div className={styles["library-container"]}>
-            <div className={styles["actions-container"]}>
-                <input
-                    className={styles["book-search-input"]}
-                    placeholder="Search..."
-                    value={bookQuery}
-                    onChange={(e) => setBookQuery(e.target.value)}
-                />
+    const activeTab = TABS.find((tab) => tab.id === activeTabId) ?? TABS[0];
 
-                <div className={styles["pagination-actions"]}>
-                    <button onClick={() => setPaginationPage((s) => s - 1)}>
-                        prev
-                    </button>
-                    {paginationPage}
-                    <button onClick={() => handleNextPage()}>next</button>
-                </div>
+    return (
+        <div className={styles["page"]}>
+            <PageHeader text="Library" subText={activeTab.subText} />
+
+            <div className={styles["tab-bar"]} role="tablist">
+                {TABS.map((tab) => (
+                    <Tab
+                        key={tab.id}
+                        title={tab.label}
+                        isActive={tab.id === activeTabId}
+                        handleClick={() => handleSelectTab(tab.id)}
+                    />
+                ))}
             </div>
 
-            {searchError && <p>{searchError}</p>}
+            <div className={styles["tab-panel"]} role="tabpanel">
+                {library.error && <ErrorMessage message={library.error} />}
 
-            <div className={styles["books-section"]}>
-                {booksResult.map((book, index) => {
-                    return (
-                        <div
-                            className={styles["book"]}
-                            key={`${book.volumeInfo.title}-${index}`}
-                        >
-                            <div className={styles["top-section"]}>
-                                <div className={styles["title"]}>
-                                    {book.volumeInfo?.title}
-                                </div>
-                            </div>
+                {activeTabId === "me" && (
+                    <MeTab
+                        books={library.books}
+                        isLoading={library.isLoading}
+                        pendingId={library.pendingId}
+                        onLogProgress={library.logProgress}
+                        onSetStatus={library.setStatus}
+                    />
+                )}
 
-                            <div className={styles["author-section"]}>
-                                <div className={styles["author"]}>
-                                    {book.volumeInfo?.authors.join(", ")}
-                                </div>
-                            </div>
+                {activeTabId === "discover" && (
+                    <DiscoverTab
+                        search={search}
+                        savedVolumeIds={library.savedVolumeIds}
+                        onAddToLibrary={library.addBook}
+                    />
+                )}
 
-                            {/* <div className={styles["genre-section"]}>
-                                <div className={styles["genre"]}>
-                                    {book.volumeInfo?.categories}
-                                </div>
-                            </div> */}
+                {activeTabId === "my-library" && (
+                    <MyLibraryTab
+                        books={library.books}
+                        isLoading={library.isLoading}
+                        pendingId={library.pendingId}
+                        onSetStatus={library.setStatus}
+                    />
+                )}
 
-                            <div className={styles["image-section"]}>
-                                {book.volumeInfo?.imageLinks?.thumbnail && (
-                                    <img
-                                        className={styles["book-image"]}
-                                        src={
-                                            book.volumeInfo?.imageLinks
-                                                ?.thumbnail
-                                        }
-                                    />
-                                )}
-                            </div>
-                        </div>
-                    );
-                })}
+                {activeTabId === "book-club" && <BookClubTab />}
             </div>
         </div>
     );

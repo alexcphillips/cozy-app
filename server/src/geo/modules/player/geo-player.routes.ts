@@ -1,0 +1,21 @@
+import { Router } from "express";
+import { GEO_API_PATHS } from "@cozy/shared/geo";
+import { asyncHandler } from "../../../http/asyncHandler";
+import { geoAuth } from "../../middleware/geo-auth";
+import * as playerController from "./geo-player.controller";
+
+/** The signed-in player's own state: inventory, equipment, talisman bag, hands, lunchbox, bait, XP. */
+export const geoPlayerRouter: Router = Router();
+
+geoPlayerRouter.get(GEO_API_PATHS.me.root, geoAuth, asyncHandler(playerController.getMe));
+geoPlayerRouter.put(GEO_API_PATHS.me.equipmentSlot, geoAuth, asyncHandler(playerController.setEquipment));
+geoPlayerRouter.put(GEO_API_PATHS.me.talismanBagEntry, geoAuth, asyncHandler(playerController.addToTalismanBag));
+geoPlayerRouter.delete(GEO_API_PATHS.me.talismanBagEntry, geoAuth, asyncHandler(playerController.removeFromTalismanBag));
+geoPlayerRouter.put(GEO_API_PATHS.me.hand, geoAuth, asyncHandler(playerController.setHand));
+geoPlayerRouter.post(GEO_API_PATHS.me.savedHands, geoAuth, asyncHandler(playerController.saveHand));
+geoPlayerRouter.post(GEO_API_PATHS.me.loadSavedHand, geoAuth, asyncHandler(playerController.loadSavedHand));
+geoPlayerRouter.delete(GEO_API_PATHS.me.savedHand, geoAuth, asyncHandler(playerController.deleteSavedHand));
+geoPlayerRouter.put(GEO_API_PATHS.me.lunchboxSlot, geoAuth, asyncHandler(playerController.packLunchbox));
+geoPlayerRouter.delete(GEO_API_PATHS.me.lunchboxSlot, geoAuth, asyncHandler(playerController.unpackLunchbox));
+geoPlayerRouter.put(GEO_API_PATHS.me.baitSlot, geoAuth, asyncHandler(playerController.packBait));
+geoPlayerRouter.delete(GEO_API_PATHS.me.baitSlot, geoAuth, asyncHandler(playerController.unpackBait));

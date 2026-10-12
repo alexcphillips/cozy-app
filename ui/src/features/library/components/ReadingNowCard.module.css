@@ -1,0 +1,129 @@
+.card {
+    display: flex;
+    gap: 18px;
+    padding: 18px;
+    box-sizing: border-box;
+    background: linear-gradient(
+        135deg,
+        var(--accent-pink-wash),
+        var(--accent-pink-surface-wash)
+    );
+    border: 2px solid var(--accent-pink-soft);
+    border-radius: 1rem;
+    font-family: var(--font-cozy);
+}
+
+.cover-slot {
+    /* Fixed width so the cover's 2:3 ratio resolves against a known size
+       rather than stretching with the flex row. */
+    flex: 0 0 96px;
+}
+
+.body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.title {
+    margin: 0;
+    font-size: 1.1rem;
+    line-height: 1.25;
+    color: var(--text-primary);
+}
+
+.author {
+    margin: 2px 0 12px 0;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.progress-text {
+    margin: 0 0 6px 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.progress-percent {
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+.progress-track {
+    height: 8px;
+    width: 100%;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--accent-pink-soft);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        var(--accent-pink-surface),
+        var(--accent-pink)
+    );
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+
+.estimate {
+    margin: 8px 0 14px 0;
+    font-size: 0.78rem;
+    font-style: italic;
+    color: var(--text-secondary);
+}
+
+.actions {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: auto;
+}
+
+.log-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.log-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.log-input {
+    width: 7rem;
+    height: 2.25rem;
+    box-sizing: border-box;
+    padding: 0 10px;
+    background-color: var(--bg-surface);
+    border: 2px solid var(--accent-pink-soft);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.log-input:focus {
+    outline: none;
+    border-color: var(--accent-pink);
+}
+
+@media (max-width: 560px) {
+    .card {
+        flex-direction: column;
+    }
+
+    .cover-slot {
+        flex: 0 0 auto;
+        max-width: 96px;
+    }
+}

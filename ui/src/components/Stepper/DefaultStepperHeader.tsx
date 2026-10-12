@@ -1,20 +1,19 @@
+import type { ReactNode } from "react";
 import styles from "./DefaultStepperHeader.module.css";
 
-type DefaultStepperHeader = {
+export type DefaultStepperHeaderProps = {
     title: string;
-    StepperComponent: React.FC;
+    stepper: ReactNode;
 };
 
 export default function DefaultStepperHeader({
     title,
-    StepperComponent,
-}: DefaultStepperHeader) {
+    stepper,
+}: DefaultStepperHeaderProps) {
     return (
         <div className={styles["header"]}>
             <div className={styles["title"]}>{title}</div>
-            <div className={styles["stepper-container"]}>
-                <StepperComponent />
-            </div>
+            <div className={styles["stepper-container"]}>{stepper}</div>
         </div>
     );
 }

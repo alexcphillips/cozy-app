@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import styles from "./Navbar.module.css";
 import { navItems } from "./navbar.items";
 import NavbarItem from "./NavItem";
@@ -7,9 +8,12 @@ import LogoutButton from "../../features/auth/components/LogoutButton/LogoutButt
 import AppTitle from "../../components/AppTitle/AppTitle";
 import LoginButton from "../../features/auth/components/LoginButton/LoginButton";
 import AdminLink from "@/features/admin/components/AdminLink/AdminLink";
+import { AppConstants } from "@/constants";
+import { ROUTES } from "@/app/routes.paths";
 
 export function Navbar() {
-    const isGameRoute = location.pathname.startsWith("/game");
+    const location = useLocation();
+    const isGameRoute = location.pathname.startsWith(ROUTES.game);
     const isLoggedIn = useAuthStore((s) => s.isAuthenticated);
     const isAdmin = useAuthStore((s) => s.isAdmin);
 
@@ -18,7 +22,7 @@ export function Navbar() {
     return (
         !isGameRoute && (
             <div className={styles["navbar"]}>
-                <AppTitle text={"Very Cool Web Application"} />
+                <AppTitle text={AppConstants.APP_TITLE} />
 
                 <div className={styles["links-container"]}>
                     {leftLinks.map((item) => (

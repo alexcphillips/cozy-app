@@ -2,7 +2,13 @@
     display: grid;
     grid-template-columns: 1fr;
     gap: 20px;
-    margin: 16px;
+    /* `width: 100%` resolves against <main>, so the page claims the full row
+       before `max-width` caps it and the auto margins center what's left. */
+    width: 100%;
+    max-width: var(--page-max-width);
+    margin: 16px auto;
+    padding: 0 16px;
+    box-sizing: border-box;
 }
 
 .page-section {
@@ -13,7 +19,6 @@
     font-family: var(--font-cozy);
     background-color: var(--accent-pink-tint);
     box-sizing: border-box;
-    width: 95%;
 }
 
 .weight-section {

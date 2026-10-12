@@ -1,0 +1,66 @@
+import type { GeoAdminAuditEntry, GeoAdminLedgerEntry, GeoAdminPlayer, GeoRole } from "@cozy/shared/geo";
+import { query } from "../../../db";
+import type { TxQuery } from "../../db/transaction";
+import { FIND_ADMIN_PLAYER, FIND_AUDIT, FIND_LEDGER, FIND_PLAYERS, INSERT_AUDIT, SET_BANNED, SET_ROLE } from "./geo-admin.sql";
+import type { AdminPlayerRow, AuditRow, LedgerRow } from "./geo-admin.types";
+
+function toAdminPlayer(row: AdminPlayerRow): GeoAdminPlayer {
+    return {
+        id: row.id,
+        displayName: row.display_name,
+        email: row.email,
+        role: row.role,
+        coins: Number(row.coins),
+        bannedAt: row.banned_at?.toISOString() ?? null,
+        createdAt: row.created_at.toISOString(),
+    };
+}
+
+export async function findPlayers(search: string | null): Promise<GeoAdminPlayer[]> {
+    const pattern = search ? `%${search.replace(/[%_\\]/g, (c) => `\\${c}`)}%` : null;
+    return (await query<AdminPlayerRow>(FIND_PLAYERS, [pattern])).map(toAdminPlayer);
+}
+
+export async function findPlayer(playerId: string, tx: TxQuery = query): Promise<GeoAdminPlayer | null> {
+    const [row] = await tx<AdminPlayerRow>(FIND_ADMIN_PLAYER, [playerId]);
+    return row ? toAdminPlayer(row) : null;
+}
+
+export async function findLedger(playerId: string): Promise<GeoAdminLedgerEntry[]> {
+    return (await query<LedgerRow>(FIND_LEDGER, [playerId])).map((row) => ({
+        delta: Number(row.delta),
+        reason: row.reason,
+        reference: row.reference,
+        createdAt: row.created_at.toISOString(),
+    }));
+}
+
+export async function setRole(tx: TxQuery, playerId: string, role: GeoRole): Promise<boolean> {
+    return (await tx(SET_ROLE, [playerId, role])).length > 0;
+}
+
+export async function setBanned(tx: TxQuery, playerId: string, banned: boolean): Promise<boolean> {
+    return (await tx(SET_BANNED, [playerId, banned])).length > 0;
+}
+
+/** Records what an admin did. Call inside the change's own transaction. */
+export async function audit(
+    tx: TxQuery,
+    adminId: string,
+    action: string,
+    target: string | null,
+    details: Record<string, unknown> | null = null,
+) {
+    await tx(INSERT_AUDIT, [adminId, action, target, details]);
+}
+
+export async function findAudit(): Promise<GeoAdminAuditEntry[]> {
+    return (await query<AuditRow>(FIND_AUDIT)).map((row) => ({
+        id: Number(row.id),
+        admin: row.admin,
+        action: row.action,
+        target: row.target,
+        details: row.details,
+        createdAt: row.created_at.toISOString(),
+    }));
+}

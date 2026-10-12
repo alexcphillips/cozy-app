@@ -1,4 +1,3 @@
-import sharedStyles from "./drawers.shared.module.css";
 import FormField from "@/components/FormField/FormField";
 import type { FoodItem } from "@cozy/shared";
 
@@ -6,23 +5,15 @@ type LogFoodDrawerAdjustStepContentProps = {
     selectedFoodItems: FoodItem[];
     quantities: Record<string, string>;
     onQuantitiesChange: (quantities: Record<string, string>) => void;
-    error: string;
 };
 
 export default function LogFoodDrawerAdjustStepContent({
     selectedFoodItems,
     quantities,
     onQuantitiesChange,
-    error,
 }: LogFoodDrawerAdjustStepContentProps) {
     return (
         <div>
-            <p
-                className={`${sharedStyles["error-message"]} ${error ? sharedStyles["error-message-visible"] : ""}`}
-            >
-                {error}
-            </p>
-
             {selectedFoodItems.map((foodItem) => (
                 <FormField
                     key={foodItem.id}

@@ -77,14 +77,14 @@ export default function FoodLogSection() {
 
     return (
         <>
-            <NewFoodDrawer
-                onClose={handleNewFoodDrawerClose}
-                isOpen={newFoodDrawerIsOpen}
-            />
-            <LogFoodDrawer
-                onClose={handleLogFoodDrawerClose}
-                isOpen={logFoodDrawerIsOpen}
-            />
+            {/* Rendered conditionally so unmounting resets the drawer state —
+                the drawers deliberately don't reset themselves. */}
+            {newFoodDrawerIsOpen && (
+                <NewFoodDrawer onClose={handleNewFoodDrawerClose} />
+            )}
+            {logFoodDrawerIsOpen && (
+                <LogFoodDrawer onClose={handleLogFoodDrawerClose} />
+            )}
 
             <div className={styles["food-log-container"]}>
                 <p className={styles["food-log-title"]}>your food log 🍓</p>

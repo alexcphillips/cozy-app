@@ -1,0 +1,55 @@
+import { query } from "../db";
+import { settleEndedAuctions } from "./modules/market/geo-market.repository";
+import { advanceElections } from "./modules/mayor/geo-mayor.repository";
+
+/** How often the clock-driven work runs. */
+const TICK_MS = 15_000;
+/** Housekeeping runs this often. */
+const CLEANUP_MS = 60 * 60_000;
+
+/**
+ * Refresh tokens a week past expiry or revocation. Kept that long so a reused
+ * (revoked) token is still recognised as stolen for a while.
+ */
+const DELETE_OLD_REFRESH_TOKENS = `
+  DELETE FROM geo.refresh_tokens
+  WHERE expires_at < now() - interval '7 days' OR revoked_at < now() - interval '7 days';
+`;
+
+/**
+ * geo-game's clock: settles auctions whose time is up and closes elections
+ * when theirs is. Every read also does this first, so the job is what makes
+ * it happen when nobody is looking (a winner gets their item, the new mayor's
+ * perks start) rather than what makes it correct.
+ *
+ * Safe on several servers at once: each step locks what it settles. Once an
+ * hour it also deletes refresh tokens long past use.
+ */
+export function startGeoJobs(): () => void {
+    let running = false;
+    const tick = async () => {
+        if (running) return;
+        running = true;
+        try {
+            await settleEndedAuctions();
+            await advanceElections();
+        } catch (error) {
+            console.error("geo jobs:", error);
+        } finally {
+            running = false;
+        }
+    };
+    const cleanup = () =>
+        query(DELETE_OLD_REFRESH_TOKENS).catch((error: unknown) => console.error("geo cleanup:", error));
+
+    void tick();
+    void cleanup();
+    const timer = setInterval(() => void tick(), TICK_MS);
+    const cleanupTimer = setInterval(() => void cleanup(), CLEANUP_MS);
+    timer.unref();
+    cleanupTimer.unref();
+    return () => {
+        clearInterval(timer);
+        clearInterval(cleanupTimer);
+    };
+}

@@ -1,0 +1,13 @@
+.error-message {
+    box-sizing: border-box;
+    min-height: 32px;
+    margin: 0;
+    padding: 6px;
+    border-radius: 4px;
+    background: transparent;
+    transition: background-color 0.15s ease;
+}
+
+.error-message-visible {
+    background: var(--color-error-bg);
+}

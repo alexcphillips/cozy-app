@@ -31,6 +31,9 @@ export const API_PATHS = {
     },
     books: {
         search: "/book",
+        library: "/library",
+        libraryItem: "/library/:instanceId",
+        libraryItemProgress: "/library/:instanceId/progress",
     },
     finance: {
         cashFlow: "/cash-flow",

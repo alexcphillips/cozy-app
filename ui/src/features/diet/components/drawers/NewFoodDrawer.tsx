@@ -1,18 +1,18 @@
 import { useState } from "react";
 import Drawer from "@/components/Drawer/Drawer";
-import BackdropOverlay from "@/components/BackdropOverlay/BackdropOverlay";
-import DefaultDismissButton from "@/components/Drawer/DefaultDismissButton";
 import { DefaultFooter } from "@/components/Drawer/DefaultFooter";
 import DefaultHeaderComponent from "@/components/Drawer/DefaultHeaderComponent";
 import styles from "./NewFoodDrawer.module.css";
 import sharedStyles from "./drawers.shared.module.css";
 import FormField from "@/components/FormField/FormField";
 import TextInputWithSmallSelect from "@/components/TextInputWithSmallSelect/TextInputWithSmallSelect";
+import ErrorMessage from "@/components/ErrorMessage/ErrorMessage";
 import { toErrorMessage } from "@/lib/api";
 import { dietApi } from "../../api/diet.api";
 
+const TITLE = "new food item";
+
 export type NewFoodDrawerProps = {
-    isOpen: boolean;
     onClose: () => void;
 };
 
@@ -38,7 +38,7 @@ const EMPTY_FORM: FoodFormState = {
     sodium: "",
 };
 
-export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
+export default function NewFoodDrawer({ onClose }: NewFoodDrawerProps) {
     const [form, setForm] = useState<FoodFormState>(EMPTY_FORM);
     const [iAteThisToday, setIAteThisToday] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -89,7 +89,7 @@ export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
                 iAteThisToday,
             });
 
-            handleClose();
+            onClose();
         } catch (err) {
             setError(toErrorMessage(err));
         } finally {
@@ -97,26 +97,18 @@ export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
         }
     }
 
-    function handleClose() {
-        setForm(EMPTY_FORM);
-        setIAteThisToday(false);
-        setError("");
-        onClose();
-    }
-
     return (
         <Drawer
-            isOpen={isOpen}
-            header={<DefaultHeaderComponent title="new food item" />}
+            title={TITLE}
+            onClose={onClose}
+            header={<DefaultHeaderComponent title={TITLE} />}
             footer={
                 <DefaultFooter
-                    onClose={handleClose}
+                    onClose={onClose}
                     formId="food-entry-form"
                     isLoading={isLoading}
                 />
             }
-            backdrop={<BackdropOverlay onClose={handleClose} />}
-            dismissButton={<DefaultDismissButton onClose={handleClose} />}
         >
             <div className={styles["content"]}>
                 <form
@@ -214,11 +206,7 @@ export default function NewFoodDrawer({ isOpen, onClose }: NewFoodDrawerProps) {
                         onChange={(value) => updateField("sodium", value)}
                     />
 
-                    <p
-                        className={`${sharedStyles["error-message"]} ${error ? sharedStyles["error-message-visible"] : ""}`}
-                    >
-                        {error}
-                    </p>
+                    <ErrorMessage message={error} />
                 </form>
             </div>
         </Drawer>

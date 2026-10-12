@@ -10,6 +10,7 @@ import {
 import { authApi } from "../../api/auth.api";
 import { toErrorMessage } from "../../../../lib/api";
 import { ROUTES } from "../../../../app/routes.paths";
+import PasswordInput from "../../../../components/PasswordInput/PasswordInput";
 
 export default function RegisterForm() {
     const [email, setEmail] = useState("");
@@ -87,10 +88,9 @@ export default function RegisterForm() {
                     <label htmlFor="password" className="screen-reader-only">
                         Password:
                     </label>
-                    <input
+                    <PasswordInput
                         id="password"
                         placeholder="Password"
-                        type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         disabled={isLoading}

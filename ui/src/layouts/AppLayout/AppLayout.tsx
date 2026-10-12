@@ -1,15 +1,12 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { Navbar } from "../Navbar/Navbar";
 import styles from "./AppLayout.module.css";
-import SideNav from "../SideNav/SideNav";
-
-const pathsNoSidenav = ["/game"];
+import { ROUTES } from "@/app/routes.paths";
 
 export default function AppLayout() {
     const location = useLocation();
 
-    const isGameRoute = location.pathname.startsWith("/game");
-    const showSideNav = !pathsNoSidenav.includes(location.pathname);
+    const isGameRoute = location.pathname.startsWith(ROUTES.game);
 
     return (
         <div className={styles.container}>
@@ -20,8 +17,6 @@ export default function AppLayout() {
                     isGameRoute ? styles.gameMode : styles.pageMode
                 }`}
             >
-                {showSideNav && <SideNav />}
-
                 <Outlet />
             </main>
         </div>

@@ -8,6 +8,7 @@ import { useAuthStore } from "../../stores/auth.store";
 import { authApi } from "../../api/auth.api";
 import { toErrorMessage } from "../../../../lib/api";
 import { ROUTES } from "../../../../app/routes.paths";
+import PasswordInput from "../../../../components/PasswordInput/PasswordInput";
 
 export default function LoginForm() {
     const [email, setEmail] = useState("");
@@ -67,10 +68,9 @@ export default function LoginForm() {
                     <label htmlFor="password" className="screen-reader-only">
                         Password:
                     </label>
-                    <input
+                    <PasswordInput
                         className={styles["password-input"]}
                         id="password"
-                        type="password"
                         placeholder="Password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}

@@ -1,0 +1,260 @@
+import type { GeoChestTier, GeoQualityTier } from "@cozy/shared/geo";
+import type { FishDef } from "./fishing";
+import type { Action, CardDef, EffectDef, EnemyMove, FoodDef, StatModifier, Stats, StatusDef } from "../engine/engine.types";
+
+export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
+
+/** Equipment slot kinds, matching the app's character screen. */
+export type EquipKind = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "ring";
+
+/**
+ * A weapon's type (dagger) and style (melee), from `data/config/weapons.ts`.
+ * Cards name these in `requiresWeapon`.
+ */
+export type WeaponTags = { type: string; style: string };
+
+/** A label/value row on the app's item detail page, e.g. Speed · Slow. */
+export type ItemStat = { label: string; value: string };
+
+/** Fields every item has, for the app to draw it. */
+type ItemBase = {
+    id: string;
+    name: string;
+    /** A Game Icons name, as the app's icon set uses. */
+    icon: string;
+    rarity: Rarity;
+    description: string;
+    /**
+     * Display rows beyond what the server works out itself (stat modifiers
+     * become rows on their own). Words only: no rule reads these.
+     */
+    stats?: ItemStat[];
+    /**
+     * Passive effects as the app lists them. PLACEHOLDER text for rules not
+     * built yet; an effect that is real lives in `effects` and should say
+     * so here too.
+     */
+    effectText?: string[];
+    /**
+     * What an NPC pays for one, in coins. Also the lowest price it can be
+     * listed at on the Market, and the base of every Market fee. Unset falls
+     * back to a PLACEHOLDER by rarity (`sellValueOf`) until it's set by hand.
+     */
+    sellValue?: number;
+    /** A quality catch's tier, e.g. a Silver Salmon (`data/fish/`). */
+    quality?: GeoQualityTier;
+    /**
+     * Account-bound: never sold, listed or used in crafting. Every quality
+     * fish is. Checked wherever an item would leave its owner.
+     */
+    soulbound?: boolean;
+};
+
+/**
+ * Everything a player can own. One union, so the inventory is one table and
+ * one list in the app, and each kind adds only what it needs.
+ */
+export type ItemDef =
+    | (ItemBase & {
+          kind: "card";
+          /** The card this item plays as. */
+          cardId: string;
+          maxCharges: number;
+          /** Fishing cards: whether it raises or lowers a catch's quality odds. */
+          finesse?: "raises" | "lowers";
+      })
+    | (ItemBase & {
+          kind: "equipment";
+          slot: EquipKind;
+          modifiers?: StatModifier[];
+          effects?: EffectDef[];
+          /** Cards only usable while this is equipped. */
+          unlocksCards?: string[];
+          /** Main-hand weapons: their type and style, which decide what cards they can play. */
+          weapon?: WeaponTags;
+      })
+    | (ItemBase & {
+          /** Counts only while in the Talisman Bag, one copy per talisman; never equipped. */
+          kind: "talisman";
+          modifiers?: StatModifier[];
+          effects?: EffectDef[];
+      })
+    | (ItemBase & {
+          kind: "material";
+          skill: string;
+          /** How many fit in one inventory stack. */
+          stackSize: number;
+          /** A compact material: `ratio` of `itemId` pressed into one (`compact` in its file). */
+          compactOf?: { itemId: string; ratio: number };
+      })
+    | (ItemBase & {
+          /** Used up from a stack: food in combat Runs, bait in fishing Runs. */
+          kind: "consumable";
+          stackSize: number;
+          /**
+           * Food: packed in the lunchbox and eaten in a Run, which takes the
+           * turn. `actions` happen to the eater (`self`).
+           */
+          food?: { tags?: string[]; actions: Action[]; effects?: EffectDef[] };
+          /**
+           * Bait: packed in the bait slots and used in a fishing Run.
+           * PLACEHOLDER: no rule reads `scent` until the fishing Run exists.
+           */
+          bait?: { scent: number };
+      })
+    | (ItemBase & {
+          /** Keys, Rift Lenses: anything that isn't gear, a card or a material. */
+          kind: "misc";
+          stackSize: number;
+      });
+
+/** Kinds that pile into one inventory row rather than one row per copy. */
+export function isStackable(item: ItemDef): item is Extract<ItemDef, { stackSize: number }> {
+    return "stackSize" in item;
+}
+
+export type LootEntry = {
+    itemId: string;
+    /** 0–1. */
+    chance: number;
+    quantity: number;
+};
+
+/** A chest tier: what it's called and what opening one costs. */
+export type ChestTierDef = {
+    id: GeoChestTier;
+    name: string;
+    /** Coins to open; 0 is free. */
+    cost: number;
+};
+
+/** One possible item in a chest pool, picked by weight against the others. */
+export type ChestLootEntry = {
+    itemId: string;
+    weight: number;
+    /** Rolled between these, inclusive. */
+    quantity: { min: number; max: number };
+};
+
+/**
+ * A pool rolls `rolls` times, each roll one weighted pick (repeats allowed).
+ * A chest is several pools, e.g. one roll from rares as the floor, then 2–4
+ * from materials. There is no "nothing" entry: every roll gives an item.
+ */
+export type ChestLootPool = {
+    rolls: { min: number; max: number };
+    entries: ChestLootEntry[];
+};
+
+/** A chest that may be in the selection: its tier, its chance to appear, and its loot. */
+export type ChestOfferDef = {
+    tier: GeoChestTier;
+    /** 0–1. At least one offer in a reward has 1, so a selection is never empty. */
+    chance: number;
+    pools: ChestLootPool[];
+};
+
+/**
+ * A chance that a win gives a chest selection, to pick one from, in place of
+ * the loot list. Coins and XP are still given as usual.
+ */
+export type ChestRewardDef = {
+    /** 0–1. */
+    chance: number;
+    offers: ChestOfferDef[];
+};
+
+export type EnemyDef = {
+    id: string;
+    name: string;
+    /** The app's sprite name. */
+    sprite: string;
+    stats: Stats;
+    moves: EnemyMove[];
+    /** Innate effects, e.g. a spider that poisons on hit. */
+    effects?: EffectDef[];
+    loot: LootEntry[];
+    /** A chance of a chest selection instead of `loot`, e.g. for a boss. */
+    chests?: ChestRewardDef;
+    /** Gone from the map once it has beaten you, rather than waiting to go again. */
+    leavesAfterWinning?: boolean;
+    /** Coins dropped on a kill, rolled between these, inclusive. */
+    coins?: { min: number; max: number };
+    /** Combat XP for the kill. */
+    xp: number;
+};
+
+/** Something a vendor sells. */
+export type VendorOffer = {
+    itemId: string;
+    /** Coins per unit. */
+    price: number;
+    /** Units left; null is unlimited. Only unlimited is built so far. */
+    stock: null;
+};
+
+/**
+ * Which items a vendor buys. An item must match every rule given: e.g.
+ * `{ kinds: ["material"], skills: ["farming"] }` is farming materials only.
+ */
+export type VendorBuyRule = {
+    kinds?: ItemDef["kind"][];
+    /** Cards and materials carry a skill; other kinds never match a skill rule. */
+    skills?: string[];
+    itemIds?: string[];
+};
+
+export type VendorDef = {
+    id: string;
+    name: string;
+    /** A Game Icons name. */
+    icon: string;
+    description: string;
+    sells: VendorOffer[];
+    buys: VendorBuyRule;
+};
+
+/** So many of one item. */
+export type ItemAmount = { itemId: string; quantity: number };
+
+/**
+ * A crafting recipe: the inputs are used up and the output made, per craft.
+ * Skill levels are needed, never spent.
+ */
+export type RecipeDef = {
+    id: string;
+    inputs: ItemAmount[];
+    output: ItemAmount;
+    skills?: { skill: string; level: number }[];
+};
+
+/** A mayor's perk: words for the app, and the stats it changes for everyone. */
+export type MayorPerkDef = {
+    id: string;
+    name: string;
+    description: string;
+    /** A Game Icons name. */
+    icon: string;
+    modifiers: StatModifier[];
+};
+
+export type MayorDef = {
+    id: string;
+    name: string;
+    perks: MayorPerkDef[];
+};
+
+export type GameContent = {
+    statuses: Record<string, StatusDef>;
+    cards: Record<string, CardDef>;
+    /** Built from the items that are food, keyed by item id. */
+    foods: Record<string, FoodDef>;
+    items: Record<string, ItemDef>;
+    /** Fish that can bite in a fishing Run (`data/fish/`). */
+    fish: Record<string, FishDef>;
+    enemies: Record<string, EnemyDef>;
+    vendors: Record<string, VendorDef>;
+    mayors: Record<string, MayorDef>;
+    recipes: Record<string, RecipeDef>;
+    chestTiers: Record<GeoChestTier, ChestTierDef>;
+};

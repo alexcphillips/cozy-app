@@ -4,6 +4,7 @@ import { dietRouter } from "./modules/diet/diet.routes";
 import { financeRouter } from "./modules/finance/finance.routes";
 import { usersRouter } from "./modules/users/users.routes";
 import { analyticsRouter } from "./modules/analytics/analytics.routes";
+import { geoRouter } from "./geo/geo.routes";
 
 /**
  * THE route manifest. Every module that serves HTTP is mounted here and
@@ -21,3 +22,7 @@ apiRouter.use(analyticsRouter);
 apiRouter.use(dietRouter);
 apiRouter.use(booksRouter);
 apiRouter.use(financeRouter);
+
+// geo-game: a separate product sharing this server. Its own manifest is
+// `geo/geo.routes.ts`; every path is under /geo.
+apiRouter.use(geoRouter);

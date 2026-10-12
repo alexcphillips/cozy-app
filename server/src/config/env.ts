@@ -33,6 +33,8 @@ export const ENV = {
     },
 
     JWT_SECRET: required("JWT_SECRET"),
+    /** geo-game's token secret. Empty = derived from JWT_SECRET. */
+    GEO_JWT_SECRET: optional("GEO_JWT_SECRET", ""),
     GOOGLE_API_KEY: optional("GOOGLE_API_KEY", ""),
 
     /** Browser origins allowed to call this API with credentials. */

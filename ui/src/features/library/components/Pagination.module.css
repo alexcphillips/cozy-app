@@ -1,0 +1,51 @@
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 24px 0 8px 0;
+    font-family: var(--font-cozy);
+}
+
+.page-button {
+    background-color: var(--accent-pink-wash);
+    border: 2px solid var(--accent-pink-soft);
+    color: var(--accent-pink-deep);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        transform 0.15s ease;
+}
+
+.page-button:hover:not(:disabled) {
+    background-color: var(--accent-pink-surface-wash);
+    border-color: var(--accent-pink);
+    transform: translateY(-1px);
+}
+
+.page-button:focus-visible {
+    outline: 2px solid var(--accent-pink);
+    outline-offset: 2px;
+}
+
+.page-button:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+.page-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.page-indicator {
+    min-width: 5.5rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}

@@ -4,10 +4,27 @@
     "version": "0.0.0",
     "type": "module",
     "main": "src/index.ts",
+    "imports": {
+        "#geo/models": "./src/geo/content/models.ts"
+    },
     "scripts": {
-        "dev": "tsx watch --env-file ../.env src/index.ts",
+        "dev": "tsx watch --include \"src/geo/data/**/*.ts\" --env-file ../.env src/index.ts",
         "start": "tsx --env-file ../.env src/index.ts",
         "typecheck": "tsc -p tsconfig.json",
+        "test:geo": "node --import tsx --test \"src/geo/**/*.test.ts\"",
+        "wipe:geo": "tsx --env-file ../.env src/geo/dev/geo-wipe.ts",
+        "smoke:geo": "tsx --env-file ../.env src/geo/dev/geo-smoke.ts",
+        "smoke:geo-suggestions": "tsx --env-file ../.env src/geo/dev/geo-suggestions-smoke.ts",
+        "smoke:geo-places": "tsx --env-file ../.env src/geo/dev/geo-places-smoke.ts",
+        "smoke:geo-economy": "tsx --env-file ../.env src/geo/dev/geo-economy-smoke.ts",
+        "smoke:geo-crafting": "tsx --env-file ../.env src/geo/dev/geo-crafting-smoke.ts",
+        "smoke:geo-chests": "tsx --env-file ../.env src/geo/dev/geo-chests-smoke.ts",
+        "smoke:geo-friends": "tsx --env-file ../.env src/geo/dev/geo-friends-smoke.ts",
+        "smoke:geo-fishing": "tsx --env-file ../.env src/geo/dev/geo-fishing-smoke.ts",
+        "smoke:geo-inbox": "tsx --env-file ../.env src/geo/dev/geo-inbox-smoke.ts",
+        "geo:admin": "tsx --env-file ../.env src/geo/dev/geo-make-admin.ts",
+        "geo:sell-values": "tsx src/geo/dev/geo-sell-values.ts",
+        "geo:data": "tsx src/geo/dev/geo-data.ts",
         "build": "tsc -p tsconfig.json"
     },
     "dependencies": {
@@ -18,7 +35,8 @@
         "multer": "^2.2.0",
         "pg": "^8.21.0",
         "sharp": "^0.35.3",
-        "tesseract.js": "^7.0.0"
+        "tesseract.js": "^7.0.0",
+        "zod": "^4.6.6"
     },
     "devDependencies": {
         "@types/cors": "^2.8.19",

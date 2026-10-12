@@ -1,0 +1,9 @@
+.header-container {
+    margin-bottom: 1.5rem;
+}
+
+.header-text {
+    margin: 0;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}

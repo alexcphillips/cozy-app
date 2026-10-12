@@ -3,6 +3,7 @@
     --bg-page: #fffdfd; /* Warmer white */
     --bg-surface: #ffffff; /* Pure white for cards/panels */
     --border-subtle: #f5eaeb; /* Soft baseline divider lines */
+    --page-max-width: 1400px; /* Shared content width — pages center within it */
 
     /* Filter Section Tokens */
     --bg-filter-default: #fcefef; /* Soft pink blush tint */

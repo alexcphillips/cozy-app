@@ -1,9 +1,34 @@
 import StackedBarChart from "@/components/Graphs/StackedBarChart";
 import styles from "./Budgeting.module.css";
 import useFinancialData from "../hooks/useFinancialData";
+import Drawer from "@/components/Drawer/Drawer";
 
 export default function Budgeting() {
     const { cashFlowData } = useFinancialData();
+
+    // monthly
+    const incomeSources = [
+        {
+            type: "work",
+            value: 5760,
+        },
+        {
+            type: "rent",
+            value: 2500,
+        },
+    ];
+
+    const expenses = [
+        {
+            type: "mortgage",
+            value: 3750,
+        },
+    ];
+
+    const monthlyIncome = incomeSources.reduce((prev, curr) => {
+        return (prev += curr.value);
+    }, 0);
+
     return (
         <div className={styles["page"]}>
             <StackedBarChart
@@ -12,7 +37,7 @@ export default function Budgeting() {
                     datasets: [
                         {
                             label: "income",
-                            data: [5000, 5000, 5000, 5000],
+                            data: [monthlyIncome],
                             backgroundColor: "#DEF2F2",
                             borderColor: "#4BC0C0",
                         },
@@ -20,14 +45,16 @@ export default function Budgeting() {
                             label: "expenses",
                             backgroundColor: "#FFE1E6",
                             borderColor: "#FF6484",
-                            data: [600, 1000, 1500, 200].map(
-                                (num) => -Math.abs(num),
+                            data: expenses.map(
+                                (expense) => -Math.abs(expense.value),
                             ),
                         },
                     ],
                 }}
                 titleText=""
             />
+
+            <CreateBudgetDrawer />
         </div>
     );
 }

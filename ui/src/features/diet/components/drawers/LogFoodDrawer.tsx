@@ -1,23 +1,24 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Drawer from "@/components/Drawer/Drawer";
 import { toErrorMessage } from "@/lib/api";
 import { dietApi } from "../../api/diet.api";
 import { LogFoodDrawerSelectStepContent } from "./LogFoodDrawerSelectStepContent";
-import { useStepper } from "../../hooks/useStepper";
+import { useStepper } from "@/components/Stepper/useStepper";
 import LogFoodDrawerAdjustStepContent from "./LogFoodDrawerAdjustStepContent";
-import BackdropOverlay from "@/components/BackdropOverlay/BackdropOverlay";
-import DefaultDismissButton from "@/components/Drawer/DefaultDismissButton";
 import type { FoodItem } from "@cozy/shared";
 import StepperFooter from "@/components/Stepper/StepperFooter";
 import Stepper from "@/components/Stepper/Stepper";
 import DefaultStepperHeader from "@/components/Stepper/DefaultStepperHeader";
+import ErrorMessage from "@/components/ErrorMessage/ErrorMessage";
+
+const TITLE = "log a food";
+const STEPS = ["select foods", "adjust foods"];
 
 export type LogFoodDrawerProps = {
-    isOpen: boolean;
     onClose: () => void;
 };
 
-export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
+export default function LogFoodDrawer({ onClose }: LogFoodDrawerProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [isLoadingItems, setIsLoadingItems] = useState(true);
@@ -25,29 +26,32 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
     const [selectedFoodItems, setSelectedFoodItems] = useState<FoodItem[]>([]);
     const [quantities, setQuantities] = useState<Record<string, string>>({});
 
+    const { stepIndex, next, previous, isFirst, isLast } = useStepper(
+        STEPS.length,
+    );
+
     useEffect(() => {
-        if (!isOpen) return;
+        let ignore = false;
 
         async function loadFoodInventory() {
             setIsLoadingItems(true);
             setError("");
             try {
-                setFoodItems(await dietApi.listFoodItems());
+                const items = await dietApi.listFoodItems();
+                if (!ignore) setFoodItems(items);
             } catch (err) {
-                setError(toErrorMessage(err));
+                if (!ignore) setError(toErrorMessage(err));
             } finally {
-                setIsLoadingItems(false);
+                if (!ignore) setIsLoadingItems(false);
             }
         }
 
         loadFoodInventory();
-    }, [isOpen]);
 
-    const steps = ["select foods", "adjust foods"];
-
-    const { stepIndex, next, previous, reset, isFirst, isLast } = useStepper(
-        steps.length,
-    );
+        return () => {
+            ignore = true;
+        };
+    }, []);
 
     async function handleSubmit() {
         setError("");
@@ -76,7 +80,7 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
                 })),
             });
 
-            handleClose();
+            onClose();
         } catch (err) {
             setError(toErrorMessage(err));
         } finally {
@@ -84,27 +88,33 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
         }
     }
 
-    function handleSelectionChange(nextSelection: FoodItem[]) {
-        setError("");
-        setSelectedFoodItems(nextSelection);
+    const handleSelectionChange = useCallback(
+        (nextSelection: FoodItem[]) => {
+            setError("");
+            setSelectedFoodItems(nextSelection);
 
-        const nextIds = new Set(nextSelection.map((item) => item.id));
-        setQuantities((prev) =>
-            Object.fromEntries(
-                Object.entries(prev).filter(([id]) => nextIds.has(id)),
-            ),
-        );
-    }
+            const nextIds = new Set(nextSelection.map((item) => item.id));
+            setQuantities((prev) =>
+                Object.fromEntries(
+                    Object.entries(prev).filter(([id]) => nextIds.has(id)),
+                ),
+            );
+        },
+        [],
+    );
 
-    function handleQuantitiesChange(nextQuantities: Record<string, string>) {
-        setError("");
-        setQuantities(nextQuantities);
-    }
+    const handleQuantitiesChange = useCallback(
+        (nextQuantities: Record<string, string>) => {
+            setError("");
+            setQuantities(nextQuantities);
+        },
+        [],
+    );
 
     function handleNextStep() {
         if (!selectedFoodItems.length) {
             setError("select items first");
-            return false;
+            return;
         }
         next();
     }
@@ -114,30 +124,21 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
         previous();
     }
 
-    if (!steps[stepIndex]) return;
-
-    function handleClose() {
-        setSelectedFoodItems([]);
-        setQuantities({});
-        setError("");
-        reset();
-        onClose();
-    }
-
     return (
         <Drawer
-            isOpen={isOpen}
+            title={TITLE}
+            onClose={onClose}
             header={
                 <DefaultStepperHeader
-                    title="log a food"
-                    StepperComponent={() => (
-                        <Stepper steps={steps} currentStep={stepIndex} />
-                    )}
+                    title={TITLE}
+                    stepper={
+                        <Stepper steps={STEPS} currentStep={stepIndex} />
+                    }
                 />
             }
             footer={
                 <StepperFooter
-                    onCancel={handleClose}
+                    onCancel={onClose}
                     onPrevious={handlePrevious}
                     onNext={isLast ? handleSubmit : handleNextStep}
                     previousDisabled={isFirst}
@@ -145,16 +146,15 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
                     isLoading={isSubmitting}
                 />
             }
-            backdrop={<BackdropOverlay onClose={handleClose} />}
-            dismissButton={<DefaultDismissButton onClose={handleClose} />}
         >
+            <ErrorMessage message={error} />
+
             {stepIndex === 0 && (
                 <LogFoodDrawerSelectStepContent
                     foodItems={foodItems}
                     selectedFoodItems={selectedFoodItems}
                     onSelectionChange={handleSelectionChange}
                     isLoadingItems={isLoadingItems}
-                    error={error}
                 />
             )}
 
@@ -163,7 +163,6 @@ export default function LogFoodDrawer({ isOpen, onClose }: LogFoodDrawerProps) {
                     selectedFoodItems={selectedFoodItems}
                     quantities={quantities}
                     onQuantitiesChange={handleQuantitiesChange}
-                    error={error}
                 />
             )}
         </Drawer>

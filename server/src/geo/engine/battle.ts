@@ -1,0 +1,721 @@
+import type { EngineContent } from "./content.types";
+import type {
+    Action,
+    Amount,
+    BattleState,
+    CardDef,
+    CardInstance,
+    Combatant,
+    Condition,
+    EffectDef,
+    EnemyMove,
+    EventType,
+    FoodDef,
+    LogEntry,
+    StatusInstance,
+    Who,
+} from "./engine.types";
+import { CORE_STATS, DAMAGE_DEALT_STAT, FOOD_HEALING_STAT } from "./engine.types";
+import { createRng, type Rng } from "./rng";
+import { statOf } from "./stats";
+
+/**
+ * The battle engine: pure functions over a JSON `BattleState`.
+ *
+ * Flow: `createBattle` sets up and runs everything up to the player's first
+ * decision; `playCard` or `eatFood` resolves the player's turn, then every
+ * turn after it until the player must decide again (or someone wins). Each returns the new
+ * state and the log of what happened, which the app plays back as animation.
+ *
+ * Every rule runs through `emit`: an event goes to every effect listening for
+ * it — from gear and talismans, statuses, and the card being played — and
+ * those effects run actions, which can emit further events. Chains stop at
+ * MAX_EFFECT_DEPTH so two procs can never trigger each other forever.
+ */
+
+/** How deep effects may trigger effects. Lightning → burn → … stops here. */
+const MAX_EFFECT_DEPTH = 6;
+/** Turns one advance may run, as a backstop against a battle nobody can act in. */
+const MAX_TURNS_PER_ADVANCE = 100;
+
+export type CombatantSetup = Omit<Combatant, "health" | "guard" | "statuses"> & {
+    /** Starts at max health when omitted. */
+    health?: number;
+};
+
+export type BattleResult = { state: BattleState; log: LogEntry[] };
+
+export class BattleRuleError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "BattleRuleError";
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+
+/** Sets up a battle and runs it to the player's first decision. */
+export function createBattle(
+    combatants: CombatantSetup[],
+    seed: number,
+    content: EngineContent,
+): BattleResult {
+    const state: BattleState = {
+        seed,
+        rngDraws: 0,
+        round: 0,
+        order: [],
+        turnIndex: 0,
+        combatants: combatants.map((setup) => {
+            const draft: Combatant = {
+                ...setup,
+                health: 0,
+                guard: 0,
+                statuses: [],
+            };
+            draft.health = setup.health ?? statOf(draft, CORE_STATS.maxHealth, content);
+            return draft;
+        }),
+        outcome: "ongoing",
+    };
+
+    const ctx = makeContext(state, content);
+    emit(ctx, { type: "battleStart" });
+    advance(ctx);
+    return finish(ctx);
+}
+
+/**
+ * The player plays a card at a target, then the battle runs until the player
+ * must decide again. Throws `BattleRuleError` for an illegal play, leaving
+ * the state untouched.
+ */
+export function playCard(
+    previous: BattleState,
+    content: EngineContent,
+    play: { cardInstanceId: string; targetId?: string },
+): BattleResult {
+    return playerTurn(previous, content, (ctx, actor) => {
+        const instance = actor.hand?.find((card) => card.instanceId === play.cardInstanceId);
+        if (!instance) throw new BattleRuleError("That card isn't in your hand.");
+        if (instance.chargesLeft <= 0) throw new BattleRuleError("That card has no charges left.");
+
+        const card = content.cards[instance.cardId];
+        if (!card) throw new BattleRuleError(`Unknown card ${instance.cardId}.`);
+        if (!canWield(card, actor.weaponTags)) {
+            throw new BattleRuleError(`${card.name} needs a ${card.requiresWeapon!.join(" or ")} weapon.`);
+        }
+
+        const target = resolveCardTarget(ctx.state, actor, card, play.targetId);
+        resolveCard(ctx, actor, target, card, instance);
+    });
+}
+
+/**
+ * The player eats one food from a lunchbox slot, which takes their turn, then
+ * the battle runs until the player must decide again. Throws
+ * `BattleRuleError` for an empty or missing slot, leaving the state untouched.
+ */
+export function eatFood(previous: BattleState, content: EngineContent, eat: { slot: number }): BattleResult {
+    return playerTurn(previous, content, (ctx, actor) => {
+        const packed = actor.lunchbox?.find((entry) => entry.slot === eat.slot);
+        if (!packed || packed.quantity <= 0) throw new BattleRuleError("That lunchbox slot is empty.");
+        const food = content.foods[packed.foodId];
+        if (!food) throw new BattleRuleError(`Unknown food ${packed.foodId}.`);
+        resolveFood(ctx, actor, food, packed);
+    });
+}
+
+/**
+ * The checks and running every player turn shares. `act` may throw a
+ * `BattleRuleError`; it works on a copy, so a rejected turn changes nothing.
+ */
+function playerTurn(
+    previous: BattleState,
+    content: EngineContent,
+    act: (ctx: Context, actor: Combatant) => void,
+): BattleResult {
+    const state = structuredClone(previous);
+    if (state.outcome !== "ongoing") throw new BattleRuleError("The battle is over.");
+
+    const actor = currentActor(state);
+    if (!actor || actor.side !== "player") throw new BattleRuleError("It isn't your turn.");
+
+    const ctx = makeContext(state, content);
+    act(ctx, actor);
+    if (state.outcome === "ongoing") endTurn(ctx, actor);
+    advance(ctx);
+    return finish(ctx);
+}
+
+/** Whether a weapon with these tags can play `card`. */
+export function canWield(card: CardDef, weaponTags: string[] = []): boolean {
+    return !card.requiresWeapon || card.requiresWeapon.some((tag) => weaponTags.includes(tag));
+}
+
+/** Whose turn it is, or null when the battle is over. */
+export function currentActor(state: BattleState): Combatant | null {
+    if (state.outcome !== "ongoing") return null;
+    const id = state.order[state.turnIndex];
+    return state.combatants.find((combatant) => combatant.id === id) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Context
+
+type Context = {
+    state: BattleState;
+    content: EngineContent;
+    rng: Rng;
+    log: LogEntry[];
+    depth: number;
+};
+
+function makeContext(state: BattleState, content: EngineContent): Context {
+    return { state, content, rng: createRng(state.seed, state.rngDraws), log: [], depth: 0 };
+}
+
+function finish(ctx: Context): BattleResult {
+    ctx.state.rngDraws = ctx.rng.draws();
+    return { state: ctx.state, log: ctx.log };
+}
+
+function byId(ctx: Context, id: string | undefined): Combatant | undefined {
+    return id === undefined ? undefined : ctx.state.combatants.find((c) => c.id === id);
+}
+
+const isAlive = (combatant: Combatant) => combatant.health > 0;
+
+// ---------------------------------------------------------------------------
+// Turn flow
+
+/** Runs turns until the player must choose a card, or the battle ends. */
+function advance(ctx: Context): void {
+    const { state } = ctx;
+
+    for (let turns = 0; turns < MAX_TURNS_PER_ADVANCE && state.outcome === "ongoing"; turns++) {
+        if (state.turnIndex >= state.order.length) startRound(ctx);
+
+        const actor = byId(ctx, state.order[state.turnIndex]);
+        if (!actor || !isAlive(actor)) {
+            state.turnIndex += 1;
+            continue;
+        }
+
+        ctx.log.push({ type: "turnStart", actor: actor.id });
+        // Guard lasts until the bearer's next turn: it protects through the
+        // other side's turn, then lapses.
+        actor.guard = 0;
+        emit(ctx, { type: "turnStart", actor: actor.id });
+        if (state.outcome !== "ongoing") return;
+        if (!isAlive(actor)) {
+            state.turnIndex += 1;
+            continue;
+        }
+
+        const before = emit(ctx, { type: "beforeAction", actor: actor.id });
+        if (state.outcome !== "ongoing") return;
+        if (before.cancelled) {
+            ctx.log.push({ type: "turnSkipped", actor: actor.id, reason: before.cancelledBy ?? "" });
+            endTurn(ctx, actor);
+            continue;
+        }
+
+        // The player's turn has started; wait for their card.
+        if (actor.side === "player") return;
+
+        enemyTurn(ctx, actor);
+        if (state.outcome === "ongoing") endTurn(ctx, actor);
+    }
+}
+
+/**
+ * A new round: everyone alive, fastest first. Ties go to the player, then to
+ * setup order. Speed is read now, so a speed change mid-round takes effect
+ * from the next round.
+ */
+function startRound(ctx: Context): void {
+    const { state, content } = ctx;
+    state.round += 1;
+    state.turnIndex = 0;
+    state.order = state.combatants
+        .map((combatant, index) => ({ combatant, index }))
+        .filter(({ combatant }) => isAlive(combatant))
+        .sort(
+            (a, b) =>
+                statOf(b.combatant, CORE_STATS.speed, content) -
+                    statOf(a.combatant, CORE_STATS.speed, content) ||
+                Number(b.combatant.side === "player") - Number(a.combatant.side === "player") ||
+                a.index - b.index,
+        )
+        .map(({ combatant }) => combatant.id);
+    ctx.log.push({ type: "roundStart", round: state.round, order: [...state.order] });
+}
+
+function endTurn(ctx: Context, actor: Combatant): void {
+    emit(ctx, { type: "turnEnd", actor: actor.id });
+
+    // Durations count the bearer's own turns.
+    for (const status of [...actor.statuses]) {
+        if (status.turnsLeft === null) continue;
+        status.turnsLeft -= 1;
+        if (status.turnsLeft <= 0) removeStatus(ctx, actor, status.statusId);
+    }
+    ctx.state.turnIndex += 1;
+}
+
+function enemyTurn(ctx: Context, actor: Combatant): void {
+    const move = pickMove(ctx, actor.moves ?? []);
+    const target = ctx.state.combatants.find((c) => c.side === "player" && isAlive(c));
+    if (!move || !target) return;
+
+    ctx.log.push({ type: "enemyMove", actor: actor.id, moveId: move.id, target: target.id });
+    runActions(ctx, move.actions, {
+        owner: actor,
+        event: { type: "cardPlayed", actor: actor.id, target: target.id },
+    });
+}
+
+function pickMove(ctx: Context, moves: EnemyMove[]): EnemyMove | undefined {
+    if (moves.length <= 1) return moves[0];
+    const total = moves.reduce((sum, move) => sum + move.weight, 0);
+    let roll = ctx.rng.next() * total;
+    for (const move of moves) {
+        roll -= move.weight;
+        if (roll < 0) return move;
+    }
+    return moves.at(-1);
+}
+
+function resolveCardTarget(
+    state: BattleState,
+    actor: Combatant,
+    card: CardDef,
+    targetId: string | undefined,
+): Combatant {
+    if (card.targets === "self") return actor;
+
+    const enemies = state.combatants.filter((c) => c.side !== actor.side && isAlive(c));
+    const target = targetId ? enemies.find((c) => c.id === targetId) : enemies[0];
+    if (!target) throw new BattleRuleError("No enemy to target.");
+    return target;
+}
+
+function resolveCard(
+    ctx: Context,
+    actor: Combatant,
+    target: Combatant,
+    card: CardDef,
+    instance: CardInstance,
+): void {
+    // Card rules are judged before the card does anything, so a fire card
+    // that applies Burning doesn't make itself free.
+    const played = emit(
+        ctx,
+        { type: "cardPlayed", actor: actor.id, target: target.id, card },
+        card.effects?.map((effect) => ({ owner: actor, effect })) ?? [],
+    );
+
+    const chargeSpent = !played.freeCharge;
+    if (chargeSpent) instance.chargesLeft -= 1;
+    ctx.log.push({
+        type: "cardPlayed",
+        actor: actor.id,
+        cardId: card.id,
+        target: target.id,
+        chargeSpent,
+    });
+
+    runActions(ctx, card.actions, {
+        owner: actor,
+        event: { type: "cardPlayed", actor: actor.id, target: target.id, card },
+    });
+}
+
+function resolveFood(ctx: Context, actor: Combatant, food: FoodDef, packed: { slot: number; quantity: number }): void {
+    const event: BattleEvent = { type: "foodEaten", actor: actor.id, target: actor.id, food };
+    packed.quantity -= 1;
+    ctx.log.push({ type: "foodEaten", actor: actor.id, foodId: food.id, slot: packed.slot });
+
+    emit(ctx, event, food.effects?.map((effect) => ({ owner: actor, effect })) ?? []);
+    runActions(ctx, food.actions, { owner: actor, event, fromFood: true });
+}
+
+// ---------------------------------------------------------------------------
+// Events
+
+type BattleEvent = {
+    type: EventType;
+    actor?: string;
+    target?: string;
+    card?: CardDef;
+    food?: FoodDef;
+    /** beforeDamage / damageTaken. Mutable in beforeDamage. */
+    damage?: { amount: number; element: string; fromStatus?: string };
+};
+
+/** What listeners decided, read by whoever emitted the event. */
+type EventOutcome = {
+    cancelled: boolean;
+    cancelledBy?: string;
+    freeCharge: boolean;
+};
+
+type Listener = {
+    owner: Combatant;
+    effect: EffectDef;
+    /** Set when the effect comes from a status, for per-stack amounts. */
+    status?: StatusInstance;
+};
+
+/**
+ * Sends an event to every listening effect, in a fixed order — combatants in
+ * setup order; each one's gear, then statuses — so a seeded battle always
+ * resolves the same way. `extra` adds listeners only this event hears (the
+ * played card's own rules).
+ */
+function emit(ctx: Context, event: BattleEvent, extra: Listener[] = []): EventOutcome {
+    const outcome: EventOutcome = { cancelled: false, freeCharge: false };
+    if (ctx.depth >= MAX_EFFECT_DEPTH) return outcome;
+
+    const listeners: Listener[] = [...extra];
+    for (const owner of ctx.state.combatants) {
+        // The defeated don't react, except to their own defeat.
+        if (!isAlive(owner) && !(event.type === "defeated" && event.target === owner.id)) continue;
+        for (const effect of owner.effects) listeners.push({ owner, effect });
+        for (const status of owner.statuses) {
+            const def = ctx.content.statuses[status.statusId];
+            for (const effect of def?.effects ?? []) listeners.push({ owner, effect, status });
+        }
+    }
+
+    ctx.depth += 1;
+    try {
+        for (const listener of listeners) {
+            if (ctx.state.outcome !== "ongoing" && event.type !== "defeated") break;
+            if (!hears(listener, event)) continue;
+            // A status removed earlier in this same event (unfrozen) no longer acts.
+            if (listener.status && !listener.owner.statuses.includes(listener.status)) continue;
+            if (!conditionsHold(ctx, listener, event)) continue;
+            if (!ctx.rng.chance(listener.effect.chance ?? 1)) continue;
+
+            ctx.log.push({ type: "proc", owner: listener.owner.id, effectId: listener.effect.id });
+            runActions(ctx, listener.effect.actions, {
+                owner: listener.owner,
+                event,
+                status: listener.status,
+                effectId: listener.effect.id,
+                outcome,
+            });
+        }
+    } finally {
+        ctx.depth -= 1;
+    }
+    return outcome;
+}
+
+function hears({ owner, effect }: Listener, event: BattleEvent): boolean {
+    if (effect.trigger.event !== event.type) return false;
+    const as = effect.trigger.as ?? "any";
+    if (as === "actor") return event.actor === owner.id;
+    if (as === "target") return event.target === owner.id;
+    return true;
+}
+
+function resolveWho(ctx: Context, who: Who, owner: Combatant, event: BattleEvent): Combatant | undefined {
+    switch (who) {
+        case "self":
+            return owner;
+        case "actor":
+            return byId(ctx, event.actor);
+        case "target":
+            return byId(ctx, event.target);
+        case "other":
+            return event.actor === owner.id ? byId(ctx, event.target) : byId(ctx, event.actor);
+    }
+}
+
+function conditionsHold(ctx: Context, listener: Listener, event: BattleEvent): boolean {
+    return (listener.effect.conditions ?? []).every((condition) =>
+        conditionHolds(ctx, condition, listener.owner, event),
+    );
+}
+
+function conditionHolds(ctx: Context, condition: Condition, owner: Combatant, event: BattleEvent): boolean {
+    switch (condition.type) {
+        case "hasStatus":
+        case "lacksStatus": {
+            const who = resolveWho(ctx, condition.who, owner, event);
+            const has = who?.statuses.some((s) => s.statusId === condition.status) ?? false;
+            return condition.type === "hasStatus" ? has : !has;
+        }
+        case "healthBelow": {
+            const who = resolveWho(ctx, condition.who, owner, event);
+            if (!who) return false;
+            return who.health <= condition.fraction * statOf(who, CORE_STATS.maxHealth, ctx.content);
+        }
+        case "cardHasTag":
+            return event.card?.tags?.includes(condition.tag) ?? false;
+        case "foodHasTag":
+            return event.food?.tags?.includes(condition.tag) ?? false;
+        case "damageElement":
+            return event.damage?.element === condition.element;
+        case "damageFromStatus":
+            return event.damage?.fromStatus !== undefined && (condition.status ?? event.damage.fromStatus) === event.damage.fromStatus;
+        case "not":
+            return !conditionHolds(ctx, condition.condition, owner, event);
+        case "any":
+            return condition.conditions.some((c) => conditionHolds(ctx, c, owner, event));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Actions
+
+type ActionScope = {
+    owner: Combatant;
+    event: BattleEvent;
+    status?: StatusInstance;
+    effectId?: string;
+    /** Where cancelAction / freeCharge report back to the emitter. */
+    outcome?: EventOutcome;
+    /** The eaten food's own actions, whose heals `foodHealing` boosts. */
+    fromFood?: boolean;
+};
+
+function runActions(ctx: Context, actions: Action[], scope: ActionScope): void {
+    for (const action of actions) {
+        if (ctx.state.outcome !== "ongoing") return;
+        runAction(ctx, action, scope);
+    }
+}
+
+function amountOf(ctx: Context, amount: Amount, scope: ActionScope): number {
+    if (typeof amount === "number") return amount;
+    const scaled = amount.stat
+        ? statOf(scope.owner, amount.stat, ctx.content) * (amount.multiplier ?? 1)
+        : 0;
+    const stacks = amount.perStack ? (scope.status?.stacks ?? 1) : 1;
+    return (scaled + (amount.flat ?? 0)) * stacks;
+}
+
+function runAction(ctx: Context, action: Action, scope: ActionScope): void {
+    const { owner, event } = scope;
+    switch (action.type) {
+        case "attack": {
+            const target = resolveWho(ctx, action.to, owner, event);
+            if (target && isAlive(target)) attack(ctx, owner, target, action, scope);
+            return;
+        }
+        case "damage": {
+            const target = resolveWho(ctx, action.to, owner, event);
+            if (!target || !isAlive(target)) return;
+            dealDamage(ctx, owner, target, amountOf(ctx, action.amount, scope), {
+                element: action.element ?? "physical",
+                isAttack: false,
+                crit: false,
+                ignoreDefence: action.ignoreDefence ?? false,
+                effectId: scope.effectId,
+                fromStatus: scope.status?.statusId,
+            });
+            return;
+        }
+        case "heal": {
+            const target = resolveWho(ctx, action.to, owner, event);
+            if (!target || !isAlive(target)) return;
+            const max = statOf(target, CORE_STATS.maxHealth, ctx.content);
+            const boost = scope.fromFood ? 1 + statOf(owner, FOOD_HEALING_STAT, ctx.content) : 1;
+            const healed = Math.min(max - target.health, Math.round(amountOf(ctx, action.amount, scope) * boost));
+            if (healed <= 0) return;
+            target.health += healed;
+            ctx.log.push({ type: "heal", target: target.id, amount: healed });
+            return;
+        }
+        case "guard": {
+            const target = resolveWho(ctx, action.to, owner, event);
+            if (!target || !isAlive(target)) return;
+            const amount = Math.round(amountOf(ctx, action.amount, scope));
+            target.guard += amount;
+            ctx.log.push({ type: "guard", target: target.id, amount });
+            return;
+        }
+        case "applyStatus": {
+            const target = resolveWho(ctx, action.to, owner, event);
+            if (target && isAlive(target)) {
+                applyStatus(ctx, target, action.status, action.stacks ?? 1, action.duration);
+            }
+            return;
+        }
+        case "removeStatus": {
+            const target = resolveWho(ctx, action.from, owner, event);
+            if (target) removeStatus(ctx, target, action.status);
+            return;
+        }
+        case "cancelAction":
+            if (scope.outcome) {
+                scope.outcome.cancelled = true;
+                scope.outcome.cancelledBy ??= scope.effectId;
+            }
+            return;
+        case "freeCharge":
+            if (scope.outcome) scope.outcome.freeCharge = true;
+            return;
+        case "modifyDamage":
+            if (event.damage) {
+                event.damage.amount = (event.damage.amount + (action.add ?? 0)) * (action.multiply ?? 1);
+            }
+            return;
+    }
+}
+
+function attack(
+    ctx: Context,
+    attacker: Combatant,
+    target: Combatant,
+    action: Extract<Action, { type: "attack" }>,
+    scope: ActionScope,
+): void {
+    const hits = Math.max(1, Math.floor(action.hits ?? 1));
+    for (let hit = 0; hit < hits; hit++) {
+        // Defenders react first: a thorns talisman can kill the attacker
+        // before the blow lands. A dead target ends the flurry early.
+        emit(ctx, { type: "attacked", actor: attacker.id, target: target.id });
+        if (ctx.state.outcome !== "ongoing" || !isAlive(attacker) || !isAlive(target)) return;
+
+        let amount = amountOf(ctx, action.amount, scope);
+        const crit = ctx.rng.chance(statOf(attacker, CORE_STATS.critChance, ctx.content));
+        if (crit) amount *= statOf(attacker, CORE_STATS.critMultiplier, ctx.content) || 1.5;
+
+        dealDamage(ctx, attacker, target, amount, {
+            element: action.element ?? "physical",
+            isAttack: true,
+            crit,
+            ignoreDefence: false,
+            delivery: action.delivery ?? "melee",
+        });
+
+        if (ctx.state.outcome !== "ongoing") return;
+        if (!isAlive(target)) break;
+    }
+    emit(ctx, { type: "attackFinished", actor: attacker.id, target: target.id });
+}
+
+function dealDamage(
+    ctx: Context,
+    source: Combatant,
+    target: Combatant,
+    base: number,
+    options: {
+        element: string;
+        isAttack: boolean;
+        crit: boolean;
+        ignoreDefence: boolean;
+        delivery?: "melee" | "projectile";
+        effectId?: string;
+        /** The status whose effect this is (a Burning tick), if any. */
+        fromStatus?: string;
+    },
+): void {
+    // The source's own damage bonus first, so beforeDamage rules see the
+    // boosted hit. Never on status damage: that changes only through rules
+    // that ask for it (`damageFromStatus`).
+    if (source !== target && !options.fromStatus) base *= 1 + statOf(source, DAMAGE_DEALT_STAT, ctx.content);
+    const before = {
+        type: "beforeDamage" as const,
+        actor: source.id,
+        target: target.id,
+        damage: { amount: base, element: options.element, fromStatus: options.fromStatus },
+    };
+    emit(ctx, before);
+    if (!isAlive(target)) return;
+
+    let amount = before.damage.amount;
+    if (!options.ignoreDefence) amount -= statOf(target, CORE_STATS.defence, ctx.content);
+    amount = Math.max(0, Math.round(amount));
+
+    const blocked = Math.min(target.guard, amount);
+    target.guard -= blocked;
+    amount -= blocked;
+
+    target.health = Math.max(0, target.health - amount);
+    ctx.log.push({
+        type: "damage",
+        source: source.id,
+        target: target.id,
+        amount,
+        blocked,
+        element: options.element,
+        crit: options.crit,
+        isAttack: options.isAttack,
+        delivery: options.delivery,
+        effectId: options.effectId,
+    });
+
+    if (amount > 0) {
+        emit(ctx, {
+            type: "damageTaken",
+            actor: source.id,
+            target: target.id,
+            damage: { amount, element: options.element, fromStatus: options.fromStatus },
+        });
+    }
+
+    if (target.health <= 0) defeat(ctx, target, source);
+}
+
+function defeat(ctx: Context, target: Combatant, killer: Combatant): void {
+    target.statuses = [];
+    target.guard = 0;
+    ctx.log.push({ type: "defeated", target: target.id });
+    emit(ctx, { type: "defeated", actor: killer.id, target: target.id });
+
+    const { state } = ctx;
+    const playersAlive = state.combatants.some((c) => c.side === "player" && isAlive(c));
+    const enemiesAlive = state.combatants.some((c) => c.side === "enemy" && isAlive(c));
+    if (state.outcome === "ongoing" && (!playersAlive || !enemiesAlive)) {
+        state.outcome = playersAlive ? "victory" : "defeat";
+        ctx.log.push({ type: "battleEnd", outcome: state.outcome });
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Statuses
+
+function applyStatus(
+    ctx: Context,
+    target: Combatant,
+    statusId: string,
+    stacks: number,
+    duration: number | undefined,
+): void {
+    const def = ctx.content.statuses[statusId];
+    if (!def) return;
+    const turns = duration ?? def.duration ?? null;
+
+    const existing = target.statuses.find((s) => s.statusId === statusId);
+    if (existing) {
+        existing.stacks = Math.min(def.maxStacks, existing.stacks + stacks);
+        if (turns !== null && existing.turnsLeft !== null) {
+            existing.turnsLeft = Math.max(existing.turnsLeft, turns);
+        }
+    } else {
+        target.statuses.push({ statusId, stacks: Math.min(def.maxStacks, stacks), turnsLeft: turns });
+    }
+
+    const applied = target.statuses.find((s) => s.statusId === statusId);
+    ctx.log.push({
+        type: "statusApplied",
+        target: target.id,
+        statusId,
+        stacks: applied?.stacks ?? stacks,
+    });
+}
+
+function removeStatus(ctx: Context, target: Combatant, statusId: string): void {
+    const before = target.statuses.length;
+    target.statuses = target.statuses.filter((s) => s.statusId !== statusId);
+    if (target.statuses.length !== before) {
+        ctx.log.push({ type: "statusRemoved", target: target.id, statusId });
+    }
+}

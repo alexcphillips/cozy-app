@@ -1,4 +1,4 @@
-/** A user's single, evolving budget — edited in place, never versioned. */
+/** A user's single, evolving budget. */
 export type Budget = {
     id: number;
     monthlyIncome: number;
@@ -32,7 +32,9 @@ export type CreateTransactionRequest = {
     date: string;
 };
 
-export type TransactionEdit = { id: number } & Partial<CreateTransactionRequest>;
+export type TransactionEdit = {
+    id: number;
+} & Partial<CreateTransactionRequest>;
 
 export type Milestone = {
     id: number;
