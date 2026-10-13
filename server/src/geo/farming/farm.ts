@@ -21,14 +21,16 @@ import { regionKey, toRegion, type WeatherLookup } from "./weather";
  * save alongside it in the same transaction (a seed out of the bag, a card's
  * charge, the harvest, coins for a tile).
  *
- * Nothing grows on the clock: the clock only banks Farm Turns (`accrue`),
- * and the farm moves when the player spends one on Advance. Each banked turn
- * keeps the weather of the 12 hours it came in over (real, from the farm's
- * home region, via a `WeatherLookup`), and plays it on its Advance.
+ * The farm runs on a real clock: every `turnHours` it takes a turn on its
+ * own, with the weather of the hours just past (real, from the farm's home
+ * region, via a `WeatherLookup`). Nothing runs in the background: when the
+ * farm is next looked at, `catchUp` plays the turns that came due since. It
+ * plays at most `maxTurnsAway` of them; past that the farm waits for the
+ * player, so being away never loses more than that, and can't be saved up.
  *
  * Pests are pieces on the grid. Each carries the move it will make on the
- * next Advance (planned when it arrives, and again after every Advance), so
- * the player sees it coming. Advance runs: pests act, weather and growth,
+ * next turn (planned when it arrives, and again after every turn), so the
+ * player sees it coming. A turn runs: pests act, weather and growth,
  * mutations may sprout, new pests arrive, every pest plans its next move.
  *
  * Structures stand on a tile instead of a crop and change the farm around
@@ -36,8 +38,8 @@ import { regionKey, toRegion, type WeatherLookup } from "./weather";
  * Compost Bins feed the soil after growth, Beehives and caged pests help
  * mutations, a Jukebox's tune picks which pest comes.
  *
- * Farm events are telegraphed an Advance ahead (`nextEvent`). Some act on
- * their Advance (a pest swarm, a fairy ring, a blood moon); some last the
+ * Farm events are telegraphed a turn ahead (`nextEvent`). Some act on
+ * their turn (a pest swarm, a fairy ring, a blood moon); some last the
  * turn after it (`activeEvent`: a bumper harvest, a travelling merchant).
  * The weekly Order Board (`orders`) is refreshed by `refreshOrders`.
  *
@@ -71,9 +73,9 @@ export type FarmTile = {
     soakTurns: number;
     fertility: number;
     blueprint: string | null;
-    /** Snap Trap: catches a pest moving onto it on the next Advance. */
+    /** Snap Trap: catches a pest moving onto it on the next turn. */
     trap: boolean;
-    /** Hand Pollinate: mutation odds here are boosted on the next Advance. */
+    /** Hand Pollinate: mutation odds here are boosted on the next turn. */
     pollinated: boolean;
     /** A structure standing here instead of a crop. */
     structure: FarmStructure | null;
@@ -81,9 +83,9 @@ export type FarmTile = {
     waste: boolean;
     /** The tile's own soil; only an amendment changes it. */
     soil: GeoFarmSoil;
-    /** A card's soil over it for `turnsLeft` more Advances, counting instead of `soil`. */
+    /** A card's soil over it for `turnsLeft` more turns, counting instead of `soil`. */
     soilOverlay: { soil: GeoFarmSoil; turnsLeft: number } | null;
-    /** Lime Dust: its fertility can't drop until the next Advance is done, and its crop won't grow on it. */
+    /** Lime Dust: its fertility can't drop until the next turn is done, and its crop won't grow on it. */
     limed: boolean;
 };
 
@@ -98,7 +100,7 @@ export type FarmStructure = {
     caged: string | null;
     /** Compost Bin: compost waiting. */
     compost: number;
-    /** Portal: torn open for the next Advance. */
+    /** Portal: torn open for the next turn. */
     open: boolean;
     /** Well: water stored. */
     water: number;
@@ -108,9 +110,9 @@ export type FarmPest = {
     id: number;
     pestId: string;
     tile: number;
-    /** Advances it has lived through. */
+    /** Turns it has lived through. */
     age: number;
-    /** What it does on the next Advance. */
+    /** What it does on the next turn. */
     intent: GeoFarmPestIntent;
     /** Hits left; missing on pests saved before elites (1). */
     hp?: number;
@@ -118,24 +120,21 @@ export type FarmPest = {
 
 /** Everything a farm keeps, in `geo.farms.state`. */
 export type FarmState = {
-    version: 11;
+    version: 12;
     /** Rolls for harvests and rot; replaced after every step so it never has to fast-forward. */
     seed: number;
     /** Fixed for the farm's life: the weather of turn n is the same whenever it's asked. */
     weatherSeed: number;
     /** GEO_FARM_SIZE², row by row. */
     tiles: FarmTile[];
-    /** Advances so far. */
+    /** Turns taken so far. */
     turn: number;
     labor: number;
-    turnsBanked: number;
-    /** When the turn now coming in started counting (ISO). */
+    /** When the turn now coming started counting (ISO); it comes `turnHours` after, with that period's weather. */
     accruedAt: string;
-    /** The weather each banked turn will play, oldest first; seeded rolls fill any gap. */
-    turnWeather: GeoFarmWeather[];
     /** The home region the weather comes from (a coarse grid square), and when it was set (ISO). */
     home: { latitude: number; longitude: number; setAt: string } | null;
-    /** Read the Sky: the long forecast shows until the next Advance. */
+    /** Read the Sky: the long forecast shows until the next turn. */
     skyRead: boolean;
     /** Tiles bought so far, for the next one's price. */
     unlocked: number;
@@ -144,13 +143,13 @@ export type FarmState = {
     nextPestId: number;
     /** Mutations turned in at the Research Lab, first found first. */
     lab: string[];
-    /** The farm event telegraphed for the next Advance. */
+    /** The farm event telegraphed for the next turn. */
     nextEvent: string | null;
-    /** The event on for this turn (after its Advance), with a merchant's offers. */
+    /** The event on for this turn (after the turn it came on), with a merchant's offers. */
     activeEvent: { eventId: string; offers: { itemId: string; price: number; bought: boolean }[] } | null;
     /** This week's Order Board; `week` counts weeks since the epoch's first Monday. */
     orders: { week: number; list: GeoFarmOrder[] } | null;
-    /** Shrine blessings and curses on the farm, with the Advances each has left. */
+    /** Shrine blessings and curses on the farm, with the turns each has left. */
     blessings: { id: BlessingId; turnsLeft: number }[];
     /** Exterminator's Oath: how many more cleared pests roll their drops twice. */
     oath: number;
@@ -167,7 +166,6 @@ type AddedLater =
     | "pests"
     | "nextPestId"
     | "lab"
-    | "turnWeather"
     | "home"
     | "nextEvent"
     | "activeEvent"
@@ -179,6 +177,9 @@ type AddedLater =
 export type StoredFarm = Omit<FarmState, "version" | "tiles" | AddedLater> &
     Partial<Pick<FarmState, AddedLater>> & {
         version: number;
+        /** Before the real clock (v12): turns banked for the player to spend on Advance. Dropped. */
+        turnsBanked?: number;
+        turnWeather?: GeoFarmWeather[];
         tiles: (Omit<FarmTile, "trap" | "pollinated" | "structure" | "waste" | "soil" | "soilOverlay" | "limed"> & {
             limed?: boolean;
             soil?: GeoFarmSoil;
@@ -194,14 +195,16 @@ export type StoredFarm = Omit<FarmState, "version" | "tiles" | AddedLater> &
  * A farm saved by an older version (1: before pests, 2: before mutations,
  * 3: before structures, 4: before real weather, 5: before events and
  * orders, 6: before the gamble structures, 7: before the Well, 8: before
- * soil, 9: before the second round of cards, 10: before the Pesthunter),
- * brought up to date.
+ * soil, 9: before the second round of cards, 10: before the Pesthunter,
+ * 11: before the real clock), brought up to date.
  */
 export function upgradeFarm(stored: StoredFarm): FarmState {
-    if (stored.version === 11) return stored as FarmState;
+    if (stored.version === 12) return stored as FarmState;
+    // Banked turns are dropped: the clock plays the farm from here.
+    const { turnsBanked: _banked, turnWeather: _weather, ...rest } = stored;
     return {
-        ...stored,
-        version: 11,
+        ...rest,
+        version: 12,
         pesthunterPoints: stored.pesthunterPoints ?? 0,
         oath: stored.oath ?? 0,
         rushOrder: stored.rushOrder ?? false,
@@ -209,8 +212,6 @@ export function upgradeFarm(stored: StoredFarm): FarmState {
         nextEvent: stored.nextEvent ?? null,
         activeEvent: stored.activeEvent ?? null,
         orders: stored.orders ?? null,
-        // Turns banked before real weather play seeded rolls (the gap filler).
-        turnWeather: stored.turnWeather ?? [],
         home: stored.home ?? null,
         tiles: stored.tiles.map((tile) => ({
             ...tile,
@@ -248,8 +249,10 @@ export type FarmContext = {
     seedBag: FarmSeedSlot[];
     /** How many of each item the player holds (structures are placed from these). */
     held: Record<string, number>;
-    /** The player's farming level: sets the Labor each Advance refills to. */
+    /** The player's farming level: sets the Labor each turn refills to. */
     farmingLevel: number;
+    /** The farm's weather by period; seeded rolls when absent. */
+    weather?: WeatherLookup;
 };
 
 export type FarmStepResult = {
@@ -271,7 +274,7 @@ export type FarmStepResult = {
     harvested: { cropId: string; itemId: string; quantity: number; mutation: boolean }[];
 };
 
-/** The Labor each Advance refills to at this farming level. */
+/** The Labor each turn refills to at this farming level. */
 export const laborFor = (config: FarmingConfig, level: number) => config.laborPerTurn + config.laborLevels.filter((at) => level >= at).length;
 
 /** The next farming level that adds Labor, or null past the last. */
@@ -297,16 +300,9 @@ const newSeed = (rng: Rng) => Math.floor(rng.next() * 4_294_967_296) >>> 0;
 
 /**
  * A new farm: a startSize square of Normal soil in the middle, everything
- * else locked. Its starting turns take the weather of the periods just past.
+ * else locked. Its clock starts now.
  */
-export function newFarm(
-    config: FarmingConfig,
-    seed: number,
-    weatherSeed: number,
-    now: Date,
-    lookup: WeatherLookup = seededLookup(weatherSeed, config),
-): FarmState {
-    const period = config.turnHours * HOUR_MS;
+export function newFarm(config: FarmingConfig, seed: number, weatherSeed: number, now: Date): FarmState {
     const low = (N - config.startSize) / 2;
     const high = low + config.startSize;
     const tiles = Array.from({ length: N * N }, (_, index): FarmTile => {
@@ -328,15 +324,13 @@ export function newFarm(
         };
     });
     return {
-        version: 11,
+        version: 12,
         seed,
         weatherSeed,
         tiles,
         turn: 0,
         labor: config.laborPerTurn,
-        turnsBanked: config.startTurnsBanked,
         accruedAt: now.toISOString(),
-        turnWeather: Array.from({ length: config.startTurnsBanked }, (_, i) => lookup(now.getTime() - (config.startTurnsBanked - i) * period)),
         home: null,
         skyRead: false,
         unlocked: 0,
@@ -353,31 +347,57 @@ export function newFarm(
     };
 }
 
-/**
- * Banks the Farm Turns that came in since the last look, each with the
- * weather of the period it came in over. Pure: returns a new state.
- */
-export function accrue(state: FarmState, config: FarmingConfig, now: Date, lookup: WeatherLookup = seededLookup(state.weatherSeed, config)): FarmState {
-    const period = config.turnHours * HOUR_MS;
-    if (state.turnsBanked >= config.maxTurnsBanked) return { ...state, accruedAt: now.toISOString() };
-    const since = new Date(state.accruedAt).getTime();
-    const gained = Math.floor(Math.max(0, now.getTime() - since) / period);
-    if (gained === 0) return state;
-    const banked = Math.min(config.maxTurnsBanked, state.turnsBanked + gained);
-    const added = banked - state.turnsBanked;
-    // Older saves may be short of entries: pad with the seeded rolls they would have played.
-    const known = Array.from({ length: state.turnsBanked }, (_, i) => state.turnWeather[i] ?? weatherAt(state, config, state.turn + 1 + i));
-    const turnWeather = [...known, ...Array.from({ length: added }, (_, i) => lookup(since + i * period))];
-    // A full bank stops the clock; it starts again from the next Advance.
-    const accruedAt = banked >= config.maxTurnsBanked ? now : new Date(since + gained * period);
-    return { ...state, turnsBanked: banked, turnWeather, accruedAt: accruedAt.toISOString() };
-}
-
-/** When the next Farm Turn comes in, or null while the bank is full. */
-export function nextTurnAt(state: FarmState, config: FarmingConfig): Date | null {
-    if (state.turnsBanked >= config.maxTurnsBanked) return null;
+/** When the farm takes its next turn. */
+export function nextTurnAt(state: FarmState, config: FarmingConfig): Date {
     return new Date(new Date(state.accruedAt).getTime() + config.turnHours * HOUR_MS);
 }
+
+/** What the turns played on a look add up to; `turns` is 0 when none were due. */
+export type FarmCatchUp = Pick<FarmStepResult, "state" | "log" | "gains" | "xp" | "harvested"> & { turns: number };
+
+/**
+ * Plays the turns that came due since the farm was last looked at, each
+ * with the weather of the period it came over and the server-wide event on
+ * then. At most `maxTurnsAway`: past that the farm waited, and its clock
+ * starts again from `now`. `ctx.now` is ignored; each turn has its own time.
+ */
+export function catchUp(prev: FarmState, ctx: FarmContext): FarmCatchUp {
+    const { config } = ctx;
+    const period = config.turnHours * HOUR_MS;
+    const since = new Date(prev.accruedAt).getTime();
+    const due = Math.floor(Math.max(0, ctx.now.getTime() - since) / period);
+    const turns = Math.min(due, config.maxTurnsAway);
+    const lookup = ctx.weather ?? seededLookup(prev.weatherSeed, config);
+    const total: FarmCatchUp = { state: prev, log: [], gains: [], xp: 0, harvested: [], turns };
+    if (due === 0) return total;
+
+    for (let i = 0; i < turns; i++) {
+        const at = new Date(since + (i + 1) * period);
+        const step = tickFarm(total.state, { ...ctx, now: at, globalEvent: activeGlobalEvent(at, config, ctx.events) }, lookup(since + i * period));
+        total.state = step.state;
+        total.log.push(...step.log);
+        for (const { itemId, quantity } of step.gains) {
+            const existing = total.gains.find((entry) => entry.itemId === itemId);
+            if (existing) existing.quantity += quantity;
+            else total.gains.push({ itemId, quantity });
+        }
+        total.xp += step.xp;
+        total.harvested.push(...step.harvested);
+    }
+    const waited = due > turns;
+    total.state = { ...total.state, accruedAt: new Date(waited ? ctx.now.getTime() : since + due * period).toISOString() };
+    total.log.unshift(`The farm took ${turns} turn${turns === 1 ? "" : "s"}${waited ? ", then waited for you" : ""}.`);
+    return total;
+}
+
+/** One turn of the farm's clock, with this weather. */
+export function tickFarm(state: FarmState, ctx: FarmContext, weather: GeoFarmWeather = nextWeather(state, ctx)): FarmStepResult {
+    return stepFarm(state, { type: "tick", weather }, ctx);
+}
+
+/** The weather the farm's next turn will have. */
+const nextWeather = (state: FarmState, ctx: FarmContext) =>
+    (ctx.weather ?? seededLookup(state.weatherSeed, ctx.config))(new Date(state.accruedAt).getTime());
 
 /** A seeded weather roll for `key`: the placeholder when there's no real weather. */
 function rollWeather(weatherSeed: number, config: FarmingConfig, key: number): GeoFarmWeather {
@@ -391,27 +411,17 @@ function rollWeather(weatherSeed: number, config: FarmingConfig, key: number): G
     return "clear";
 }
 
-/** The seeded roll for turn n: fills in for a banked turn with no recorded weather. */
-export const weatherAt = (state: FarmState, config: FarmingConfig, turn: number) => rollWeather(state.weatherSeed, config, turn);
-
 /** Seeded weather by period: the lookup for a farm with no home region, or when the real weather can't answer. */
 export function seededLookup(weatherSeed: number, config: FarmingConfig): WeatherLookup {
     const period = config.turnHours * HOUR_MS;
     return (periodStart) => rollWeather(weatherSeed, config, 1_000_000 + Math.floor(periodStart / period));
 }
 
-/**
- * The weather of the coming Advances: one, or three after Read the Sky.
- * Banked turns' weather is already known; past them, the forecast for the
- * periods the next turns will come in over.
- */
+/** The weather of the coming turns: one, or three after Read the Sky. Each is its period's forecast. */
 export function forecast(state: FarmState, config: FarmingConfig, lookup: WeatherLookup = seededLookup(state.weatherSeed, config)): GeoFarmWeather[] {
     const period = config.turnHours * HOUR_MS;
-    const length = state.skyRead ? 3 : 1;
-    return Array.from({ length }, (_, i) => {
-        if (i < state.turnsBanked) return state.turnWeather[i] ?? weatherAt(state, config, state.turn + 1 + i);
-        return lookup(new Date(state.accruedAt).getTime() + (i - state.turnsBanked) * period);
-    });
+    const start = new Date(state.accruedAt).getTime();
+    return Array.from({ length: state.skyRead ? 3 : 1 }, (_, i) => lookup(start + i * period));
 }
 
 const WEEK_MS = 7 * 24 * HOUR_MS;
@@ -499,7 +509,7 @@ export function isUnlockable(state: FarmState, index: number): boolean {
 
 export const isRipe = (crop: FarmCrop, def: GrowsDef) => !crop.rotten && crop.stage >= def.stages;
 
-/** Chance a crop rots on the next Advance: only ripe, unheld crops can. */
+/** Chance a crop rots on the next turn: only ripe, unheld crops can. */
 export function rotChance(crop: FarmCrop, def: GrowsDef, config: FarmingConfig): number {
     if (!isRipe(crop, def) || crop.held) return 0;
     const chances = config.rotChances;
@@ -529,7 +539,7 @@ function pickLiked(state: FarmState, def: PestDef, tiles: number[], rng: Rng): n
     return pick(rng, liked.length > 0 ? liked : tiles);
 }
 
-/** What a pest will do on the next Advance, from where it stands now. */
+/** What a pest will do on the next turn, from where it stands now. */
 export function planIntent(state: FarmState, pest: FarmPest, def: PestDef, rng: Rng): GeoFarmPestIntent {
     const here = pest.tile;
     const wander = (): GeoFarmPestIntent => {
@@ -565,11 +575,14 @@ export function planIntent(state: FarmState, pest: FarmPest, def: PestDef, rng: 
 
 const between = (rng: Rng, { min, max }: { min: number; max: number }) => min + Math.floor(rng.next() * (max - min + 1));
 
+/** The clock's own step: never sent by the player (`tickFarm`, `catchUp`). */
+type FarmTick = { type: "tick"; weather: GeoFarmWeather };
+
 /**
  * One step. Throws FarmRuleError for anything the player can't do now (not
- * enough Labor, no turns banked, a tile that isn't theirs…).
+ * enough Labor, a tile that isn't theirs…).
  */
-export function stepFarm(prev: FarmState, action: GeoFarmAction, ctx: FarmContext): FarmStepResult {
+export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx: FarmContext): FarmStepResult {
     const state: FarmState = structuredClone(prev);
     const rng = createRng(state.seed);
     const result: FarmStepResult = { state, log: [], gains: [], xp: 0, seedUsed: null, cardPlayed: null, coins: 0, itemsUsed: [], coinsGained: 0, harvested: [] };
@@ -701,7 +714,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction, ctx: FarmContex
         return crop;
     };
 
-    /** What pests did on Advance, logged after the growth line. */
+    /** What pests did each turn, logged after the growth line. */
     const pestNotes: string[] = [];
 
     switch (action.type) {
@@ -933,9 +946,8 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction, ctx: FarmContex
             result.cardPlayed = { inventoryId: card.inventoryId, chargesLeft: card.chargesLeft - 1 };
             break;
         }
-        case "advance": {
-            if (state.turnsBanked <= 0) throw new FarmRuleError("No Farm Turns banked. One comes in every few hours.");
-            advance();
+        case "tick": {
+            advance(action.weather);
             break;
         }
         case "unlock": {
@@ -1016,14 +1028,14 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction, ctx: FarmContex
                 result.log.push(`${cropDef(crop).name} at ${tileName(index)} is held for a turn.`);
                 return;
             }
-            case "farm.green-manure": {
+            case "farm.plow-under": {
                 const tile = ownedTile(index);
-                if (!tile.crop) throw new FarmRuleError("Green Manure needs a crop to dig in");
+                if (!tile.crop) throw new FarmRuleError("Plow Under needs a crop to turn into the soil");
                 const name = cropDef(tile.crop).name;
                 tile.crop = null;
                 addCompost();
                 tile.fertility = Math.min(GEO_FARM_MAX_FERTILITY, tile.fertility + 3);
-                result.log.push(`Dug the ${name} at ${tileName(index)} back in: +3 fertility.`);
+                result.log.push(`Plowed the ${name} at ${tileName(index)} under: +3 fertility.`);
                 return;
             }
             case "farm.read-sky": {
@@ -1068,8 +1080,8 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction, ctx: FarmContex
             case "farm.coax": {
                 const tile = noStructure(ownedTile(index));
                 if (tile.crop || tile.waste) throw new FarmRuleError("Coax needs an empty tile");
-                // As things will stand on the coming Advance: its weather and events.
-                const weather = state.turnWeather[0] ?? weatherAt(state, config, state.turn + 1);
+                // As things will stand on the coming turn: its weather and events.
+                const weather = nextWeather(state, ctx);
                 const holding = Object.values(ctx.mutations).filter((mutation) => recipeHolds(index, mutation, weather, [state.nextEvent ?? undefined, ctx.globalEvent?.id]));
                 const sprouted = holding.find((mutation) => rng.chance(mutation.chance * COAX_SHARE));
                 if (sprouted) {
@@ -1105,7 +1117,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction, ctx: FarmContex
                 const moon = ctx.events["blood-moon"];
                 if (!moon) throw new FarmRuleError("The moon won't answer");
                 state.nextEvent = moon.id;
-                result.log.push("The rite is done. The next Advance comes under a Blood Moon.");
+                result.log.push("The rite is done. The next turn comes under a Blood Moon.");
                 return;
             }
             case "farm.exterminators-oath": {
@@ -1176,7 +1188,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction, ctx: FarmContex
                 if (!portal) throw new FarmRuleError("Tear the Veil needs a Portal");
                 if (portal.open) throw new FarmRuleError("It's already open");
                 portal.open = true;
-                result.log.push("The Portal tears open. Something is coming through on the next Advance.");
+                result.log.push("The Portal tears open. Something is coming through on the next turn.");
                 return;
             }
             case "farm.snap-trap": {
@@ -1190,8 +1202,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction, ctx: FarmContex
     }
 
     /** Everything moves on one turn: weather, growth, ripe crops' push-your-luck, fallow soil. */
-    function advance() {
-        const weather = state.turnWeather.shift() ?? weatherAt(state, config, state.turn + 1);
+    function advance(weather: GeoFarmWeather) {
         const event = state.nextEvent ? ctx.events[state.nextEvent] : undefined;
         state.nextEvent = null;
         state.activeEvent = null;
@@ -1199,7 +1210,6 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction, ctx: FarmContex
         if (event) result.log.push(`${event.name}! ${event.description}`);
         if (global) result.log.push(`${global.name}, everywhere! ${global.description}`);
         state.turn += 1;
-        state.turnsBanked -= 1;
         state.labor = laborFor(config, ctx.farmingLevel);
         state.skyRead = false;
 
@@ -1296,7 +1306,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction, ctx: FarmContex
                 }
             }
             if (tile.soakTurns > 0) tile.soakTurns -= 1;
-            // A trap lasts one Advance, caught or not.
+            // A trap lasts one turn, caught or not.
             tile.trap = false;
         }
 
@@ -1478,7 +1488,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction, ctx: FarmContex
         }
     }
 
-    /** Maybe telegraph an event for the next Advance. */
+    /** Maybe telegraph an event for the next turn. */
     function rollNextEvent() {
         // Weight 0: a global-only event, never rolled on one farm.
         const events = Object.values(ctx.events).filter((entry) => entry.weight > 0);

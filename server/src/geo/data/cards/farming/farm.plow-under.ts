@@ -1,8 +1,8 @@
 import type { Card } from "#geo/models";
 
 export default {
-    id: "farm.green-manure",
-    name: "Green Manure",
+    id: "farm.plow-under",
+    name: "Plow Under",
     rarity: "common",
     icon: "sprout",
     description: "Dig it back in. The soil remembers.",

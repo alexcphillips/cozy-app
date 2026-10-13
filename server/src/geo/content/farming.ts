@@ -25,7 +25,7 @@ export type CropDef = {
     xp: number;
 };
 
-/** What has to be true around an empty tile on Advance for a mutation to roll there. */
+/** What has to be true around an empty tile each turn for a mutation to roll there. */
 export type MutationRecipe = {
     parents: { cropId: string; count: number }[];
     weather?: GeoFarmWeather;
@@ -57,17 +57,17 @@ export type GrowsDef = CropDef | MutationDef;
 
 /** What a farm event does; the rules are in `farming/farm.ts`. */
 export type FarmEventEffect =
-    /** On its Advance: `count` extra pests arrive, past the usual cap. */
+    /** On its turn: `count` extra pests arrive, past the usual cap. */
     | { kind: "pest-swarm"; count: number }
-    /** On its Advance: a ring of mushrooms round an empty tile: +`fertility` on the 8 around, and that tile's mutation chances × `mutationBoost`. */
+    /** On its turn: a ring of mushrooms round an empty tile: +`fertility` on the 8 around, and that tile's mutation chances × `mutationBoost`. */
     | { kind: "fairy-ring"; fertility: number; mutationBoost: number }
-    /** On its Advance: recipes can need it, and pests are `pestBoost` × likelier to come. */
+    /** On its turn: recipes can need it, and pests are `pestBoost` × likelier to come. */
     | { kind: "blood-moon"; pestBoost: number }
-    /** For the turn after its Advance: every harvest +`bonus` yield. */
+    /** For the turn after it comes: every harvest +`bonus` yield. */
     | { kind: "bumper-harvest"; bonus: number }
-    /** For the turn after its Advance: `count` of `stock` are for sale. */
+    /** For the turn after it comes: `count` of `stock` are for sale. */
     | { kind: "merchant"; count: number; stock: { itemId: string; price: number }[] }
-    /** On its Advance: mutation chances × `mutationBoost`, and each empty tile has `dropChance` of `itemId` falling on it. */
+    /** On its turn: mutation chances × `mutationBoost`, and each empty tile has `dropChance` of `itemId` falling on it. */
     | { kind: "meteor-shower"; mutationBoost: number; dropChance: number; itemId: string };
 
 export type FarmEventDef = {
@@ -86,17 +86,17 @@ export type StructureEffect =
     | { kind: "jukebox"; boost: number }
     /** Keeps one pest alive: it counts as that pest nearby for mutation recipes. */
     | { kind: "cage" }
-    /** Mutation chances × `boost` on the tiles around; each Advance, `swarmChance` the crops around don't grow. */
+    /** Mutation chances × `boost` on the tiles around; each turn, `swarmChance` the crops around don't grow. */
     | { kind: "beehive"; boost: number; swarmChance: number }
-    /** Every harvest and clear adds 1 compost, up to `capacity`; each Advance spends 1 for +1 fertility around. */
+    /** Every harvest and clear adds 1 compost, up to `capacity`; each turn spends 1 for +1 fertility around. */
     | { kind: "compost"; capacity: number }
-    /** Keeps the 4 tiles beside it at 1 water or more, and its frog eats 1 pest on or around it each Advance. */
+    /** Keeps the 4 tiles beside it at 1 water or more, and its frog eats 1 pest on or around it each turn. */
     | { kind: "pond" }
     /** Shelters the 8 tiles around: no weather there, no pests arrive there, no mutations sprout there. */
     | { kind: "greenhouse" }
-    /** Crops within `radius` grow `growth` extra stages a turn; each Advance, `wasteChance` waste lands within `radius`. */
+    /** Crops within `radius` grow `growth` extra stages a turn; each turn, `wasteChance` waste lands within `radius`. */
     | { kind: "reactor"; radius: number; growth: number; wasteChance: number }
-    /** Tear the Veil opens it: on the next Advance, `wave` of `pests` come through, then it shuts. */
+    /** Tear the Veil opens it: on the next turn, `wave` of `pests` come through, then it shuts. */
     | { kind: "portal"; wave: number; pests: string[] }
     /** Takes offerings: their NPC value buys a roll for a blessing (`config/farming.ts` `shrine`). */
     | { kind: "shrine" }
@@ -123,7 +123,7 @@ export type PestBehaviour =
     | { kind: "eat"; reach: number }
     /** Drains `amount` fertility from its tile; moves on once the soil is spent. */
     | { kind: "drain"; amount: number }
-    /** Saps the crop it's on; every `every` Advances, breeds onto a next-door crop. */
+    /** Saps the crop it's on; every `every` turns, breeds onto a next-door crop. */
     | { kind: "breed"; every: number };
 
 export type PestDrop = { itemId: string; chance: number; quantity: { min: number; max: number } };
@@ -158,31 +158,31 @@ export const FARMING_CARDS = {
     "farm.scythe-sweep": { labor: 2, shape: "square3" },
     /** A growing crop moves one stage now; its tile loses 1 fertility. */
     "farm.ripen": { labor: 2, shape: "tile" },
-    /** A ripe crop neither rots nor improves on the next Advance. */
+    /** A ripe crop neither rots nor improves on the next turn. */
     "farm.hold": { labor: 1, shape: "tile" },
     /** Turns whatever grows on the tile into +3 fertility. */
-    "farm.green-manure": { labor: 1, shape: "tile" },
-    /** The forecast shows 3 Advances until the next one. */
+    "farm.plow-under": { labor: 1, shape: "tile" },
+    /** The forecast shows 3 turns until the next one. */
     "farm.read-sky": { labor: 1, shape: "none" },
     /** Clears every pest in a 3×3; ripe crops in it lose their waiting bonus. */
     "farm.smoke": { labor: 2, shape: "square3" },
     /** Pulls every pest in the 8 tiles around onto the middle one. */
     "farm.bait-ring": { labor: 1, shape: "ring" },
-    /** Arms a tile: a pest moving onto it on the next Advance is caught. */
+    /** Arms a tile: a pest moving onto it on the next turn is caught. */
     "farm.snap-trap": { labor: 1, shape: "tile" },
     /** Scrubs nuclear waste off one tile. */
     "farm.hazmat-scrub": { labor: 1, shape: "tile" },
     /** Waste on the 4 tiles beside the aimed one (not the middle), killing what grows there. */
     "farm.controlled-leak": { labor: 2, shape: "cross" },
-    /** Tears a Portal open: elite pests come through on the next Advance. */
+    /** Tears a Portal open: elite pests come through on the next turn. */
     "farm.tear-the-veil": { labor: 2, shape: "tile" },
     /** An empty tile rolls the mutations whose recipes hold there now, at half chance; a miss costs it 2 fertility. */
     "farm.coax": { labor: 2, shape: "tile" },
     /** +2 fertility on a tile and the 4 beside it, spending 2 compost from a Compost Bin. */
     "farm.compost-spread": { labor: 1, shape: "tile" },
-    /** A 3×3's fertility can't drop until the next Advance is done; crops in it don't grow on it. */
+    /** A 3×3's fertility can't drop until the next turn is done; crops in it don't grow on it. */
     "farm.lime-dust": { labor: 1, shape: "square3" },
-    /** The next Advance comes under a Blood Moon. */
+    /** The next turn comes under a Blood Moon. */
     "farm.moon-rite": { labor: 2, shape: "none" },
     /** The next 3 pests cleared roll their drops twice. */
     "farm.exterminators-oath": { labor: 2, shape: "none" },
@@ -190,11 +190,11 @@ export const FARMING_CARDS = {
     "farm.rush-order": { labor: 1, shape: "none" },
     /** Every waste tile: 30% it turns into a random mutation, else a Glow Beetle crawls out. */
     "farm.chain-reaction": { labor: 3, shape: "none" },
-    /** The row counts as Boggy for 2 Advances. */
+    /** The row counts as Boggy for 2 turns. */
     "farm.mulch": { labor: 1, shape: "row" },
-    /** One tile counts as Cursed for 1 Advance. */
+    /** One tile counts as Cursed for 1 turn. */
     "farm.hex-the-earth": { labor: 1, shape: "tile" },
-    /** An empty tile's mutation odds go up on the next Advance; ripe crops around lose their wait. */
+    /** An empty tile's mutation odds go up on the next turn; ripe crops around lose their wait. */
     "farm.hand-pollinate": { labor: 1, shape: "tile" },
 } as const satisfies Record<string, { labor: number; shape: GeoFarmCardShape }>;
 

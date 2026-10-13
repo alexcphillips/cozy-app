@@ -28,9 +28,7 @@ export async function act(req: Request, res: Response) {
     if (!(GEO_FARM_ACTION_TYPES as readonly unknown[]).includes(type)) throw AppError.badRequest("type must be a farm action");
 
     let action: GeoFarmAction;
-    if (type === "advance") {
-        action = { type };
-    } else if (type === "buy" || type === "pesthunter-buy") {
+    if (type === "buy" || type === "pesthunter-buy") {
         if (!isInt(body.offer)) throw AppError.badRequest("Missing offer");
         action = { type, offer: body.offer };
     } else if (type === "accept-order" || type === "deliver-order") {

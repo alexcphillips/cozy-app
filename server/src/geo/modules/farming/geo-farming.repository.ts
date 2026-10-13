@@ -5,7 +5,7 @@ import { isFarmingCardId } from "../../content/farming";
 import { withTransaction, type TxQuery } from "../../db/transaction";
 import { randomSeed } from "../../engine/rng";
 import {
-    accrue,
+    catchUp,
     FarmRuleError,
     activeGlobalEvent,
     newFarm,
@@ -44,7 +44,7 @@ async function loadHand(tx: TxQuery, playerId: string, inventory: InventoryRows)
     });
 }
 
-/** The player's farming level, for the Labor each Advance gives. */
+/** The player's farming level, for the Labor each turn refills to. */
 async function farmingLevel(tx: TxQuery, playerId: string): Promise<number> {
     return (await playerRepository.findSkillLevels(tx, playerId)).farming ?? 1;
 }
@@ -60,18 +60,21 @@ async function weatherFor(state: FarmState): Promise<FarmWeather> {
     return hours ? { lookup: realLookup(hours, FARMING, seeded), source: "real" } : { lookup: seeded, source: "placeholder" };
 }
 
+type LoadedFarm = { state: FarmState; weather: FarmWeather; away: FarmReport };
+
 /**
- * The player's farm, locked for this transaction, with the turns that came
- * in since it was last looked at, and its weather. Made on first look.
+ * The player's farm, locked for this transaction, and its weather. Made on
+ * first look. The turns that came due since the last look are played here,
+ * and what they gave saved; `away` says what happened.
  */
-async function loadFarm(tx: TxQuery, playerId: string, now: Date): Promise<{ state: FarmState; weather: FarmWeather }> {
+async function loadFarm(tx: TxQuery, playerId: string, now: Date): Promise<LoadedFarm> {
     const [row] = await tx<{ state: StoredFarm }>(FIND_FARM_FOR_UPDATE, [playerId]);
     let stored = row ? upgradeFarm(row.state) : null;
     if (!stored) {
         const fresh = newFarm(FARMING, randomSeed(), randomSeed(), now);
         const [inserted] = await tx<{ state: FarmState }>(INSERT_FARM, [playerId, fresh]);
         if (inserted) {
-            return { state: refreshOrders(fresh, FARMING, CONTENT.crops, sellValue, now), weather: await weatherFor(fresh) };
+            return { state: refreshOrders(fresh, FARMING, CONTENT.crops, sellValue, now), weather: await weatherFor(fresh), away: NO_AWAY };
         }
         // Made by a request racing this one: read theirs.
         const [raced] = await tx<{ state: StoredFarm }>(FIND_FARM_FOR_UPDATE, [playerId]);
@@ -79,7 +82,43 @@ async function loadFarm(tx: TxQuery, playerId: string, now: Date): Promise<{ sta
         stored = upgradeFarm(raced.state);
     }
     const weather = await weatherFor(stored);
-    return { state: refreshOrders(accrue(stored, FARMING, now, weather.lookup), FARMING, CONTENT.crops, sellValue, now), weather };
+    const played = catchUp(stored, {
+        crops: CONTENT.crops,
+        mutations: CONTENT.mutations,
+        pests: CONTENT.pests,
+        structures: CONTENT.structures,
+        events: CONTENT.farmEvents,
+        sellValue,
+        config: FARMING,
+        now,
+        // A turn plays no cards, seeds or held items.
+        hand: [],
+        seedBag: [],
+        held: {},
+        farmingLevel: await farmingLevel(tx, playerId),
+        weather: weather.lookup,
+    });
+    if (played.gains.length > 0) await playerRepository.grantItems(tx, playerId, played.gains);
+    if (played.xp > 0) await playerRepository.addSkillXp(tx, playerId, "farming", played.xp);
+    await recordHarvests(tx, playerId, played.harvested, now);
+    return {
+        state: refreshOrders(played.state, FARMING, CONTENT.crops, sellValue, now),
+        weather,
+        away: { log: played.log, gained: played.gains, xpGained: played.xp },
+    };
+}
+
+const NO_AWAY: FarmReport = { log: [], gained: [], xpGained: 0 };
+
+/** What the turns played on this look did, then what the action did. */
+function afterAway(away: FarmReport, report: FarmReport): FarmReport {
+    const gained = away.gained.map((entry) => ({ ...entry }));
+    for (const { itemId, quantity } of report.gained) {
+        const existing = gained.find((entry) => entry.itemId === itemId);
+        if (existing) existing.quantity += quantity;
+        else gained.push({ itemId, quantity });
+    }
+    return { log: [...away.log, ...report.log], gained, xpGained: away.xpGained + report.xpGained };
 }
 
 /** The farm as the app sees it, with what it needs loaded fresh. `hand` overrides the stored one (a charge just spent). */
@@ -101,13 +140,13 @@ async function viewOf(tx: TxQuery, playerId: string, state: FarmState, weather: 
     );
 }
 
-/** The farm as it stands, from anywhere. Saves the turns that came in. */
+/** The farm as it stands, from anywhere. Plays and saves the turns that came due. */
 export async function findFarm(playerId: string): Promise<GeoFarmView> {
     return withTransaction(async (tx) => {
         await playerRepository.lockPlayer(tx, playerId);
-        const { state, weather } = await loadFarm(tx, playerId, new Date());
+        const { state, weather, away } = await loadFarm(tx, playerId, new Date());
         await tx(UPDATE_FARM, [playerId, state]);
-        return viewOf(tx, playerId, state, weather);
+        return viewOf(tx, playerId, state, weather, away);
     });
 }
 
@@ -120,7 +159,7 @@ export async function actFarm(playerId: string, action: GeoFarmAction): Promise<
     return withTransaction(async (tx) => {
         await playerRepository.lockPlayer(tx, playerId);
         const now = new Date();
-        const { state, weather } = await loadFarm(tx, playerId, now);
+        const { state, weather, away } = await loadFarm(tx, playerId, now);
         const inventoryBefore = await playerRepository.findInventory(playerId, tx);
         const hand = await loadHand(tx, playerId, inventoryBefore);
         const seedBag = await playerRepository.findSeedBag(playerId, tx);
@@ -141,6 +180,7 @@ export async function actFarm(playerId: string, action: GeoFarmAction): Promise<
                 now,
                 hand,
                 seedBag: seedBag.contents,
+                weather: weather.lookup,
             });
         } catch (error) {
             if (error instanceof FarmRuleError) throw AppError.badRequest(error.message);
@@ -176,7 +216,7 @@ export async function actFarm(playerId: string, action: GeoFarmAction): Promise<
         );
         // A new home region brings its own weather for the forecast.
         const weatherAfter = action.type === "home" ? await weatherFor(result.state) : weather;
-        return viewOf(tx, playerId, result.state, weatherAfter, { log: result.log, gained: result.gains, xpGained: result.xp }, handAfter);
+        return viewOf(tx, playerId, result.state, weatherAfter, afterAway(away, { log: result.log, gained: result.gains, xpGained: result.xp }), handAfter);
     });
 }
 
@@ -187,7 +227,7 @@ export async function actFarm(playerId: string, action: GeoFarmAction): Promise<
 export async function research(playerId: string, { mutationId }: GeoResearchRequest): Promise<GeoFarmView> {
     return withTransaction(async (tx) => {
         await playerRepository.lockPlayer(tx, playerId);
-        const { state, weather } = await loadFarm(tx, playerId, new Date());
+        const { state, weather, away } = await loadFarm(tx, playerId, new Date());
         const mutation = CONTENT.mutations[mutationId];
         if (!mutation) throw AppError.badRequest("The Research Lab doesn't know that one");
         if (state.lab.includes(mutation.id)) throw AppError.badRequest(`${mutation.name} is already in the journal`);
@@ -198,10 +238,16 @@ export async function research(playerId: string, { mutationId }: GeoResearchRequ
         await playerRepository.addSkillXp(tx, playerId, "farming", mutation.research.xp);
         await tx(UPDATE_FARM, [playerId, state]);
 
-        return viewOf(tx, playerId, state, weather, {
-            log: [`The Research Lab logged ${mutation.name}: its recipe is in the journal. +${mutation.research.coins} coins.`],
-            gained: [],
-            xpGained: mutation.research.xp,
-        });
+        return viewOf(
+            tx,
+            playerId,
+            state,
+            weather,
+            afterAway(away, {
+                log: [`The Research Lab logged ${mutation.name}: its recipe is in the journal. +${mutation.research.coins} coins.`],
+                gained: [],
+                xpGained: mutation.research.xp,
+            }),
+        );
     });
 }

@@ -142,7 +142,6 @@ export type FarmViewExtras = {
 };
 
 export function toFarmView(state: FarmState, { hand, seedBag, held, weather, contests, global, farmingLevel }: FarmViewExtras, report: FarmReport = NO_REPORT): GeoFarmView {
-    const next = nextTurnAt(state, FARMING);
     return {
         size: GEO_FARM_SIZE,
         tiles: state.tiles.map((tile, index) => {
@@ -181,9 +180,8 @@ export function toFarmView(state: FarmState, { hand, seedBag, held, weather, con
         labor: state.labor,
         laborPerTurn: laborFor(FARMING, farmingLevel),
         laborNextLevel: nextLaborLevel(FARMING, farmingLevel),
-        turnsBanked: state.turnsBanked,
-        maxTurnsBanked: FARMING.maxTurnsBanked,
-        nextTurnAt: next ? next.toISOString() : null,
+        nextTurnAt: nextTurnAt(state, FARMING).toISOString(),
+        maxTurnsAway: FARMING.maxTurnsAway,
         forecast: forecast(state, FARMING, weather.lookup),
         events: {
             next: eventView(state.nextEvent, []),

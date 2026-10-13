@@ -5,8 +5,7 @@ export default {
     laborPerTurn: 3,
     laborLevels: [10, 20, 35, 50],
     turnHours: 12,
-    maxTurnsBanked: 4,
-    startTurnsBanked: 2,
+    maxTurnsAway: 2,
     startSize: 3,
     unlockCost: { first: 50, step: 25 },
     seedBagSlots: 2,
@@ -34,7 +33,7 @@ export default {
         halfValue: 400,
         curseShare: 0.25,
         blessings: [
-            { id: "growth", name: "Blessing of Growth", description: "Every growing crop grows an extra stage on the next Advance.", turns: 1, weight: 3, curse: false },
+            { id: "growth", name: "Blessing of Growth", description: "Every growing crop grows an extra stage on the next turn.", turns: 1, weight: 3, curse: false },
             { id: "plenty", name: "Blessing of Plenty", description: "+1 yield on every harvest.", turns: 3, weight: 3, curse: false },
             { id: "mutation", name: "Blessing of Change", description: "Mutation chances ×2.", turns: 3, weight: 2, curse: false },
             { id: "pests", name: "Curse of Hunger", description: "Pests come twice as often, and sooner.", turns: 2, weight: 1, curse: true },

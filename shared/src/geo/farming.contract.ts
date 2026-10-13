@@ -1,10 +1,12 @@
 import type { GeoHandCard, GeoLunchboxSlot } from "./run.contract";
 
 /**
- * Farming: one grid per player that grows only when they spend a Farm Turn.
- * Turns come in on the clock (1 per 12h, a few banked); each gives Labor to
- * spend on watering, harvesting and farming cards, and Advance moves every
- * crop on. The server runs every rule; the app shows what it says.
+ * Farming: one grid per player that runs on a real clock. Every 12h the farm
+ * takes a turn on its own: crops grow, weather lands, pests move, and Labor
+ * refills for watering, harvesting and farming cards. After a couple of
+ * turns without the player looking, the farm waits for them. The server
+ * runs every rule (catching up when the farm is next looked at); the app
+ * shows what it says.
  *
  * The farm can be looked at (and planned on, with blueprints) anywhere, but
  * only worked at a farming place.
@@ -14,8 +16,8 @@ import type { GeoHandCard, GeoLunchboxSlot } from "./run.contract";
 export const GEO_FARM_SIZE = 9;
 
 /**
- * A Farm Turn's weather: the real weather of the farm's home region over the
- * 12 hours the turn came in, or a seeded roll when there's no home region or
+ * A farm turn's weather: the real weather of the farm's home region over the
+ * 12 hours before the turn, or a seeded roll when there's no home region or
  * the weather service can't answer.
  */
 export const GEO_FARM_WEATHERS = ["clear", "overcast", "rain", "heatwave", "storm", "frost"] as const;
@@ -40,11 +42,11 @@ export type GeoFarmCrop = {
     stage: number;
     stages: number;
     ripe: boolean;
-    /** Advances it has sat ripe: each adds yield and risks rot. */
+    /** Turns it has sat ripe: each adds yield and risks rot. */
     ripeTurns: number;
-    /** Chance it rots on the next Advance, 0–1. 0 while held or growing. */
+    /** Chance it rots on the next turn, 0–1. 0 while held or growing. */
     rotChance: number;
-    /** Held: the next Advance neither rots nor improves it. */
+    /** Held: the next turn neither rots nor improves it. */
     held: boolean;
     rotten: boolean;
 };
@@ -58,7 +60,7 @@ export type GeoFarmTile = {
     /** Locked, but next to an owned tile: can be bought now. */
     unlockable: boolean;
     crop: GeoFarmCrop | null;
-    /** 0–GEO_FARM_MAX_MOISTURE. A growing crop drinks 1 per Advance and doesn't grow without it. */
+    /** 0–GEO_FARM_MAX_MOISTURE. A growing crop drinks 1 per turn and doesn't grow without it. */
     moisture: number;
     /** Turns left in which growing here drinks nothing. */
     soakTurns: number;
@@ -66,9 +68,9 @@ export type GeoFarmTile = {
     fertility: number;
     /** The planned crop: a faded ghost, nothing more. */
     blueprint: string | null;
-    /** A Snap Trap: catches a pest that moves onto it on the next Advance. */
+    /** A Snap Trap: catches a pest that moves onto it on the next turn. */
     trap: boolean;
-    /** Hand Pollinated: better mutation odds here on the next Advance. */
+    /** Hand Pollinated: better mutation odds here on the next turn. */
     pollinated: boolean;
     /** A structure standing here instead of a crop. */
     structure: GeoFarmStructure | null;
@@ -76,7 +78,7 @@ export type GeoFarmTile = {
     waste: boolean;
     /** The tile's own soil, changed only by an amendment. */
     soil: GeoFarmSoil;
-    /** A card's soil laid over it for `turnsLeft` more Advances; it counts instead of `soil`. */
+    /** A card's soil laid over it for `turnsLeft` more turns; it counts instead of `soil`. */
     soilOverlay: { soil: GeoFarmSoil; turnsLeft: number } | null;
 };
 
@@ -103,7 +105,7 @@ export type GeoFarmStructure = {
     caged: string | null;
     /** Compost Bin: compost waiting, spent 1 a turn to feed the soil around. */
     compost: number;
-    /** Portal: torn open, so elite pests come through on the next Advance. */
+    /** Portal: torn open, so elite pests come through on the next turn. */
     open: boolean;
     /** Well: water stored; plain watering draws on it for no Labor. */
     water: number;
@@ -142,7 +144,7 @@ export type GeoGlobalFarmEvent = {
     event: GeoFarmEventView;
     startsAt: string;
     endsAt: string;
-    /** On now: Advances played now get it. */
+    /** On now: turns played now get it. */
     active: boolean;
 };
 
@@ -192,7 +194,7 @@ export type GeoStructureView = {
 };
 
 /**
- * What a pest will do on the next Advance, shown before it happens. `tile`
+ * What a pest will do on the next turn, shown before it happens. `tile`
  * is where it acts; a pest moves there first if it isn't there already.
  * Telegraphed moves are promises: clearing the crop first makes them miss.
  */
@@ -297,33 +299,32 @@ export type GeoFarmGain = { itemId: string; quantity: number };
 export type GeoFarmView = {
     size: number;
     tiles: GeoFarmTile[];
-    /** Farm Turns played so far. */
+    /** Turns the farm has taken so far. */
     turn: number;
     labor: number;
-    /** What each Advance refills Labor to; it grows with farming level. */
+    /** What each turn refills Labor to; it grows with farming level. */
     laborPerTurn: number;
     /** The farming level that next adds 1 Labor per turn; null past the last. */
     laborNextLevel: number | null;
-    /** Turns waiting to be spent; Advance spends one. */
-    turnsBanked: number;
-    maxTurnsBanked: number;
-    /** When the next turn comes in; null while the bank is full. */
-    nextTurnAt: string | null;
-    /** Weather for the coming Advances, soonest first. One unless the sky has been read. */
+    /** When the farm takes its next turn. */
+    nextTurnAt: string;
+    /** Turns the farm takes while the player is away; past this it waits for them. */
+    maxTurnsAway: number;
+    /** Weather for the coming turns, soonest first. One unless the sky has been read. */
     forecast: GeoFarmWeather[];
     /** Where the weather comes from. */
     weather: GeoFarmWeatherSource;
-    /** Farm events: the one coming on the next Advance (telegraphed), and the one on now. */
+    /** Farm events: the one coming on the next turn (telegraphed), and the one on now. */
     events: { next: GeoFarmEventView | null; active: GeoFarmEventView | null };
     /** This week's Order Board. */
     orders: GeoOrderBoard;
-    /** This week's server-wide event, if any: everyone's Advances during it get it. */
+    /** This week's server-wide event, if any: everyone's turns during it get it. */
     global: GeoGlobalFarmEvent | null;
     /** This week's contests, with the player's standing. */
     contests: GeoFarmContests;
     /** Amendment items and the soil each makes, for the tile panel. */
     amendments: { itemId: string; soil: GeoFarmSoil }[];
-    /** Shrine blessings (and curses) on the farm, each with the Advances it has left. */
+    /** Shrine blessings (and curses) on the farm, each with the turns it has left. */
     blessings: { id: string; name: string; description: string; curse: boolean; turnsLeft: number }[];
     /** Coins the next tile costs; null when every tile is owned. */
     unlockCost: number | null;
@@ -410,8 +411,6 @@ export type GeoFarmAction =
     | { type: "deliver-order"; orderId: string }
     /** A farming card at a tile (any tile for shape "none"). */
     | { type: "play"; inventoryId: string; tile: number }
-    /** Spends a Farm Turn: everything grows, Labor refills. */
-    | { type: "advance" }
     /** Coins: a locked tile next to the farm. */
     | { type: "unlock"; tile: number }
     /** The plan: a ghost crop on a tile, or null to clear it. */
@@ -438,7 +437,6 @@ export const GEO_FARM_ACTION_TYPES = [
     "accept-order",
     "deliver-order",
     "play",
-    "advance",
     "unlock",
     "blueprint",
 ] as const satisfies readonly GeoFarmAction["type"][];

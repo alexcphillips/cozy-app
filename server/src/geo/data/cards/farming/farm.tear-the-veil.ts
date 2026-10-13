@@ -8,7 +8,7 @@ export default {
     description: "Some doors are better left shut. This isn't one of them.",
     stats: [
         { label: "Role", value: "Mystic" },
-        { label: "Does", value: "2 Labor. Aim at a Portal: elite pests come through it on the next Advance." },
+        { label: "Does", value: "2 Labor. Aim at a Portal: elite pests come through it on the next turn." },
     ],
     skill: "farming",
     maxCharges: 10,

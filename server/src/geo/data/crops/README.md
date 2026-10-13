@@ -15,7 +15,7 @@ Model: `Crop` in `#geo/models` (`content/models.ts`). Hover any field in the edi
 | `name`, `icon` | text | yes | Shown in the app. |
 | `seed` | item id | yes | The farming material planted from the Seed Bag. |
 | `produce` | item id | yes | The farming material a harvest gives. |
-| `stages` | whole number ≥ 1 | yes | Advances from planting to ripe. Each needs water, unless the tile is soaked or the sky is overcast. |
+| `stages` | whole number ≥ 1 | yes | Turns from planting to ripe. Each needs water, unless the tile is soaked or the sky is overcast. |
 | `yield` | `{ min, max }` | yes | How many `produce` a harvest gives, before fertility, waiting and card bonuses. |
 | `seedsBack` | `{ min, max }` | yes | Seeds a harvest gives back. |
 | `fertilityCost` | whole number ≥ 0 | yes | Fertility a harvest takes from its tile. |

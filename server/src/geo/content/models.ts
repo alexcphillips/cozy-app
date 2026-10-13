@@ -207,7 +207,7 @@ export type Crop = {
     seed: string;
     /** The item a harvest gives. */
     produce: string;
-    /** Advances from planting to ripe, each needing moisture. */
+    /** Turns from planting to ripe, each needing moisture. */
     stages: number;
     /** How many `produce` one harvest gives, before fertility and push bonuses. */
     yield: Range;
@@ -220,8 +220,8 @@ export type Crop = {
 };
 
 /**
- * A farm event. Each Advance may telegraph one for the next Advance (see
- * `config/farming.ts` `events`). Some act on their Advance, some last the
+ * A farm event. Each turn may telegraph one for the next turn (see
+ * `config/farming.ts` `events`). Some act on their turn, some last the
  * turn after it.
  */
 export type FarmEvent = {
@@ -233,7 +233,7 @@ export type FarmEvent = {
     /** How often it's the one rolled on a farm, against the others. 0: only ever global (`config/farming.ts` `globalEvents`). */
     weight: number;
     /**
-     * What it does. On its Advance: `pest-swarm` (`count` extra pests, past
+     * What it does. On its turn: `pest-swarm` (`count` extra pests, past
      * the cap), `fairy-ring` (+`fertility` round an empty tile, whose
      * mutation chances × `mutationBoost`), `blood-moon` (recipes can need it;
      * pests `pestBoost` × likelier). For the turn after: `bumper-harvest`
@@ -260,15 +260,15 @@ export type Structure = ItemBase & {
      * What it does. `jukebox`: its tune makes that pest `boost` times
      * likelier to spawn. `cage`: keeps a pest alive, which counts as that pest
      * nearby for mutation recipes. `beehive`: mutation chances × `boost`
-     * around it; `swarmChance` each Advance the crops around don't grow.
+     * around it; `swarmChance` each turn the crops around don't grow.
      * `compost`: each harvest and clear adds compost up to `capacity`; each
-     * Advance spends 1 for +1 fertility on the 8 tiles around. `pond`: keeps
+     * turn spends 1 for +1 fertility on the 8 tiles around. `pond`: keeps
      * the 4 tiles beside it watered, and a frog eats 1 pest near it a turn.
      * `greenhouse`: the 8 tiles around get no weather (they grow as on a
      * clear day), no pests arrive there, and no mutations sprout there.
      * `reactor`: crops within `radius` grow `growth` extra stages a turn, but
-     * each Advance `wasteChance` nuclear waste lands within `radius`.
-     * `portal`: Tear the Veil opens it; on the next Advance `wave` pests from
+     * each turn `wasteChance` nuclear waste lands within `radius`.
+     * `portal`: Tear the Veil opens it; on the next turn `wave` pests from
      * `pests` come through. `shrine`: takes offerings for blessings
      * (`config/farming.ts` `shrine`). `well`: stores up to `capacity` water
      * (rain +`rain`, a storm +`storm`, a heatwave −`heatwave`); plain watering
@@ -291,7 +291,7 @@ export type Structure = ItemBase & {
 
 /**
  * A mutation: a fantasy crop that can't be planted. It sprouts on an empty
- * tile when its secret `recipe` is met there on an Advance, then grows and
+ * tile when its secret `recipe` is met there on a turn, then grows and
  * harvests like a crop (no seeds back). Its `produce` is an ordinary
  * `farming` material. The first one turned in at the Research Lab records
  * the recipe and pays `research`.
@@ -304,19 +304,19 @@ export type Mutation = {
     description: string;
     /** The item a harvest gives. */
     produce: string;
-    /** Advances from sprouting to ripe, each needing moisture. */
+    /** Turns from sprouting to ripe, each needing moisture. */
     stages: number;
     yield: Range;
     fertilityCost: number;
     /** Farming XP per harvest. */
     xp: number;
-    /** Checked around an empty tile on each Advance, after growth. Every part given must hold. */
+    /** Checked around an empty tile on each turn, after growth. Every part given must hold. */
     recipe: {
         /** Ripe crops among the 8 tiles around: at least `count` of each. */
         parents: { cropId: string; count: number }[];
-        /** The weather of that Advance. */
+        /** The weather of that turn. */
         weather?: GeoFarmWeather;
-        /** A farm event on that Advance (`data/farm-events/`), e.g. "blood-moon". */
+        /** A farm event on that turn (`data/farm-events/`), e.g. "blood-moon". */
         event?: string;
         /** A pest of this kind on the tile or one of the 8 around. */
         pest?: string;
@@ -327,7 +327,7 @@ export type Mutation = {
         /** The empty tile's soil (a card's overlay counts), e.g. "cursed". */
         soil?: GeoFarmSoil;
     };
-    /** Chance (0–1) it sprouts on an Advance where the recipe holds. Hand Pollinate multiplies it. */
+    /** Chance (0–1) it sprouts on a turn where the recipe holds. Hand Pollinate multiplies it. */
     chance: number;
     /** Paid once, for the first one turned in at the Research Lab. */
     research: { coins: number; xp: number };
@@ -335,7 +335,7 @@ export type Mutation = {
 
 /**
  * A pest: a piece on the farm grid that comes for the crops it likes, shows
- * its next move, and acts on Advance. Cleared with Swat or pest cards, each
+ * its next move, and acts each turn. Cleared with Swat or pest cards, each
  * rolling its `drops`.
  */
 export type Pest = {
@@ -347,9 +347,9 @@ export type Pest = {
     /** Crop ids it's drawn to. It only spawns while one of them grows, and goes for them first. May be empty for a Portal or waste pest. */
     likes: string[];
     /**
-     * How it acts on Advance. `eat`: eats a crop within `reach` tiles (the
+     * How it acts each turn. `eat`: eats a crop within `reach` tiles (the
      * crop is gone). `drain`: takes `amount` fertility from its tile.
-     * `breed`: the crop it's on doesn't grow, and every `every` Advances a
+     * `breed`: the crop it's on doesn't grow, and every `every` turns a
      * new one appears on a crop next door.
      */
     behaviour: { kind: "eat"; reach: number } | { kind: "drain"; amount: number } | { kind: "breed"; every: number };
@@ -525,16 +525,14 @@ export type SpawnsConfig = {
 };
 
 export type FarmingConfig = {
-    /** Labor each Farm Turn gives at farming level 1. */
+    /** Labor each turn refills to at farming level 1. */
     laborPerTurn: number;
     /** Farming levels that each add 1 Labor per turn, lowest first. */
     laborLevels: number[];
-    /** A Farm Turn comes in this often. */
+    /** The farm takes a turn on its own this often. */
     turnHours: number;
-    /** Turns that can wait unspent; none come in past this. */
-    maxTurnsBanked: number;
-    /** Turns a new farm starts with. */
-    startTurnsBanked: number;
+    /** Turns the farm takes without the player looking; past this it waits for them. */
+    maxTurnsAway: number;
     /** A new farm owns a square this many tiles across, in the middle of the grid. */
     startSize: number;
     /** Coins for the nth extra tile: first + step × (n − 1). */
@@ -543,17 +541,17 @@ export type FarmingConfig = {
     seedBagSlots: number;
     /** Every tile's fertility to start. */
     startFertility: number;
-    /** An empty owned tile gains this much fertility per Advance, up to `fallowCap`. */
+    /** An empty owned tile gains this much fertility per turn, up to `fallowCap`. */
     fallowRecovery: number;
     fallowCap: number;
     /** Harvest yield −1 at or below `low` fertility, +1 at or above `high`. */
     fertilityYield: { low: number; high: number };
-    /** Harvest or push: rot chance on each Advance a ripe crop waits; the list's length caps the bonus. */
+    /** Harvest or push: rot chance on each turn a ripe crop waits; the list's length caps the bonus. */
     rotChances: number[];
     /** Labor for the plain actions. */
     labor: { water: number; harvest: number; clear: number; swat: number; cage: number; scrub: number };
     /**
-     * Nuclear waste. Each Advance a waste tile spreads to a tile beside it
+     * Nuclear waste. Each turn a waste tile spreads to a tile beside it
      * with `spreadChance` (killing what grows there); empty tiles next to
      * waste get mutation chances × `mutationBoost`; and each waste tile has
      * `pestChance` of a `pest` crawling out.
@@ -586,14 +584,14 @@ export type FarmingConfig = {
         blessings: { id: "growth" | "plenty" | "mutation" | "pests"; name: string; description: string; turns: number; weight: number; curse: boolean }[];
     };
     /**
-     * Pests. None spawn before Advance number `fromTurn`. Each Advance, one
+     * Pests. None spawn before turn number `fromTurn`. Each turn, one
      * spawns with chance `chancePerCrop` × liked crops growing, at most
      * `maxChance`, while fewer than `max` are on the farm.
      */
     pests: { fromTurn: number; chancePerCrop: number; maxChance: number; max: number };
     /** Hand Pollinate multiplies a tile's mutation chances by this. */
     pollinateBoost: number;
-    /** Farm events: from Advance `fromTurn`, each Advance telegraphs one for the next with this `chance`. */
+    /** Farm events: from turn `fromTurn`, each turn telegraphs one for the next with this `chance`. */
     events: { fromTurn: number; chance: number };
     /**
      * The weekly Order Board: `perWeek` orders for plain crops, each worth
@@ -611,7 +609,7 @@ export type FarmingConfig = {
     /**
      * Server-wide events, one picked each week by `weight` and announced on
      * Monday. It runs for the week's last `days` days (2: Saturday and Sunday,
-     * UTC), and every farm's Advances during it get it.
+     * UTC), and every farm's turns during it get it.
      */
     globalEvents: { eventId: string; days: number; weight: number }[];
     /** Placeholder weather, rolled when there's no real weather: how often each comes. */

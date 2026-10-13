@@ -8,7 +8,7 @@ export default {
     description: "A feather, a steady hand, and a guess.",
     stats: [
         { label: "Role", value: "Breed" },
-        { label: "Does", value: "1 Labor. Aim at an empty tile: its mutation odds double on the next Advance. Ripe crops around it lose their waiting bonus." },
+        { label: "Does", value: "1 Labor. Aim at an empty tile: its mutation odds double on the next turn. Ripe crops around it lose their waiting bonus." },
     ],
     skill: "farming",
     maxCharges: 30,

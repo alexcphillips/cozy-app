@@ -10,7 +10,8 @@ import { startSmokeServer, step } from "./smoke-kit";
 /**
  * End-to-end check of the farm against the local database: the starter
  * farming hand and Seed Bag, a farm made on first look, planting spending a
- * seed, Labor and banked turns enforced, a harvest into the inventory with
+ * seed, Labor enforced, the farm taking turns on its own while away (and
+ * waiting after a few), a harvest into the inventory with
  * its XP, a card charge spent, a pest swatted for its drop, a tile bought
  * with coins, a mutation turned in at the Research Lab, an order delivered,
  * a structure placed and picked up, a Shrine offering, and packing seeds.
@@ -40,15 +41,30 @@ try {
     let farm = (await call<GeoFarmView>("GET", GEO_API_PATHS.farm.root, token)).body;
     assert.equal(farm.tiles.filter((tile) => tile.owned).length, 9);
     assert.equal(farm.labor, 3);
-    assert.equal(farm.turnsBanked, 2);
+    assert.equal(farm.turn, 0);
     assert.equal(farm.hand.length, 5);
-    step("first look makes a 3×3 farm with 3 Labor and 2 turns banked");
+    step("first look makes a 3×3 farm with 3 Labor, its clock just started");
 
     const act = async (action: GeoFarmAction, status = 200) => {
         const response = await call<GeoFarmView>("POST", GEO_API_PATHS.farm.actions, token, action);
         assert.equal(response.status, status, JSON.stringify(response.body));
         if (status === 200) farm = response.body;
         return response;
+    };
+    /**
+     * Skips the clock: sets the farm's clock `turns` turns back, then looks,
+     * so they play. Placeholder weather is keyed by the real 12h period, so
+     * every skip in one run would share a sky: a fresh weather seed varies it.
+     */
+    const passTurns = async (turns: number) => {
+        const startedAt = new Date(Date.now() - turns * FARMING.turnHours * 3_600_000 - 60_000).toISOString();
+        await withTransaction((tx) =>
+            tx(
+                `UPDATE geo.farms SET state = jsonb_set(jsonb_set(state, '{accruedAt}', to_jsonb($2::text)), '{weatherSeed}', to_jsonb($3::bigint)) WHERE player_id = $1`,
+                [playerId, startedAt, Math.floor(Math.random() * 4_294_967_296)],
+            ),
+        );
+        farm = (await call<GeoFarmView>("GET", GEO_API_PATHS.farm.root, token)).body;
     };
 
     await act({ type: "plant", tile: MID, slot: 0 });
@@ -65,32 +81,38 @@ try {
     await act({ type: "water", tile: MID }, 400);
     step("watering spends Labor, and runs out");
 
-    await act({ type: "advance" });
-    await act({ type: "advance" });
-    assert.equal(farm.turnsBanked, 0);
+    await passTurns(1);
+    assert.equal(farm.turn, 1);
     assert.equal(farm.labor, 3);
-    await act({ type: "advance" }, 400);
-    step("Advance spends a banked turn and refills Labor; none banked is refused");
+    assert.match(farm.log[0]!, /took 1 turn\./);
+    await passTurns(10);
+    assert.equal(farm.turn, 1 + FARMING.maxTurnsAway);
+    assert.match(farm.log[0]!, /then waited for you/);
+    assert.ok(new Date(farm.nextTurnAt).getTime() > Date.now() + (FARMING.turnHours - 1) * 3_600_000, "the clock restarts on the look");
+    step(`the farm takes turns on its own, refilling Labor, and waits after ${FARMING.maxTurnsAway} away`);
 
-    // Skip the clock: bank turns by hand, and keep the wheat watered until it's ripe.
-    await withTransaction((tx) => tx(`UPDATE geo.farms SET state = jsonb_set(state, '{turnsBanked}', '10') WHERE player_id = $1`, [playerId]));
+    // Keep the wheat watered, a turn at a time, until it's ripe.
     for (let guard = 0; !farm.tiles[MID]!.crop?.ripe; guard++) {
         assert.ok(guard < 20, "wheat never ripened");
+        // Ripe wheat left two turns can rot; clear it.
+        if (farm.tiles[MID]!.crop?.rotten) await act({ type: "clear", tile: MID });
         // Placeholder weather can storm or frost the wheat away: plant again.
         if (!farm.tiles[MID]!.crop) await act({ type: "plant", tile: MID, slot: 0 });
         if (farm.tiles[MID]!.moisture === 0) await act({ type: "water", tile: MID });
         // Pests may come for the wheat: swat each before it acts.
         for (const tile of new Set(farm.pests.map((pest) => pest.tile))) if (farm.labor >= 2) await act({ type: "swat", tile });
-        await act({ type: "advance" });
+        await passTurns(1);
     }
     const pick = farm.hand.find((card) => card.cardId === "farm.careful-pick")!;
+    // Pests swatted on the way gave XP too: count only the harvest's.
+    const xpBefore = (await me(token)).skillXp.farming ?? 0;
     await act({ type: "play", inventoryId: pick.inventoryId, tile: MID });
     const wheat = farm.gained.find((gain) => gain.itemId === "wheat");
     assert.ok(wheat && wheat.quantity >= 1, "harvested wheat");
     assert.equal(farm.hand.find((card) => card.inventoryId === pick.inventoryId)!.chargesLeft, pick.chargesLeft - 1);
     const after = await me(token);
     assert.ok(after.inventory.some((entry) => entry.itemId === "wheat" && entry.quantity === wheat.quantity));
-    assert.equal(after.skillXp.farming, CONTENT.crops.wheat!.xp);
+    assert.equal(after.skillXp.farming, xpBefore + CONTENT.crops.wheat!.xp);
     assert.equal(after.inventory.find((entry) => entry.id === pick.inventoryId)!.chargesLeft, pick.chargesLeft - 1);
     step(`Careful Pick harvested ${wheat.quantity} wheat into the inventory, with farming XP and a charge spent`);
 

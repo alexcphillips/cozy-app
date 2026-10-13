@@ -15,7 +15,7 @@ export default {
         { itemId: "wheat", price: 5 },
         { itemId: "card.farm.bucket-line", price: 40 },
         { itemId: "card.farm.careful-pick", price: 40 },
-        { itemId: "card.farm.green-manure", price: 40 },
+        { itemId: "card.farm.plow-under", price: 40 },
         { itemId: "card.farm.read-sky", price: 40 },
         { itemId: "card.farm.deep-soak", price: 120 },
         { itemId: "card.farm.scythe-sweep", price: 150 },

@@ -11,7 +11,7 @@ export default {
         { itemId: "card.fish.gaff", quantity: 1 },
         { itemId: "card.farm.bucket-line", quantity: 1 },
         { itemId: "card.farm.careful-pick", quantity: 1 },
-        { itemId: "card.farm.green-manure", quantity: 1 },
+        { itemId: "card.farm.plow-under", quantity: 1 },
         { itemId: "card.farm.read-sky", quantity: 1 },
         { itemId: "card.farm.smoke", quantity: 1 },
     ],

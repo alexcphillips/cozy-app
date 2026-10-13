@@ -114,7 +114,7 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
     for (const global of config.farming.globalEvents) {
         const event = content.farmEvents[global.eventId];
         if (!event) problems.push(`config/farming.ts globalEvents has unknown farm event "${global.eventId}"`);
-        // Only events that act on the Advance itself can be global.
+        // Only events that act on the turn itself can be global.
         else if (event.effect.kind !== "blood-moon" && event.effect.kind !== "meteor-shower") {
             problems.push(`config/farming.ts globalEvents: "${global.eventId}" can't be global (only blood-moon and meteor-shower kinds)`);
         }
