@@ -45,6 +45,8 @@ const STATEMENTS = [
         CHECK (role IN ('player', 'admin'));`,
     // Set by an admin: every request is refused while it is.
     `ALTER TABLE geo.players ADD COLUMN IF NOT EXISTS banned_at TIMESTAMPTZ;`,
+    // An admin's testing switch: every bite they strike is a sea creature.
+    `ALTER TABLE geo.players ADD COLUMN IF NOT EXISTS always_sea_creatures BOOLEAN NOT NULL DEFAULT false;`,
 
     // Hashes only: a leaked table can't be used to sign in.
     `CREATE TABLE IF NOT EXISTS geo.refresh_tokens (

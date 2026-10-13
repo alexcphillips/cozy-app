@@ -1,7 +1,17 @@
 import type { GeoAdminAuditEntry, GeoAdminLedgerEntry, GeoAdminPlayer, GeoRole } from "@cozy/shared/geo";
 import { query } from "../../../db";
 import type { TxQuery } from "../../db/transaction";
-import { FIND_ADMIN_PLAYER, FIND_AUDIT, FIND_LEDGER, FIND_PLAYERS, INSERT_AUDIT, SET_BANNED, SET_ROLE } from "./geo-admin.sql";
+import {
+    FIND_ADMIN_PLAYER,
+    FIND_ALWAYS_SEA_CREATURES,
+    FIND_AUDIT,
+    FIND_LEDGER,
+    FIND_PLAYERS,
+    INSERT_AUDIT,
+    SET_ALWAYS_SEA_CREATURES,
+    SET_BANNED,
+    SET_ROLE,
+} from "./geo-admin.sql";
 import type { AdminPlayerRow, AuditRow, LedgerRow } from "./geo-admin.types";
 
 function toAdminPlayer(row: AdminPlayerRow): GeoAdminPlayer {
@@ -63,4 +73,13 @@ export async function findAudit(): Promise<GeoAdminAuditEntry[]> {
         details: row.details,
         createdAt: row.created_at.toISOString(),
     }));
+}
+
+export async function findAlwaysSeaCreatures(playerId: string, tx: TxQuery = query): Promise<boolean> {
+    const [row] = await tx<{ always_sea_creatures: boolean }>(FIND_ALWAYS_SEA_CREATURES, [playerId]);
+    return row?.always_sea_creatures ?? false;
+}
+
+export async function setAlwaysSeaCreatures(tx: TxQuery, playerId: string, always: boolean) {
+    await tx(SET_ALWAYS_SEA_CREATURES, [playerId, always]);
 }

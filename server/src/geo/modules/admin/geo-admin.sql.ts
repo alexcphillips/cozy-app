@@ -59,3 +59,12 @@ export const LEDGER_MISMATCHES = `
   WHERE p.coins <> COALESCE(l.total, 0)
   LIMIT 50;
 `;
+
+/** The admin's own "every bite is a sea creature" switch. */
+export const FIND_ALWAYS_SEA_CREATURES = `
+  SELECT always_sea_creatures FROM geo.players WHERE id = $1;
+`;
+
+export const SET_ALWAYS_SEA_CREATURES = `
+  UPDATE geo.players SET always_sea_creatures = $2 WHERE id = $1;
+`;

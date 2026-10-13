@@ -14,6 +14,7 @@ import type {
     GeoAdminPlayerDetail,
     GeoAdminAdjustSuggestionRequest,
     GeoAdminReviewSuggestionRequest,
+    GeoAdminSeaCreatures,
     GeoAdminSetRoleRequest,
     GeoAdminSuggestionsResponse,
     GeoSuggestionKind,
@@ -186,6 +187,24 @@ export async function setElectionEnd(req: Request, res: Response) {
     const electionId = await mayorRepository.setElectionEnd(when);
     await withTransaction((tx) => adminRepository.audit(tx, adminId, "set-election-end", electionId, { endsAt: when.toISOString() }));
     res.status(200).json(await mayorRepository.findMayor(adminId));
+}
+
+/** The calling admin's "every bite is a sea creature" switch. */
+export async function getSeaCreatures(req: Request, res: Response) {
+    const always = await adminRepository.findAlwaysSeaCreatures(requirePlayerId(req));
+    res.status(200).json({ always } satisfies GeoAdminSeaCreatures);
+}
+
+/** Turns it on or off for the calling admin only, e.g. to test sea-creature fights. */
+export async function setSeaCreatures(req: Request, res: Response) {
+    const adminId = requirePlayerId(req);
+    const { always } = (req.body ?? {}) as Partial<GeoAdminSeaCreatures>;
+    if (typeof always !== "boolean") throw AppError.badRequest("always must be true or false");
+    await withTransaction(async (tx) => {
+        await adminRepository.setAlwaysSeaCreatures(tx, adminId, always);
+        await adminRepository.audit(tx, adminId, "set-always-sea-creatures", adminId, { always });
+    });
+    res.status(200).json({ always } satisfies GeoAdminSeaCreatures);
 }
 
 /** Takes a listing down, bids or not; everything goes back to whoever it belongs to. */

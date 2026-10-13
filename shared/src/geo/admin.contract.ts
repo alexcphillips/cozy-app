@@ -44,6 +44,13 @@ export type GeoAdminCoinsRequest = { amount: number; note?: string };
 /** `POST /geo/admin/players/:playerId/items`. */
 export type GeoAdminGrantItemRequest = { itemId: string; quantity: number };
 
+/**
+ * `GET` / `PUT /geo/admin/fishing/sea-creatures`: while `always` is on, every
+ * bite the calling admin strikes is a sea creature (where the water has any:
+ * never in a puddle). Theirs alone, and only while they're an admin.
+ */
+export type GeoAdminSeaCreatures = { always: boolean };
+
 /** `GET /geo/admin/economy`: where coins came from and went, by reason. */
 export type GeoAdminEconomy = {
     /** Every player's spendable coins, together. */

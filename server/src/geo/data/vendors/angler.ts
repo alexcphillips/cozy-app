@@ -7,7 +7,7 @@ export default {
     description: "Bait, tackle and a lot of opinions. Buys any fish that isn't Soulbound.",
     sells: [
         { itemId: "worm-bait", price: 3 },
-        { itemId: "chum-slick", price: 25 },
+        { itemId: "bloody-bait", price: 25 },
         { itemId: "card.fish.reel", price: 40 },
         { itemId: "card.fish.slack", price: 40 },
         { itemId: "card.fish.steady", price: 40 },

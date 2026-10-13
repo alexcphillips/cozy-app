@@ -2,8 +2,8 @@ import type { Bait } from "#geo/models";
 
 // PLACEHOLDER: scent isn't read by any rule yet; chum is.
 export default {
-    id: "chum-slick",
-    name: "Chum Slick",
+    id: "bloody-bait",
+    name: "Bloody Bait",
     rarity: "rare",
     icon: "fishing-hook",
     description: "Cloud the water. Bigger things notice.",

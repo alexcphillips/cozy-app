@@ -95,6 +95,8 @@ export const GEO_API_PATHS = {
         endElection: "/geo/admin/elections/end",
         /** PUT { endsAt }: moves the running election's end. */
         electionEndsAt: "/geo/admin/elections/ends-at",
+        /** GET / PUT { always }: the calling admin's switch making every bite a sea creature. */
+        seaCreatures: "/geo/admin/fishing/sea-creatures",
         /** POST: takes a listing down and hands everything back. */
         removeListing: "/geo/admin/market/listings/:listingId/remove",
         /** GET ?status=: location suggestions to review. */

@@ -23,6 +23,8 @@ geoAdminRouter.get(paths.audit, guard, asyncHandler(adminController.getAudit));
 geoAdminRouter.get(paths.economy, guard, asyncHandler(adminController.getEconomy));
 geoAdminRouter.post(paths.endElection, guard, asyncHandler(adminController.endElection));
 geoAdminRouter.put(paths.electionEndsAt, guard, asyncHandler(adminController.setElectionEnd));
+geoAdminRouter.get(paths.seaCreatures, guard, asyncHandler(adminController.getSeaCreatures));
+geoAdminRouter.put(paths.seaCreatures, guard, asyncHandler(adminController.setSeaCreatures));
 geoAdminRouter.post(paths.removeListing, guard, asyncHandler(adminController.removeListing));
 geoAdminRouter.get(paths.suggestions, guard, asyncHandler(adminController.listSuggestions));
 geoAdminRouter.put(paths.suggestion, guard, asyncHandler(adminController.reviewSuggestion));

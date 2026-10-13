@@ -20,6 +20,11 @@ import { ABANDON_AFTER_MINUTES, openCombatRun } from "../runs/geo-runs.repositor
 import { ABANDON_STALE_RUNS, FIND_ACTIVE_RUN, FIND_RUN_FOR_UPDATE, INSERT_RUN, UPDATE_RUN } from "../runs/geo-runs.sql";
 import { toFishingView } from "./geo-fishing.view";
 
+/** The admin testing switch, honoured only while the player is still an admin. */
+const ALWAYS_SEA_CREATURES = `
+  SELECT always_sea_creatures AND role = 'admin' AS always FROM geo.players WHERE id = $1;
+`;
+
 /** A fishing Run's row in geo.runs: same table as combat, its own state. */
 type FishingRunRow = {
     id: string;
@@ -42,14 +47,18 @@ async function loadHand(tx: TxQuery, playerId: string): Promise<FishingHandCard[
     });
 }
 
-/** Rod, Fishing Power and odds, from the player's level and every modifier they have. */
+/**
+ * Rod, Fishing Power and odds, from the player's level and every modifier
+ * they have. An admin's testing switch makes every bite a sea creature.
+ */
 async function loadSetup(tx: TxQuery, playerId: string): Promise<FishingSetup> {
     const fishingLevel = (await playerRepository.findSkillLevels(tx, playerId)).fishing ?? 1;
     const odds = fishingOdds(await playerModifiers(playerId, tx));
+    const [testing] = await tx<{ always: boolean }>(ALWAYS_SEA_CREATURES, [playerId]);
     return {
         rod: DEFAULT_ROD,
         power: DEFAULT_ROD.power + fishingLevel,
-        seaCreatureChance: odds.seaCreatureChance,
+        seaCreatureChance: testing?.always ? 1 : odds.seaCreatureChance,
         fish: CONTENT.fish,
     };
 }

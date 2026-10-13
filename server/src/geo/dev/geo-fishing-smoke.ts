@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import {
     GEO_API_PATHS,
+    type GeoAdminSeaCreatures,
     type GeoFishingAction,
     type GeoFishingRunView,
     type GeoMeResponse,
     type GeoRunResponse,
 } from "@cozy/shared/geo";
+import { pool } from "../../db";
 import { CONTENT } from "../content";
 import { startSmokeServer, step } from "./smoke-kit";
 
@@ -107,7 +109,7 @@ try {
 
     // Sea creatures: cast with chum (3× the creature chance) until one bites.
     // Fish are let go (leave and come back) to keep it quick.
-    await grant(player.player.id, [{ itemId: "chum-slick", quantity: 1000 }]);
+    await grant(player.player.id, [{ itemId: "bloody-bait", quantity: 1000 }]);
     const baitPath = GEO_API_PATHS.me.baitSlot.replace(":slot", "0");
     run = (await call<GeoFishingRunView>("POST", GEO_API_PATHS.fishing.start, token, { tier: "open" })).body;
     let bites = 0;
@@ -118,8 +120,8 @@ try {
             run = (await call<GeoFishingRunView>("POST", GEO_API_PATHS.fishing.start, token, { tier: "open" })).body;
         }
         if (run.phase === "ready" || run.phase === "over") {
-            if (baitLeft(await me(token)) === 0 || run.baitItemId !== "chum-slick") {
-                const packed = await call("PUT", baitPath, token, { itemId: "chum-slick", quantity: 25 });
+            if (baitLeft(await me(token)) === 0 || run.baitItemId !== "bloody-bait") {
+                const packed = await call("PUT", baitPath, token, { itemId: "bloody-bait", quantity: 25 });
                 assert.equal(packed.status, 200, JSON.stringify(packed.body));
             }
             await act({ type: "cast" });
@@ -165,6 +167,33 @@ try {
     assert.ok(hurt.health + hurt.guard < kraken!.maxHealth + kraken!.guard || turn.body.log.length > 0, "the turn did something");
     await call("POST", GEO_API_PATHS.runs.flee.replace(":runId", active.run.id), token);
     step(`played a turn against the Kraken (${hurt.health}/${hurt.maxHealth} health), then fled`);
+
+    // The admin switch: every bite is a sea creature.
+    const switchPath = GEO_API_PATHS.admin.seaCreatures;
+    assert.equal((await call("PUT", switchPath, token, { always: true })).status, 403, "admins only");
+    await pool.query(`UPDATE geo.players SET role = 'admin' WHERE id = $1`, [player.player.id]);
+    assert.deepEqual((await call<GeoAdminSeaCreatures>("GET", switchPath, token)).body, { always: false });
+    assert.deepEqual((await call<GeoAdminSeaCreatures>("PUT", switchPath, token, { always: true })).body, { always: true });
+    await call("PUT", baitPath, token, { itemId: "worm-bait", quantity: 10 });
+    run = (await call<GeoFishingRunView>("POST", GEO_API_PATHS.fishing.start, token, { tier: "open" })).body;
+    const strikeBite = async () => {
+        await act({ type: "cast" });
+        while (run.phase === "waiting") await act({ type: run.signal === "bite" ? "strike" : "wait" });
+    };
+    for (let i = 0; i < 3; i++) {
+        await strikeBite();
+        if (run.phase === "over") continue; // spooked by an early strike
+        assert.equal(run.phase, "creature", "with the switch on, every bite is a sea creature");
+        await act({ type: "cutLine" });
+    }
+    await strikeBite();
+    assert.equal(run.phase, "creature");
+    await act({ type: "fightCreature" });
+    const forced = (await call<GeoRunResponse | null>("GET", GEO_API_PATHS.runs.active, token)).body;
+    assert.equal(forced?.run.combatants.find((c) => c.side === "enemy")?.name, "Kraken", "and fighting it starts the combat Run");
+    await call("POST", GEO_API_PATHS.runs.flee.replace(":runId", forced!.run.id), token);
+    assert.deepEqual((await call<GeoAdminSeaCreatures>("PUT", switchPath, token, { always: false })).body, { always: false });
+    step("an admin's switch makes every bite a sea creature, which still opens a Kraken fight; switched off again");
 
     // Soulbound fish stay put.
     const [silverId] = await grant(player.player.id, [{ itemId: "fish.salmon.silver", quantity: 1 }]);
