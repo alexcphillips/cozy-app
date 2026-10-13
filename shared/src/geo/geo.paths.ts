@@ -29,6 +29,8 @@ export const GEO_API_PATHS = {
         lunchboxSlot: "/geo/me/lunchbox/:slot",
         /** PUT { itemId, quantity } packs bait into the slot; DELETE unpacks it. */
         baitSlot: "/geo/me/bait/:slot",
+        /** PUT { itemId, quantity } packs seeds into the slot; DELETE unpacks it. */
+        seedBagSlot: "/geo/me/seed-bag/:slot",
     },
     /** Dev servers only: testing tools. Production answers 404. */
     dev: {
@@ -36,6 +38,12 @@ export const GEO_API_PATHS = {
         spawn: "/geo/dev/spawns",
         /** POST: the player dies now, as if they'd lost a fight. */
         kill: "/geo/dev/kill",
+    },
+    farm: {
+        /** GET: the player's farm, from anywhere. */
+        root: "/geo/farm",
+        /** POST a GeoFarmAction. */
+        actions: "/geo/farm/actions",
     },
     vendors: {
         list: "/geo/vendors",

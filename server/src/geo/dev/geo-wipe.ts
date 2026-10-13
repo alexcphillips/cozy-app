@@ -7,7 +7,7 @@ import { grantStarterKit } from "../modules/accounts/geo-accounts.repository";
 /**
  * Wipes every player's progress back to a fresh start, keeping their account:
  * email, password, name, role, ban, sessions, friends and inbox stay.
- * Everything earned goes (items, hands, lunchbox, bait, XP, coins, Runs,
+ * Everything earned goes (items, hands, lunchbox, bait, seeds, farm, XP, coins, Runs,
  * Market, chests, travel), then each player gets the starter kit again, as
  * if they'd just signed up. World content (places, suggestions, elections,
  * announcements, feedback) is untouched.
@@ -34,6 +34,8 @@ const PROGRESS_TABLES = [
     "hands",
     "lunchbox",
     "bait",
+    "seed_bag",
+    "farms",
     "talisman_bag",
     "equipment",
     "inventory",

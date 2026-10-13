@@ -83,8 +83,16 @@ its name, charges, rarity and text. Its id must be one the code knows
 (`fish.reel`, `fish.gaff`…). A new fishing card needs code. Describe it in
 `stats` (Role / Does), as the existing ones do.
 
-Mining, farming and foraging cards have no Runs yet. Their files exist so
-players can own and pack them, and they do nothing.
+## Farming cards
+
+Like fishing, a farming card's rules are code (`farming/farm.ts`), and its
+Labor cost and shape (`tile`, `row`, `square3`, `none`) are in
+`content/farming.ts` (`FARMING_CARDS`). A file in `cards/farming/` sets its
+name, charges, rarity and text, and its id must be one the code knows
+(`farm.bucket-line`…). A new farming card needs code.
+
+Mining and foraging cards have no Runs yet. Their files exist so players
+can own and pack them, and they do nothing.
 
 ## How players get cards
 

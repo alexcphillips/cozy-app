@@ -1,9 +1,10 @@
-import { GEO_CHEST_TIERS, GEO_MAX_SKILL_LEVEL } from "@cozy/shared/geo";
+import { GEO_CHEST_TIERS, GEO_FARM_SIZE, GEO_MAX_SKILL_LEVEL, GEO_SEED_BAG_MAX_SLOTS } from "@cozy/shared/geo";
 import type { Action, EffectDef } from "../engine/engine.types";
 import { buildContent } from "./build";
 import type { GameContent, ItemDef, VendorBuyRule } from "./content.types";
 import { GameDataError, loadGameData } from "./data";
 import type { GameData } from "./data.schema";
+import { FARMING_CARD_IDS, isFarmingCardId } from "./farming";
 import { FISHING_CARD_IDS, isFishingCardId } from "./fishing";
 
 export type GameConfig = GameData["config"];
@@ -72,6 +73,27 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
     }
     for (const id of FISHING_CARD_IDS) {
         if (!content.cards[id]) problems.push(`Fishing card "${id}" has rules in fishing/fishing-run.ts but no file in data/cards`);
+    }
+    for (const card of Object.values(content.cards)) {
+        if (card.skill === "farming" && !isFarmingCardId(card.id)) {
+            problems.push(`Farming card "${card.id}" has no rules in farming/farm.ts (known: ${FARMING_CARD_IDS.join(", ")})`);
+        }
+    }
+    for (const id of FARMING_CARD_IDS) {
+        if (!content.cards[id]) problems.push(`Farming card "${id}" has rules in farming/farm.ts but no file in data/cards`);
+    }
+
+    const seedsSeen = new Map<string, string>();
+    for (const crop of Object.values(content.crops)) {
+        for (const itemId of [crop.seed, crop.produce]) {
+            const entry = item(itemId);
+            if (!entry) problems.push(`Crop "${crop.id}" uses unknown item "${itemId}"`);
+            else if (entry.kind !== "material" || entry.skill !== "farming") problems.push(`Crop "${crop.id}" uses "${itemId}", which isn't a farming material`);
+        }
+        const other = seedsSeen.get(crop.seed);
+        if (other) problems.push(`Crops "${other}" and "${crop.id}" share the seed "${crop.seed}"`);
+        seedsSeen.set(crop.seed, crop.id);
+        if (!isRange(crop.yield) || !isRange(crop.seedsBack)) problems.push(`Crop "${crop.id}": a min is over its max`);
     }
 
     for (const entry of Object.values(content.items)) {
@@ -148,7 +170,12 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
         }
     }
 
-    const { elections, spawns, fishing } = config;
+    const { elections, spawns, fishing, farming } = config;
+    if (farming.startSize > GEO_FARM_SIZE || farming.startSize % 2 === 0) {
+        problems.push(`config/farming.ts: startSize must be odd and at most ${GEO_FARM_SIZE}`);
+    }
+    if (farming.fertilityYield.low >= farming.fertilityYield.high) problems.push("config/farming.ts: fertilityYield low must be under high");
+    if (farming.seedBagSlots > GEO_SEED_BAG_MAX_SLOTS) problems.push(`config/farming.ts: seedBagSlots is past ${GEO_SEED_BAG_MAX_SLOTS}`);
     if (!content.mayors[elections.firstMayor]) problems.push(`config/elections.ts: first mayor "${elections.firstMayor}" doesn't exist`);
     // Each election leaves the mayor in office out, so the pool needs one spare.
     if (Object.keys(content.mayors).length <= elections.candidates) {
@@ -171,6 +198,12 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
     for (const { itemId } of kit.lunchbox) {
         if (!content.foods[itemId]) problems.push(`config/starter-kit.ts lunchbox has "${itemId}", which isn't food`);
     }
+    for (const { itemId } of kit.seeds) {
+        if (!Object.values(content.crops).some((crop) => crop.seed === itemId)) {
+            problems.push(`config/starter-kit.ts seeds has "${itemId}", which no crop grows from`);
+        }
+    }
+    if (kit.seeds.length > farming.seedBagSlots) problems.push("config/starter-kit.ts packs more seeds than a new Seed Bag has slots");
     for (const { itemId } of kit.bait) {
         const bait = item(itemId);
         if (bait?.kind !== "consumable" || !bait.bait) problems.push(`config/starter-kit.ts bait has "${itemId}", which isn't bait`);
@@ -208,6 +241,9 @@ export const PAR_TURNS = fishing.parTurns;
 export const FISHING_TUNING = fishing.tuning;
 /** PLACEHOLDER: every player fishes with this until rods are gear. */
 export const DEFAULT_ROD = fishing.defaultRod;
+
+/** Every farming tuning number (`data/config/farming.ts`). */
+export const FARMING = GAME_CONFIG.farming;
 
 export const ELECTION_RULES = elections;
 /** In office before any election has finished. */

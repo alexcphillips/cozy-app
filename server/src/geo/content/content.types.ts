@@ -1,4 +1,5 @@
 import type { GeoChestTier, GeoQualityTier } from "@cozy/shared/geo";
+import type { CropDef } from "./farming";
 import type { FishDef } from "./fishing";
 import type { Action, CardDef, EffectDef, EnemyMove, FoodDef, StatModifier, Stats, StatusDef } from "../engine/engine.types";
 
@@ -252,6 +253,8 @@ export type GameContent = {
     items: Record<string, ItemDef>;
     /** Fish that can bite in a fishing Run (`data/fish/`). */
     fish: Record<string, FishDef>;
+    /** Crops that grow on the farm (`data/crops/`). */
+    crops: Record<string, CropDef>;
     enemies: Record<string, EnemyDef>;
     vendors: Record<string, VendorDef>;
     mayors: Record<string, MayorDef>;

@@ -1,6 +1,7 @@
 import type {
     GeoBait,
     GeoBaitSlot,
+    GeoSeedBag,
     GeoDeathCause,
     GeoEquipmentSlot,
     GeoInventoryEntry,
@@ -46,6 +47,13 @@ import {
     INSERT_SAVED_HAND,
     DELETE_INVENTORY_ROW,
     DELETE_BAIT_SLOT,
+    DELETE_SEED_BAG_SLOT,
+    FIND_SEED_BAG,
+    FIND_SEED_BAG_SLOTS,
+    SET_SEED_BAG_SLOTS,
+    UPSERT_SEED_BAG_SLOT,
+    USE_LAST_SEED,
+    USE_SEED,
     USE_BAIT,
     USE_LAST_BAIT,
     DELETE_LUNCHBOX_SLOT,
@@ -145,7 +153,7 @@ export async function findMe(playerId: string): Promise<GeoMeResponse | null> {
     const player = await findPlayer(playerId);
     if (!player) return null;
 
-    const [inventory, equipment, talismanBag, bagPages, hands, xp, savedHands, lunchbox, bait] = await Promise.all([
+    const [inventory, equipment, talismanBag, bagPages, hands, xp, savedHands, lunchbox, bait, seedBag] = await Promise.all([
         findInventory(playerId),
         findEquipment(playerId),
         findTalismanBag(playerId),
@@ -155,6 +163,7 @@ export async function findMe(playerId: string): Promise<GeoMeResponse | null> {
         query<SavedHandRow>(FIND_SAVED_HANDS, [playerId]),
         findLunchbox(playerId),
         findBait(playerId),
+        findSeedBag(playerId),
     ]);
 
     return {
@@ -172,6 +181,7 @@ export async function findMe(playerId: string): Promise<GeoMeResponse | null> {
         savedHands: savedHands.map(toSavedHand),
         lunchbox,
         bait,
+        seedBag,
     };
 }
 
@@ -253,6 +263,40 @@ export async function clearBaitSlot(tx: TxQuery, playerId: string, slot: number)
     await tx(DELETE_BAIT_SLOT, [playerId, slot]);
 }
 
+/** How many Seed Bag slots the player has unlocked, and what's packed in them. */
+export async function findSeedBag(playerId: string, tx: TxQuery = db): Promise<GeoSeedBag> {
+    // One after another: `tx` may be a transaction's single connection.
+    const [row] = await tx<{ seed_bag_slots: number }>(FIND_SEED_BAG_SLOTS, [playerId]);
+    const contents = await tx<BaitRow>(FIND_SEED_BAG, [playerId]);
+    return {
+        slots: row?.seed_bag_slots ?? 1,
+        contents: contents.map((entry) => ({ slot: entry.slot, itemId: entry.item_id, quantity: entry.quantity })),
+    };
+}
+
+export async function setSeedBagSlots(tx: TxQuery, playerId: string, slots: number) {
+    await tx(SET_SEED_BAG_SLOTS, [playerId, slots]);
+}
+
+/** Puts a stack in a Seed Bag slot, replacing what was there. The caller moves the items. */
+export async function setSeedBagSlot(tx: TxQuery, playerId: string, slot: number, itemId: string, quantity: number) {
+    await tx(UPSERT_SEED_BAG_SLOT, [playerId, slot, itemId, quantity]);
+}
+
+/** Takes one seed from a slot to plant; throws unless it still holds exactly `from`, like useBait. */
+export async function useSeed(tx: TxQuery, playerId: string, used: { slot: number; itemId: string; from: number }) {
+    const { slot, itemId, from } = used;
+    const [row] =
+        from > 1
+            ? await tx<{ slot: number }>(USE_SEED, [playerId, slot, itemId, from])
+            : await tx<{ slot: number }>(USE_LAST_SEED, [playerId, slot, itemId, from]);
+    if (!row) throw AppError.badRequest("Those seeds are no longer packed");
+}
+
+export async function clearSeedBagSlot(tx: TxQuery, playerId: string, slot: number) {
+    await tx(DELETE_SEED_BAG_SLOT, [playerId, slot]);
+}
+
 function toSavedHand(row: SavedHandRow): GeoSavedHand {
     return {
         id: row.id,
@@ -330,6 +374,7 @@ export type CoinReason =
     | "run-defeat"
     | GeoDeathCause
     | "vendor-buy"
+    | "farm-tile"
     | "vendor-sell"
     | "market-fee"
     | "market-bid-hold"

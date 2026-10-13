@@ -1,4 +1,4 @@
-import type { GeoChestTier, GeoFishingTier, GeoQualityTier } from "@cozy/shared/geo";
+import type { GeoChestTier, GeoFarmWeather, GeoFishingTier, GeoQualityTier } from "@cozy/shared/geo";
 import type { Action, Amount, Condition, EffectDef, StatModifier } from "../engine/engine.types";
 
 /**
@@ -194,6 +194,31 @@ export type Fish = {
     xp: number;
 };
 
+/**
+ * A crop that grows on the farm. Its seed and what it gives are ordinary
+ * `farming` materials with files of their own (`materials/farming/`).
+ */
+export type Crop = {
+    /** Must match the file name. */
+    id: string;
+    name: string;
+    icon: string;
+    /** The seed item planted from the Seed Bag. */
+    seed: string;
+    /** The item a harvest gives. */
+    produce: string;
+    /** Advances from planting to ripe, each needing moisture. */
+    stages: number;
+    /** How many `produce` one harvest gives, before fertility and push bonuses. */
+    yield: Range;
+    /** Seeds back from a harvest. */
+    seedsBack: Range;
+    /** Fertility a harvest takes from its tile. */
+    fertilityCost: number;
+    /** Farming XP per harvest. */
+    xp: number;
+};
+
 /** One possible pick in a chest pool, weighted against the others. */
 export type ChestEntry = { itemId: string; weight: number; quantity: Range };
 
@@ -326,6 +351,8 @@ export type StarterKitConfig = {
     lunchbox: ItemAmount[];
     /** Packed into the bait slots, slot by slot. */
     bait: ItemAmount[];
+    /** Packed into the Seed Bag, slot by slot. */
+    seeds: ItemAmount[];
 };
 
 export type SpawnsConfig = {
@@ -347,6 +374,36 @@ export type SpawnsConfig = {
     lifetimeMinutes: { min: number; max: number };
     /** Which enemies spawn, how often. Unlisted enemies never spawn on their own. */
     enemies: { enemyId: string; weight: number }[];
+};
+
+export type FarmingConfig = {
+    /** Labor each Farm Turn gives. */
+    laborPerTurn: number;
+    /** A Farm Turn comes in this often. */
+    turnHours: number;
+    /** Turns that can wait unspent; none come in past this. */
+    maxTurnsBanked: number;
+    /** Turns a new farm starts with. */
+    startTurnsBanked: number;
+    /** A new farm owns a square this many tiles across, in the middle of the grid. */
+    startSize: number;
+    /** Coins for the nth extra tile: first + step × (n − 1). */
+    unlockCost: { first: number; step: number };
+    /** Seed Bag slots a new player has. */
+    seedBagSlots: number;
+    /** Every tile's fertility to start. */
+    startFertility: number;
+    /** An empty owned tile gains this much fertility per Advance, up to `fallowCap`. */
+    fallowRecovery: number;
+    fallowCap: number;
+    /** Harvest yield −1 at or below `low` fertility, +1 at or above `high`. */
+    fertilityYield: { low: number; high: number };
+    /** Harvest or push: rot chance on each Advance a ripe crop waits; the list's length caps the bonus. */
+    rotChances: number[];
+    /** Labor for the plain actions. */
+    labor: { water: number; harvest: number; clear: number };
+    /** PLACEHOLDER weather until real local weather: how often each comes. */
+    weatherWeights: Record<GeoFarmWeather, number>;
 };
 
 export type FishingConfig = {

@@ -23,6 +23,7 @@ What a new account gets.
 | `handSkills` | Every starter card of these skills becomes that skill's first hand. |
 | `lunchbox` | Food packed into the lunchbox, slot by slot. |
 | `bait` | Bait packed into the bait slots, slot by slot. |
+| `seeds` | Seeds packed into the Seed Bag, slot by slot. No more than `farming.ts` `seedBagSlots`. |
 
 Changes apply to new accounts. To re-grant to everyone, run
 `npm run wipe:geo -- --yes`.
@@ -56,6 +57,21 @@ Enemy spawns around each player.
 | `tuning.tierThresholds` | Finesse needed for bronze, silver, gold, ruby. |
 | `tuning.maxTurns` | A fight this long is lost. |
 | `defaultRod` | `name`, `power`, `line`, `maxTier`: everyone's rod until rods are gear. |
+
+## farming.ts
+
+| Field | What it does |
+| --- | --- |
+| `laborPerTurn` | Labor each Farm Turn gives. |
+| `turnHours`, `maxTurnsBanked` | A Farm Turn comes in this often, and this many can wait unspent. |
+| `startTurnsBanked`, `startSize` | A new farm's banked turns, and the odd-sized square it owns in the middle of the 9×9. |
+| `unlockCost` | `{ first, step }`: coins for the nth extra tile are first + step × (n − 1). |
+| `seedBagSlots` | Seed Bag slots a new player has (most: 4). |
+| `startFertility`, `fallowRecovery`, `fallowCap` | Every tile's fertility to start; an empty tile gains `fallowRecovery` per Advance up to `fallowCap`. |
+| `fertilityYield` | `{ low, high }`: harvest −1 at or below `low` fertility, +1 at or above `high`. |
+| `rotChances` | Harvest or push: rot chance on each Advance a ripe crop waits. Each wait it survives adds +1 yield; the list's length caps that. |
+| `labor` | Labor for the plain actions: `water`, `harvest`, `clear`. |
+| `weatherWeights` | PLACEHOLDER weather until real local weather: how often `clear`, `overcast`, `rain`, `heatwave` come. |
 
 ## elections.ts
 

@@ -1,5 +1,6 @@
 import type { GeoPlayer } from "./auth.contract";
 import type { GeoEquipmentSlot } from "./content.contract";
+import type { GeoSeedBag } from "./farming.contract";
 import type { GeoLunchboxSlot } from "./run.contract";
 
 /** One owned copy (or stack) of an item. */
@@ -26,6 +27,8 @@ export type GeoMeResponse = {
     savedHands: GeoSavedHand[];
     lunchbox: GeoLunchbox;
     bait: GeoBait;
+    /** Seeds packed for farming. */
+    seedBag: GeoSeedBag;
 };
 
 /**

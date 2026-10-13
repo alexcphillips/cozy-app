@@ -21,6 +21,7 @@
         "smoke:geo-chests": "tsx --env-file ../.env src/geo/dev/geo-chests-smoke.ts",
         "smoke:geo-friends": "tsx --env-file ../.env src/geo/dev/geo-friends-smoke.ts",
         "smoke:geo-fishing": "tsx --env-file ../.env src/geo/dev/geo-fishing-smoke.ts",
+        "smoke:geo-farming": "tsx --env-file ../.env src/geo/dev/geo-farming-smoke.ts",
         "smoke:geo-inbox": "tsx --env-file ../.env src/geo/dev/geo-inbox-smoke.ts",
         "geo:admin": "tsx --env-file ../.env src/geo/dev/geo-make-admin.ts",
         "geo:sell-values": "tsx src/geo/dev/geo-sell-values.ts",

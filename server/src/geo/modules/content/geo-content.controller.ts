@@ -63,8 +63,10 @@ function toItemView(item: ItemDef): GeoItemView {
                 slot: item.slot,
                 unlocksCards: item.unlocksCards?.map((cardId) => CONTENT.cards[cardId]?.name ?? cardId),
             };
-        case "material":
-            return { ...base, skill: item.skill };
+        case "material": {
+            const crop = Object.values(CONTENT.crops).find((entry) => entry.seed === item.id);
+            return { ...base, skill: item.skill, ...(crop && { seedOf: crop.id }) };
+        }
         case "consumable":
             return {
                 ...base,

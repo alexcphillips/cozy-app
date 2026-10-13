@@ -64,6 +64,7 @@ One entry per file, named by its id: `data/weapons/broadsword.ts` has
 | `bait/` | Fishing bait | [bait](bait/README.md) |
 | `misc/` | Keys, nets, lenses and anything else | [misc](misc/README.md) |
 | `fish/` | Fish that bite in a fishing Run | [fish](fish/README.md) |
+| `crops/` | Crops that grow on the farm | [crops](crops/README.md) |
 | `enemies/` | Enemies, their moves and their loot | [enemies](enemies/README.md) |
 | `statuses/` | Burning, Frozen, Well Fed… | [statuses](statuses/README.md) |
 | `recipes/` | Crafting and cooking recipes | [recipes](recipes/README.md) |

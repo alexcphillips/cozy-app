@@ -2,6 +2,7 @@ import { GEO_QUALITY_TIERS, type GeoChestTier, type GeoQualityTier } from "@cozy
 import type { CardDef, FoodDef, StatusDef } from "../engine/engine.types";
 import type { GameData } from "./data.schema";
 import type { ChestTierDef, EnemyDef, GameContent, ItemDef, MayorDef, RecipeDef, VendorDef } from "./content.types";
+import type { CropDef } from "./farming";
 import { fishItemId, qualityFishItemId, type FishDef } from "./fishing";
 
 /**
@@ -137,6 +138,7 @@ export function buildContent(data: GameData): BuiltContent {
         foods: byId(foods, "food"),
         items: byId(items, "item"),
         fish: byId(fish, "fish"),
+        crops: byId<CropDef>(data.crops, "crop"),
         enemies: byId<EnemyDef>(data.enemies, "enemy"),
         vendors: byId<VendorDef>(data.vendors, "vendor"),
         mayors: byId<MayorDef>(data.mayors, "mayor"),

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GEO_CHEST_TIERS, GEO_FISHING_TIERS, GEO_QUALITY_TIERS } from "@cozy/shared/geo";
+import { GEO_CHEST_TIERS, GEO_FARM_WEATHERS, GEO_FISHING_TIERS, GEO_QUALITY_TIERS } from "@cozy/shared/geo";
 import type { Action, Amount, Condition, EffectDef, StatModifier } from "../engine/engine.types";
 import type * as M from "./models";
 
@@ -234,6 +234,19 @@ const FishFile = z.strictObject({
     xp: z.int().min(0),
 });
 
+const CropFile = z.strictObject({
+    id,
+    name: z.string().min(1),
+    icon: z.string().min(1),
+    seed: ref,
+    produce: ref,
+    stages: count,
+    yield: range(1),
+    seedsBack: range(0),
+    fertilityCost: z.int().min(0),
+    xp: z.int().min(0),
+});
+
 const ChestTier = z.enum(GEO_CHEST_TIERS);
 
 const EnemyFile = z.strictObject({
@@ -344,6 +357,7 @@ export const DATA_FOLDERS = {
     bait: BaitFile,
     misc: MiscFile,
     fish: FishFile,
+    crops: CropFile,
     enemies: EnemyFile,
     statuses: StatusFile,
     recipes: RecipeFile,
@@ -376,6 +390,23 @@ const FishingConfig = z.strictObject({
         .strictObject({ name: z.string(), power: z.int().min(0), line: count, maxTier: z.enum(GEO_QUALITY_TIERS) }),
 });
 
+const FarmingConfig = z.strictObject({
+    laborPerTurn: count,
+    turnHours: z.number().positive(),
+    maxTurnsBanked: count,
+    startTurnsBanked: z.int().min(0),
+    startSize: count,
+    unlockCost: z.strictObject({ first: z.int().min(0), step: z.int().min(0) }),
+    seedBagSlots: count,
+    startFertility: z.int().min(0).max(10),
+    fallowRecovery: z.int().min(0),
+    fallowCap: z.int().min(0).max(10),
+    fertilityYield: z.strictObject({ low: z.int().min(0).max(10), high: z.int().min(0).max(10) }),
+    rotChances: z.array(fraction).min(1),
+    labor: z.strictObject({ water: z.int().min(0), harvest: z.int().min(0), clear: z.int().min(0) }),
+    weatherWeights: z.record(z.enum(GEO_FARM_WEATHERS), z.number().min(0)),
+});
+
 const PlayerConfig = z.strictObject({
     baseStats: z.record(z.string(), z.number()),
 });
@@ -398,6 +429,7 @@ const StarterKitConfig = z.strictObject({
     handSkills: z.array(z.string()),
     lunchbox: z.array(ItemAmount),
     bait: z.array(ItemAmount),
+    seeds: z.array(ItemAmount),
 });
 
 const ElectionsConfig = z.strictObject({
@@ -422,6 +454,7 @@ const ChestTiersConfig = z.strictObject({
 /** `data/config/<file>.ts`, each required. */
 export const CONFIG_FILES = {
     fishing: FishingConfig,
+    farming: FarmingConfig,
     player: PlayerConfig,
     spawns: SpawnsConfig,
     "starter-kit": StarterKitConfig,
@@ -457,6 +490,7 @@ const folderModels: { [K in DataFolder]: Same<z.input<(typeof DATA_FOLDERS)[K]>,
     bait: true,
     misc: true,
     fish: true,
+    crops: true,
     enemies: true,
     statuses: true,
     recipes: true,
@@ -465,6 +499,7 @@ const folderModels: { [K in DataFolder]: Same<z.input<(typeof DATA_FOLDERS)[K]>,
 };
 const configModels: { [K in ConfigFile]: Same<z.input<(typeof CONFIG_FILES)[K]>, ConfigModelOf[K]> } = {
     fishing: true,
+    farming: true,
     player: true,
     spawns: true,
     "starter-kit": true,
@@ -488,6 +523,7 @@ export type ModelOf = {
     bait: M.Bait;
     misc: M.MiscItem;
     fish: M.Fish;
+    crops: M.Crop;
     enemies: M.Enemy;
     statuses: M.Status;
     recipes: M.Recipe;
@@ -498,6 +534,7 @@ export type ModelOf = {
 /** Each config file's model. */
 export type ConfigModelOf = {
     fishing: M.FishingConfig;
+    farming: M.FarmingConfig;
     player: M.PlayerConfig;
     spawns: M.SpawnsConfig;
     "starter-kit": M.StarterKitConfig;

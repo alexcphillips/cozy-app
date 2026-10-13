@@ -15,6 +15,7 @@ import {
 import { pool } from "../../db";
 import { withTransaction } from "../db/transaction";
 import { grantItems } from "../modules/player/geo-player.repository";
+import { STARTER_KIT } from "../modules/accounts/geo-starter-kit";
 import { SPAWN_RULES } from "../world";
 import { startSmokeServer, step } from "./smoke-kit";
 
@@ -57,7 +58,7 @@ try {
 
     const me = await call<GeoMeResponse>("GET", GEO_API_PATHS.me.root, accessToken);
     assert.equal(me.status, 200);
-    assert.deepEqual(me.body.inventory.map((entry) => entry.itemId).sort(), ["bronze-dagger", "card.double-slash", "card.slash"]);
+    assert.deepEqual(me.body.inventory.map((entry) => entry.itemId).sort(), STARTER_KIT.items.map((entry) => entry.itemId).sort());
     assert.equal(me.body.hands.combat?.length, 2);
     const dagger = me.body.inventory.find((entry) => entry.itemId === "bronze-dagger")!;
     assert.equal(me.body.equipment.mainHand, dagger.id);
@@ -352,10 +353,12 @@ try {
     const baited = await call<GeoMeResponse>("PUT", baitPath(0), accessToken, { itemId: "worm-bait", quantity: GEO_BAIT_STACK_SIZE });
     assert.equal(baited.status, 200, JSON.stringify(baited.body));
     assert.deepEqual(baited.body.bait, { slots: 1, contents: [{ slot: 0, itemId: "worm-bait", quantity: GEO_BAIT_STACK_SIZE }] });
-    assert.equal(amountOf(baited.body, "worm-bait"), 30 - GEO_BAIT_STACK_SIZE);
+    // The starter worms were packed already: packing over them puts them back first.
+    const starterWorms = STARTER_KIT.bait.reduce((sum, entry) => sum + (entry.itemId === "worm-bait" ? entry.quantity : 0), 0);
+    assert.equal(amountOf(baited.body, "worm-bait"), 30 + starterWorms - GEO_BAIT_STACK_SIZE);
     const unbaited = await call<GeoMeResponse>("DELETE", baitPath(0), accessToken);
     assert.deepEqual(unbaited.body.bait.contents, []);
-    assert.equal(amountOf(unbaited.body, "worm-bait"), 30);
+    assert.equal(amountOf(unbaited.body, "worm-bait"), 30 + starterWorms);
     step("worm bait packs into the bait slot and unpacks back to the inventory");
 
     // Saved hands

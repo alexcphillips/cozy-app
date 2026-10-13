@@ -19,3 +19,5 @@ geoPlayerRouter.put(GEO_API_PATHS.me.lunchboxSlot, geoAuth, asyncHandler(playerC
 geoPlayerRouter.delete(GEO_API_PATHS.me.lunchboxSlot, geoAuth, asyncHandler(playerController.unpackLunchbox));
 geoPlayerRouter.put(GEO_API_PATHS.me.baitSlot, geoAuth, asyncHandler(playerController.packBait));
 geoPlayerRouter.delete(GEO_API_PATHS.me.baitSlot, geoAuth, asyncHandler(playerController.unpackBait));
+geoPlayerRouter.put(GEO_API_PATHS.me.seedBagSlot, geoAuth, asyncHandler(playerController.packSeeds));
+geoPlayerRouter.delete(GEO_API_PATHS.me.seedBagSlot, geoAuth, asyncHandler(playerController.unpackSeeds));

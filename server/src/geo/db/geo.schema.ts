@@ -478,4 +478,27 @@ const STATEMENTS = [
     );`,
     `CREATE INDEX IF NOT EXISTS announcements_created_idx ON geo.announcements (created_at);`,
     `ALTER TABLE geo.players ADD COLUMN IF NOT EXISTS inbox_read_at TIMESTAMPTZ;`,
+
+    // Farming (modules/farming). One farm per player, made the first time
+    // they look at it; its whole grid lives in `state` (farming/farm.ts), so
+    // it moves to one row in a Durable Object later without reshaping.
+    `CREATE TABLE IF NOT EXISTS geo.farms (
+        player_id UUID PRIMARY KEY REFERENCES geo.players(id) ON DELETE CASCADE,
+        state JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );`,
+    // Seed Bag slots unlocked: data/config/farming.ts seedBagSlots to start,
+    // up to 4 (GEO_SEED_BAG_MAX_SLOTS).
+    `ALTER TABLE geo.players ADD COLUMN IF NOT EXISTS seed_bag_slots INTEGER NOT NULL DEFAULT 2
+        CHECK (seed_bag_slots BETWEEN 1 AND 4);`,
+    // Seeds packed for farming, kept like geo.bait: one stack of one seed per
+    // slot, moved out of geo.inventory while packed.
+    `CREATE TABLE IF NOT EXISTS geo.seed_bag (
+        player_id UUID NOT NULL REFERENCES geo.players(id) ON DELETE CASCADE,
+        slot SMALLINT NOT NULL CHECK (slot >= 0 AND slot < 4),
+        item_id VARCHAR(80) NOT NULL,
+        quantity INTEGER NOT NULL CHECK (quantity > 0),
+        PRIMARY KEY (player_id, slot)
+    );`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS seed_bag_one_slot_per_seed_idx ON geo.seed_bag (player_id, item_id);`,
 ];
