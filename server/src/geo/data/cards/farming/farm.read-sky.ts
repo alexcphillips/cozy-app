@@ -8,7 +8,7 @@ export default {
     description: "Red sky at night.",
     stats: [
         { label: "Role", value: "Info" },
-        { label: "Does", value: "1 Labor. The forecast shows the next 3 turns, until the next one comes." },
+        { label: "Does", value: "1 Labor. The forecast shows the next 3 cycles, until the next one comes." },
     ],
     skill: "farming",
     maxCharges: 40,

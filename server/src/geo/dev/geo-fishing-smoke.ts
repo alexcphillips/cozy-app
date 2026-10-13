@@ -69,7 +69,7 @@ try {
         // `act` reassigns `run`; read the phase fresh each time.
         const phase = () => run.phase as GeoFishingRunView["phase"];
         while (phase() !== "over") {
-            if (phase() === "waiting") await act({ type: run.signal === "bite" ? "strike" : "wait" });
+            if (phase() === "waiting") await act({ type: "strike" });
             // Play it out, so the cards (and their charges) get exercised.
             else if (phase() === "outclassed") await act({ type: "playOut" });
             else if (phase() === "creature") await act({ type: "cutLine" });
@@ -128,8 +128,8 @@ try {
             continue;
         }
         if (run.phase === "waiting") {
-            if (run.signal === "bite") bites++;
-            await act({ type: run.signal === "bite" ? "strike" : "wait" });
+            bites++;
+            await act({ type: "strike" });
         }
     }
     step(`a sea creature bit after ${bites} chum bite${bites === 1 ? "" : "s"}`);
@@ -178,7 +178,7 @@ try {
     run = (await call<GeoFishingRunView>("POST", GEO_API_PATHS.fishing.start, token, { tier: "open" })).body;
     const strikeBite = async () => {
         await act({ type: "cast" });
-        while (run.phase === "waiting") await act({ type: run.signal === "bite" ? "strike" : "wait" });
+        if (run.phase === "waiting") await act({ type: "strike" });
     };
     for (let i = 0; i < 3; i++) {
         await strikeBite();

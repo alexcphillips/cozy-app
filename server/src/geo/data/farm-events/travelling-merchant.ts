@@ -5,7 +5,7 @@ export default {
     id: "travelling-merchant",
     name: "Travelling Merchant",
     icon: "swap-bag",
-    description: "A cart at the gate, for one turn only.",
+    description: "A cart at the gate, for one cycle only.",
     weight: 2,
     effect: {
         kind: "merchant",

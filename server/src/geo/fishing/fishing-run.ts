@@ -1,5 +1,4 @@
 import type {
-    GeoCastSignal,
     GeoFishIntent,
     GeoFishingAction,
     GeoFishingPhase,
@@ -59,8 +58,6 @@ export type FishingState = {
     draws: number;
     tier: GeoFishingTier;
     phase: GeoFishingPhase;
-    signals: GeoCastSignal[];
-    signalIndex: number;
     fishId: string | null;
     /** The enemy on the line in the `creature` phase. */
     creatureId?: string | null;
@@ -94,8 +91,6 @@ export function newFishingState(tier: GeoFishingTier, hand: FishingHandCard[], s
         draws: 0,
         tier,
         phase: "ready",
-        signals: [],
-        signalIndex: 0,
         fishId: null,
         creatureId: null,
         fight: null,
@@ -107,9 +102,6 @@ export function newFishingState(tier: GeoFishingTier, hand: FishingHandCard[], s
         chum: false,
     };
 }
-
-export const currentSignal = (state: FishingState): GeoCastSignal | null =>
-    state.phase === "waiting" ? (state.signals[state.signalIndex] ?? null) : null;
 
 export const isOutclassed = (fish: FishDef, power: number) => power >= 2 * fish.stamina;
 
@@ -149,9 +141,7 @@ export function stepFishing(
 function applyAction(state: FishingState, action: GeoFishingAction, setup: FishingSetup, rng: Rng, bait: CastBait): FishingState {
     switch (action.type) {
         case "cast":
-            return cast(state, rng, bait);
-        case "wait":
-            return wait(state);
+            return cast(state, bait);
         case "strike":
             return strike(state, setup, rng);
         case "quickLand": {
@@ -176,46 +166,24 @@ function over(state: FishingState, result: FishingResult): FishingState {
     return { ...state, phase: "over", result, message: "" };
 }
 
-function cast(state: FishingState, rng: Rng, bait: CastBait): FishingState {
+function cast(state: FishingState, bait: CastBait): FishingState {
     if (state.phase !== "ready" && state.phase !== "over") throw new FishingRuleError("Your line's already in the water");
     if (!bait) throw new FishingRuleError("Pack some bait first: one goes on the hook each cast");
-    const nibbles = bait.chum ? (rng.next() < 0.6 ? 0 : 1) : Math.floor(rng.next() * 3);
     return {
         ...state,
         phase: "waiting",
-        signals: [...Array<GeoCastSignal>(nibbles).fill("nibble"), "bite"],
-        signalIndex: 0,
         fishId: null,
         creatureId: null,
         fight: null,
         result: null,
         baitItemId: bait.itemId,
         chum: bait.chum,
-        message: nibbles > 0 ? "A nibble. The bobber twitches…" : "The bobber plunges under!",
+        message: "The bobber plunges under!",
     };
-}
-
-function wait(state: FishingState): FishingState {
-    if (state.phase !== "waiting") throw new FishingRuleError("Nothing to wait for");
-    if (currentSignal(state) === "bite") {
-        return over(state, { kind: "lost", reason: "You waited too long. It took the bait and left.", turns: 0 });
-    }
-    const signalIndex = state.signalIndex + 1;
-    return { ...state, signalIndex, message: state.signals[signalIndex] === "bite" ? "The bobber plunges under!" : "Another nibble…" };
 }
 
 function strike(state: FishingState, setup: FishingSetup, rng: Rng): FishingState {
     if (state.phase !== "waiting") throw new FishingRuleError("Nothing to strike at");
-    if (currentSignal(state) === "nibble") {
-        if (rng.next() < 0.5) return over(state, { kind: "lost", reason: "Too early. You spooked it.", turns: 0 });
-        const signalIndex = state.signalIndex + 1;
-        return {
-            ...state,
-            signalIndex,
-            message: `Too early, nothing there. ${state.signals[signalIndex] === "bite" ? "Now it bites!" : "Another nibble…"}`,
-        };
-    }
-
     const creatures = SEA_CREATURES[state.tier];
     const creatureChance = Math.min(1, setup.seaCreatureChance * (state.chum ? 3 : 1));
     if (creatures.length > 0 && rng.next() < creatureChance) {

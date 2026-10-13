@@ -46,6 +46,13 @@ export const FOOD_HEALING_STAT: StatId = "foodHealing";
  */
 export const DAMAGE_DEALT_STAT: StatId = "damageDealt";
 
+/**
+ * More crops from every harvest: a flat +100 = 100% more (×2), so 1000 is
+ * ×11. The fraction left over is a chance of one more. Not seeds.
+ * See `farming/farm.ts` `withFortune`.
+ */
+export const FARMING_FORTUNE_STAT: StatId = "farmingFortune";
+
 export type Stats = Record<StatId, number>;
 
 /**

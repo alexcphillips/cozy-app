@@ -251,6 +251,8 @@ export type FarmContext = {
     held: Record<string, number>;
     /** The player's farming level: sets the Labor each turn refills to. */
     farmingLevel: number;
+    /** Farming Fortune from gear, talismans and global perks: more crops per harvest (`withFortune`). 0 when absent. */
+    fortune?: number;
     /** The farm's weather by period; seeded rolls when absent. */
     weather?: WeatherLookup;
 };
@@ -386,7 +388,7 @@ export function catchUp(prev: FarmState, ctx: FarmContext): FarmCatchUp {
     }
     const waited = due > turns;
     total.state = { ...total.state, accruedAt: new Date(waited ? ctx.now.getTime() : since + due * period).toISOString() };
-    total.log.unshift(`The farm took ${turns} turn${turns === 1 ? "" : "s"}${waited ? ", then waited for you" : ""}.`);
+    total.log.unshift(`The farm ran ${turns} cycle${turns === 1 ? "" : "s"}${waited ? ", then waited for you" : ""}.`);
     return total;
 }
 
@@ -575,6 +577,18 @@ export function planIntent(state: FarmState, pest: FarmPest, def: PestDef, rng: 
 
 const between = (rng: Rng, { min, max }: { min: number; max: number }) => min + Math.floor(rng.next() * (max - min + 1));
 
+/**
+ * A harvest's amount with Farming Fortune: × (1 + fortune / 100), so every
+ * 100 adds the base amount again. The fraction left over is a chance of one
+ * more: 3 crops at 50 fortune are 4.5, so 4 or 5. Negative fortune counts as 0.
+ */
+export function withFortune(amount: number, fortune: number, rng: Rng): number {
+    const exact = amount * (1 + Math.max(0, fortune) / 100);
+    const whole = Math.floor(exact);
+    // No roll without a fraction, so fortune-free harvests draw what they always did.
+    return exact > whole && rng.next() < exact - whole ? whole + 1 : whole;
+}
+
 /** The clock's own step: never sent by the player (`tickFarm`, `catchUp`). */
 type FarmTick = { type: "tick"; weather: GeoFarmWeather };
 
@@ -614,7 +628,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
         else result.gains.push({ itemId, quantity });
     };
 
-    /** A ripe crop into the inventory: yield from the roll, the wait, the soil and `bonus`. */
+    /** A ripe crop into the inventory: yield from the roll, the wait, the soil and `bonus`, then Farming Fortune. */
     const harvest = (index: number, bonus: number) => {
         const tile = state.tiles[index]!;
         const crop = tile.crop!;
@@ -626,7 +640,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
         const pushBonus = Math.min(crop.ripeTurns, config.rotChances.length);
         const event = state.activeEvent ? ctx.events[state.activeEvent.eventId] : undefined;
         const bumper = (event?.effect.kind === "bumper-harvest" ? event.effect.bonus : 0) + (blessed("plenty") ? 1 : 0);
-        const amount = Math.max(1, between(rng, def.yield) + pushBonus + fertilityBonus + bonus + bumper);
+        const amount = withFortune(Math.max(1, between(rng, def.yield) + pushBonus + fertilityBonus + bonus + bumper), ctx.fortune ?? 0, rng);
         // Mutations give no seeds back.
         const seeds = "seed" in def ? between(rng, def.seedsBack) : 0;
         gain(def.produce, amount);
@@ -989,7 +1003,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
                 const tile = ownedTile(index);
                 tile.moisture = GEO_FARM_MAX_MOISTURE;
                 tile.soakTurns = 2;
-                result.log.push(`Deep Soak at ${tileName(index)}: it drinks nothing for 2 turns.`);
+                result.log.push(`Deep Soak at ${tileName(index)}: it drinks nothing for 2 cycles.`);
                 return;
             }
             case "farm.careful-pick": {
@@ -1025,7 +1039,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
             case "farm.hold": {
                 const crop = ripeAt(index);
                 crop.held = true;
-                result.log.push(`${cropDef(crop).name} at ${tileName(index)} is held for a turn.`);
+                result.log.push(`${cropDef(crop).name} at ${tileName(index)} is held for a cycle.`);
                 return;
             }
             case "farm.plow-under": {
@@ -1040,7 +1054,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
             }
             case "farm.read-sky": {
                 state.skyRead = true;
-                result.log.push("You read the sky: three turns of weather ahead.");
+                result.log.push("You read the sky: three cycles of weather ahead.");
                 return;
             }
             case "farm.smoke": {
@@ -1110,14 +1124,14 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
                 tileAt(index);
                 const reach = [index, ...around(state, index, 1)];
                 for (const at of reach) if (state.tiles[at]!.owned) state.tiles[at]!.limed = true;
-                result.log.push(`Limed around ${tileName(index)}: the soil holds, and nothing there grows next turn.`);
+                result.log.push(`Limed around ${tileName(index)}: the soil holds, and nothing there grows next cycle.`);
                 return;
             }
             case "farm.moon-rite": {
                 const moon = ctx.events["blood-moon"];
                 if (!moon) throw new FarmRuleError("The moon won't answer");
                 state.nextEvent = moon.id;
-                result.log.push("The rite is done. The next turn comes under a Blood Moon.");
+                result.log.push("The rite is done. The next cycle comes under a Blood Moon.");
                 return;
             }
             case "farm.exterminators-oath": {
@@ -1158,13 +1172,13 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
                     const tile = state.tiles[indexOf(x, y)]!;
                     if (tile.owned && !tile.structure) tile.soilOverlay = { soil: "boggy", turnsLeft: 2 };
                 }
-                result.log.push(`Mulched row ${y + 1}: Boggy for 2 turns.`);
+                result.log.push(`Mulched row ${y + 1}: Boggy for 2 cycles.`);
                 return;
             }
             case "farm.hex-the-earth": {
                 const tile = noStructure(ownedTile(index));
                 tile.soilOverlay = { soil: "cursed", turnsLeft: 1 };
-                result.log.push(`Hexed the soil at ${tileName(index)}: Cursed for a turn.`);
+                result.log.push(`Hexed the soil at ${tileName(index)}: Cursed for a cycle.`);
                 return;
             }
             case "farm.hazmat-scrub": {
@@ -1188,7 +1202,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
                 if (!portal) throw new FarmRuleError("Tear the Veil needs a Portal");
                 if (portal.open) throw new FarmRuleError("It's already open");
                 portal.open = true;
-                result.log.push("The Portal tears open. Something is coming through on the next turn.");
+                result.log.push("The Portal tears open. Something is coming through on the next cycle.");
                 return;
             }
             case "farm.snap-trap": {
@@ -1270,7 +1284,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
         for (const { index, def } of structuresOf("beehive")) {
             if (def.effect.kind !== "beehive" || !rng.chance(def.effect.swarmChance)) continue;
             for (const at of around(state, index, 1)) sapped.add(at);
-            notes.push(`The bees swarmed at ${tileName(index)}: the crops around won't grow this turn.`);
+            notes.push(`The bees swarmed at ${tileName(index)}: the crops around won't grow this cycle.`);
         }
         for (const [index, tile] of state.tiles.entries()) {
             if (!tile.owned) continue;
@@ -1311,7 +1325,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
         }
 
         const label = weather[0]!.toUpperCase() + weather.slice(1);
-        result.log.push(`Turn ${state.turn}: ${label}. ${grew} crop${grew === 1 ? "" : "s"} grew${dry ? `, ${dry} too dry to grow` : ""}.`);
+        result.log.push(`Cycle ${state.turn}: ${label}. ${grew} crop${grew === 1 ? "" : "s"} grew${dry ? `, ${dry} too dry to grow` : ""}.`);
         result.log.push(...notes, ...pestNotes);
 
         for (const { index, structure } of structuresOf("compost")) {
@@ -1496,7 +1510,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
         let roll = rng.next() * events.reduce((sum, entry) => sum + entry.weight, 0);
         const next = events.find((entry) => (roll -= entry.weight) < 0) ?? events[events.length - 1]!;
         state.nextEvent = next.id;
-        result.log.push(`Coming next turn: ${next.name}.`);
+        result.log.push(`Coming next cycle: ${next.name}.`);
     }
 
     /** Does `mutation`'s recipe hold around the empty tile at `index`, in this weather, with these events on? */

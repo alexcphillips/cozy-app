@@ -4,7 +4,7 @@ import type { GeoRarity } from "./content.contract";
 
 /**
  * Fishing Runs: a session at a fishing spot. Each cast spends one bait, the
- * bobber nibbles and bites, and a strike hooks a fish to fight one card per
+ * bobber plunges under, and a strike hooks a fish to fight one card per
  * turn. A landed fish goes straight into the inventory. The server runs every
  * step; the app shows what it says.
  */
@@ -16,14 +16,12 @@ export type GeoQualityTier = (typeof GEO_QUALITY_TIERS)[number];
 export type GeoFishIntent = "run" | "thrash" | "dive" | "rest" | "jump";
 
 /**
- * ready: nothing in the water. waiting: the bobber is out. creature: a sea
- * creature is on the line. outclassed: a fish too weak to fight, land it or
- * play it out. fight: one card per turn. over: the cast ended (see outcome).
+ * ready: nothing in the water. waiting: the bobber is under, strike it.
+ * creature: a sea creature is on the line. outclassed: a fish too weak to
+ * fight, land it or play it out. fight: one card per turn. over: the cast
+ * ended (see outcome).
  */
 export type GeoFishingPhase = "ready" | "waiting" | "creature" | "outclassed" | "fight" | "over";
-
-/** What the bobber is doing while waiting. */
-export type GeoCastSignal = "nibble" | "bite";
 
 export type GeoFishingStatuses = {
     /** Turns left in which it can't throw the hook or escape. */
@@ -95,7 +93,6 @@ export type GeoFishingRunView = {
     /** The water: which rarities can bite. */
     tier: GeoFishingTier;
     phase: GeoFishingPhase;
-    signal: GeoCastSignal | null;
     /** While hooked or fighting. */
     fish: GeoFishSilhouette | null;
     fight: GeoFishingFightView | null;
@@ -121,7 +118,6 @@ export type GeoStartFishingRequest = {
 /** `POST /geo/fishing/:runId/actions`: one step of the cast. */
 export type GeoFishingAction =
     | { type: "cast" }
-    | { type: "wait" }
     | { type: "strike" }
     | { type: "quickLand" }
     | { type: "playOut" }
@@ -131,7 +127,6 @@ export type GeoFishingAction =
 
 export const GEO_FISHING_ACTION_TYPES = [
     "cast",
-    "wait",
     "strike",
     "quickLand",
     "playOut",

@@ -84,7 +84,7 @@ try {
     await passTurns(1);
     assert.equal(farm.turn, 1);
     assert.equal(farm.labor, 3);
-    assert.match(farm.log[0]!, /took 1 turn\./);
+    assert.match(farm.log[0]!, /ran 1 cycle\./);
     await passTurns(10);
     assert.equal(farm.turn, 1 + FARMING.maxTurnsAway);
     assert.match(farm.log[0]!, /then waited for you/);

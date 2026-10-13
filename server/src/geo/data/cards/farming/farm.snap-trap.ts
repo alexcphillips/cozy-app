@@ -8,7 +8,7 @@ export default {
     description: "Set it where they're going, not where they are.",
     stats: [
         { label: "Role", value: "Pest control" },
-        { label: "Does", value: "1 Labor. A pest moving onto the tile on the next turn is caught. Wasted if none does." },
+        { label: "Does", value: "1 Labor. A pest moving onto the tile on the next cycle is caught. Wasted if none does." },
     ],
     skill: "farming",
     maxCharges: 40,

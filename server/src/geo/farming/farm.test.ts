@@ -12,6 +12,7 @@ import {
     nextTurnAt,
     refreshOrders,
     weekOf,
+    withFortune,
     weekEndsAt,
     globalEventFor,
     activeGlobalEvent,
@@ -145,7 +146,7 @@ describe("farm", () => {
         assert.equal(later.turns, 1);
         assert.equal(later.state.turn, 1);
         assert.equal(nextTurnAt(later.state, config).getTime(), NOW.getTime() + period * 2);
-        assert.match(later.log[0]!, /took 1 turn\./);
+        assert.match(later.log[0]!, /ran 1 cycle\./);
     });
 
     it("waits for the player after maxTurnsAway turns, then restarts the clock", () => {
@@ -181,6 +182,27 @@ describe("farm", () => {
         assert.equal(harvested.xp, CONTENT.crops.wheat!.xp);
         assert.equal(harvested.state.tiles[MID]!.crop, null);
         assert.equal(harvested.state.tiles[MID]!.fertility, config.startFertility - CONTENT.crops.wheat!.fertilityCost);
+    });
+
+    it("Farming Fortune multiplies a harvest: each 100 adds it again, the fraction a chance of 1 more", () => {
+        const rng = createRng(1);
+        assert.equal(withFortune(3, 0, rng), 3);
+        assert.equal(withFortune(3, 100, rng), 6);
+        assert.equal(withFortune(3, 1000, rng), 33);
+        assert.equal(withFortune(3, -50, rng), 3);
+        const rolls = Array.from({ length: 200 }, () => withFortune(3, 50, rng));
+        assert.ok(rolls.every((amount) => amount === 4 || amount === 5));
+        assert.ok(rolls.includes(4) && rolls.includes(5));
+    });
+
+    it("harvests with Farming Fortune give more crops, but not more seeds", () => {
+        const ripeWheat = ripe(farm(), "wheat", [MID]);
+        const plain = stepFarm(ripeWheat, { type: "harvest", tile: MID }, ctx);
+        const lucky = stepFarm(ripeWheat, { type: "harvest", tile: MID }, { ...ctx, fortune: 200 });
+        const amount = (result: typeof plain, itemId: string) => result.gains.find((gain) => gain.itemId === itemId)?.quantity ?? 0;
+        assert.equal(amount(lucky, "wheat"), amount(plain, "wheat") * 3);
+        assert.equal(amount(lucky, "wheat-seeds"), amount(plain, "wheat-seeds"));
+        assert.equal(lucky.harvested[0]!.quantity, amount(lucky, "wheat"), "contests count the fortune crops");
     });
 
     it("doesn't grow a dry crop on a clear day", () => {
@@ -536,8 +558,8 @@ describe("farm", () => {
             const lookup = (start: number): GeoFarmWeather => (start === NOW.getTime() ? "rain" : start === NOW.getTime() + period ? "overcast" : "clear");
             assert.deepEqual(forecast({ ...farm(), skyRead: true }, config, lookup), ["rain", "overcast", "clear"]);
             const played = catchUp(farm(), { ...ctx, weather: lookup, now: new Date(NOW.getTime() + period * 2.5) });
-            assert.match(played.log[1]!, /Turn 1: Rain/);
-            assert.ok(played.log.some((line) => /Turn 2: Overcast/.test(line)));
+            assert.match(played.log[1]!, /Cycle 1: Rain/);
+            assert.ok(played.log.some((line) => /Cycle 2: Overcast/.test(line)));
         });
 
         it("a storm waters like rain and can flatten crops in the open", () => {
@@ -581,7 +603,7 @@ describe("farm", () => {
         it("telegraphs an event for the next turn, then runs it", () => {
             const first = tickFarm(farm(), only("bumper-harvest"));
             assert.equal(first.state.nextEvent, "bumper-harvest");
-            assert.ok(first.log.some((line) => line.includes("Coming next turn")));
+            assert.ok(first.log.some((line) => line.includes("Coming next cycle")));
             const second = tickFarm(first.state, only("bumper-harvest")).state;
             assert.equal(second.activeEvent?.eventId, "bumper-harvest");
         });

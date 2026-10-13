@@ -3,7 +3,9 @@ import { AppError } from "../../../http/AppError";
 import { CONTENT, FARMING } from "../../content";
 import { isFarmingCardId } from "../../content/farming";
 import { withTransaction, type TxQuery } from "../../db/transaction";
+import { FARMING_FORTUNE_STAT } from "../../engine/engine.types";
 import { randomSeed } from "../../engine/rng";
+import { applyModifiers } from "../../engine/stats";
 import {
     catchUp,
     FarmRuleError,
@@ -18,6 +20,7 @@ import {
     type StoredFarm,
 } from "../../farming/farm";
 import { realLookup, regionWeather } from "../../farming/weather";
+import { playerModifiers } from "../../world/global-effects";
 import * as playerRepository from "../player/geo-player.repository";
 import { findContests, findGlobalEvent, recordHarvests } from "./geo-farming.contests";
 import { toFarmView, type FarmReport, type FarmWeather } from "./geo-farming.view";
@@ -47,6 +50,11 @@ async function loadHand(tx: TxQuery, playerId: string, inventory: InventoryRows)
 /** The player's farming level, for the Labor each turn refills to. */
 async function farmingLevel(tx: TxQuery, playerId: string): Promise<number> {
     return (await playerRepository.findSkillLevels(tx, playerId)).farming ?? 1;
+}
+
+/** The player's Farming Fortune: their gear, talismans and global perks. */
+async function farmingFortune(tx: TxQuery, playerId: string): Promise<number> {
+    return applyModifiers(0, await playerModifiers(playerId, tx), FARMING_FORTUNE_STAT);
 }
 
 /** What an NPC pays for an item: sizes the Order Board's orders. */
@@ -135,6 +143,7 @@ async function viewOf(tx: TxQuery, playerId: string, state: FarmState, weather: 
             contests: await findContests(tx, playerId, now),
             global: findGlobalEvent(now),
             farmingLevel: await farmingLevel(tx, playerId),
+            fortune: await farmingFortune(tx, playerId),
         },
         report,
     );
@@ -176,6 +185,7 @@ export async function actFarm(playerId: string, action: GeoFarmAction): Promise<
                 sellValue,
                 held: heldItems(inventoryBefore),
                 farmingLevel: await farmingLevel(tx, playerId),
+                fortune: await farmingFortune(tx, playerId),
                 config: FARMING,
                 now,
                 hand,

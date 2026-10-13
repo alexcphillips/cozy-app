@@ -23,5 +23,5 @@ Model: `Structure` in `#geo/models` (`content/models.ts`), plus the
 | `{ kind: "reactor", radius, growth, wasteChance }` | Crops within `radius` tiles grow `growth` extra stages a turn (when they grow at all). Each turn, `wasteChance` nuclear waste lands on a tile within `radius`, killing what grows there (see `config/farming.ts` `waste`). |
 | `{ kind: "portal", wave, pests }` | Does nothing until a Tear the Veil card opens it. On the next turn, `wave` pests picked from `pests` come through around it, then it shuts. |
 | `{ kind: "shrine" }` | Takes offerings from the inventory (on its tile, free). Their NPC value buys a roll for a blessing; see `config/farming.ts` `shrine`. |
-| `{ kind: "well", capacity, rain, storm, heatwave }` | Stores up to `capacity` water: a Rain turn adds `rain`, a Storm `storm`, a Heatwave takes `heatwave`. While it has water, plain Water draws 1 from it and costs no Labor. Starts empty. |
+| `{ kind: "well", capacity, rain, storm, heatwave }` | Stores up to `capacity` water: a Rain cycle adds `rain`, a Storm `storm`, a Heatwave takes `heatwave`. While it has water, plain Water draws 1 from it and costs no Labor. Starts empty. |
 | `{ kind: "lightning-rod", radius }` | Storms can't flatten crops within `radius` tiles. Mutation recipes can need one nearby (`recipe.structure`). |

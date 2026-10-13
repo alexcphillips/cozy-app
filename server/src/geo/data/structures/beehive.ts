@@ -7,6 +7,6 @@ export default {
     rarity: "uncommon",
     icon: "beehive",
     description: "Busy bees carry pollen further than you would.",
-    stats: [{ label: "Bees", value: "Mutation odds ×1.5 on the tiles around. 5% a turn they swarm and the crops around don't grow" }],
+    stats: [{ label: "Bees", value: "Mutation odds ×1.5 on the tiles around. 5% a cycle they swarm and the crops around don't grow" }],
     effect: { kind: "beehive", boost: 1.5, swarmChance: 0.05 },
 } satisfies Structure;

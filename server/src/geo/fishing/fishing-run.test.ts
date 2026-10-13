@@ -20,7 +20,7 @@ function playCast(start: FishingState): FishingState {
     for (let guard = 0; state.phase !== "over"; guard++) {
         assert.ok(guard < 200, `stuck in ${state.phase}`);
         let action: GeoFishingAction;
-        if (state.phase === "waiting") action = { type: state.signals[state.signalIndex] === "bite" ? "strike" : "wait" };
+        if (state.phase === "waiting") action = { type: "strike" };
         else if (state.phase === "outclassed") action = { type: "quickLand" };
         else if (state.phase === "creature") action = { type: "cutLine" };
         else {
@@ -33,10 +33,10 @@ function playCast(start: FishingState): FishingState {
     return state;
 }
 
-/** Casts and strikes the bite: the phase it hooks into (or "over" if it spooked). */
+/** Casts and strikes the bite: the phase it hooks into. */
 function hook(start: FishingState, using: FishingSetup): FishingState {
     let state = stepFishing(start, { type: "cast" }, using, worm);
-    while (state.phase === "waiting") state = stepFishing(state, { type: state.signals[state.signalIndex] === "bite" ? "strike" : "wait" }, using);
+    if (state.phase === "waiting") state = stepFishing(state, { type: "strike" }, using);
     return state;
 }
 
@@ -63,7 +63,7 @@ describe("fishing Run", () => {
     it("spends a charge per card played", () => {
         let state = newFishingState("open", hand, 3);
         state = stepFishing(state, { type: "cast" }, setup, worm);
-        while (state.phase === "waiting") state = stepFishing(state, { type: state.signals[state.signalIndex] === "bite" ? "strike" : "wait" }, setup);
+        state = stepFishing(state, { type: "strike" }, setup);
         if (state.phase !== "fight") return; // outclassed: no fight to test on this seed
         const after = stepFishing(state, { type: "play", inventoryId: "inv-1" }, setup);
         assert.equal(after.hand[1]!.chargesLeft, 39);

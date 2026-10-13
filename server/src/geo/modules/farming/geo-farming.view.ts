@@ -139,9 +139,11 @@ export type FarmViewExtras = {
     contests: GeoFarmContests;
     global: GeoGlobalFarmEvent | null;
     farmingLevel: number;
+    /** Farming Fortune from gear, talismans and global perks. */
+    fortune: number;
 };
 
-export function toFarmView(state: FarmState, { hand, seedBag, held, weather, contests, global, farmingLevel }: FarmViewExtras, report: FarmReport = NO_REPORT): GeoFarmView {
+export function toFarmView(state: FarmState, { hand, seedBag, held, weather, contests, global, farmingLevel, fortune }: FarmViewExtras, report: FarmReport = NO_REPORT): GeoFarmView {
     return {
         size: GEO_FARM_SIZE,
         tiles: state.tiles.map((tile, index) => {
@@ -180,6 +182,7 @@ export function toFarmView(state: FarmState, { hand, seedBag, held, weather, con
         labor: state.labor,
         laborPerTurn: laborFor(FARMING, farmingLevel),
         laborNextLevel: nextLaborLevel(FARMING, farmingLevel),
+        fortune,
         nextTurnAt: nextTurnAt(state, FARMING).toISOString(),
         maxTurnsAway: FARMING.maxTurnsAway,
         forecast: forecast(state, FARMING, weather.lookup),

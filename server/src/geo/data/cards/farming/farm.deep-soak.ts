@@ -8,7 +8,7 @@ export default {
     description: "Water it until the ground can't take any more.",
     stats: [
         { label: "Role", value: "Water" },
-        { label: "Does", value: "2 Labor. Moisture to full, and growing here drinks nothing for 2 turns." },
+        { label: "Does", value: "2 Labor. Moisture to full, and growing here drinks nothing for 2 cycles." },
     ],
     skill: "farming",
     maxCharges: 30,

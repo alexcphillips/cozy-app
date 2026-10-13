@@ -8,7 +8,7 @@ export default {
     description: "Wrap it up and keep it as it is.",
     stats: [
         { label: "Role", value: "Harvest" },
-        { label: "Does", value: "1 Labor. A ripe crop neither rots nor improves on the next turn." },
+        { label: "Does", value: "1 Labor. A ripe crop neither rots nor improves on the next cycle." },
     ],
     skill: "farming",
     maxCharges: 30,

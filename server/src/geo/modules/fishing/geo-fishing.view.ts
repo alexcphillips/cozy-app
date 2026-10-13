@@ -1,7 +1,7 @@
 import type { GeoFishingOutcome, GeoFishingRunView } from "@cozy/shared/geo";
 import { CONTENT } from "../../content";
 import { fishItemId, qualityFishItemId } from "../../content/fishing";
-import { currentSignal, type FishingSetup, type FishingState } from "../../fishing/fishing-run";
+import { type FishingSetup, type FishingState } from "../../fishing/fishing-run";
 
 /**
  * A fishing Run as the app sees it. The fish's name and rarity stay hidden
@@ -17,7 +17,6 @@ export function toFishingView(id: string, state: FishingState, setup: FishingSet
         id,
         tier: state.tier,
         phase: state.phase,
-        signal: currentSignal(state),
         fish: showFish && fish ? { fishId: fish.id } : null,
         fight: fight && {
             ...fight,

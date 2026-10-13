@@ -7,6 +7,6 @@ export default {
     rarity: "epic",
     icon: "portal",
     description: "A door that wasn't there yesterday. Something knocks back.",
-    stats: [{ label: "Portal", value: "Tear the Veil opens it: 2 elite pests come through on the next turn. Hard to clear, rich drops" }],
+    stats: [{ label: "Portal", value: "Tear the Veil opens it: 2 elite pests come through on the next cycle. Hard to clear, rich drops" }],
     effect: { kind: "portal", wave: 2, pests: ["rift-locust", "shade-rat"] },
 } satisfies Structure;

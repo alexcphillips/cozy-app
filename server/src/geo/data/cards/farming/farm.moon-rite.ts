@@ -8,7 +8,7 @@ export default {
     description: "Call the red moon early.",
     stats: [
         { label: "Role", value: "Ritual" },
-        { label: "Does", value: "2 Labor. The next turn comes under a Blood Moon: Blood Moon recipes can sprout, and pests come twice as often." },
+        { label: "Does", value: "2 Labor. The next cycle comes under a Blood Moon: Blood Moon recipes can sprout, and pests come twice as often." },
     ],
     skill: "farming",
     maxCharges: 10,

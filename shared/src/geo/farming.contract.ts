@@ -306,6 +306,8 @@ export type GeoFarmView = {
     laborPerTurn: number;
     /** The farming level that next adds 1 Labor per turn; null past the last. */
     laborNextLevel: number | null;
+    /** Farming Fortune from gear, talismans and global perks: each 100 adds a harvest's crops again (1000 = ×11). */
+    fortune: number;
     /** When the farm takes its next turn. */
     nextTurnAt: string;
     /** Turns the farm takes while the player is away; past this it waits for them. */

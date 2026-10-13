@@ -20,6 +20,7 @@ A stat is any name. These are the ones the game reads today:
 | `damageDealt` | combat | Fraction: 0.25 = 25% more damage. Never on status damage. Combat level gives 1% a level. |
 | `foodHealing` | combat | Fraction: 0.25 = food heals 25% more. |
 | `eelChance` `baitSaveChance` `seaCreatureChance` | fishing | Added to `config/fishing.ts` `baseOdds`. |
+| `farmingFortune` | farming | Flat: each 100 adds a harvest's crops again (1000 = ×11); the leftover fraction is a chance of 1 more. Not seeds. |
 | `coinDrops` | combat rewards | Global (mayor) modifiers only. |
 | `vendorPrices` | vendors | Global (mayor) modifiers only. |
 
