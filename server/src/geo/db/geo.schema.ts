@@ -526,4 +526,11 @@ const STATEMENTS = [
         PRIMARY KEY (player_id, slot)
     );`,
     `CREATE UNIQUE INDEX IF NOT EXISTS seed_bag_one_slot_per_seed_idx ON geo.seed_bag (player_id, item_id);`,
+
+    // chum-slick was renamed bloody-bait: carry over what players held, so a
+    // packed slot of it doesn't sit there unknown (hidden, uncastable, full).
+    `UPDATE geo.inventory SET item_id = 'bloody-bait' WHERE item_id = 'chum-slick';`,
+    `UPDATE geo.market_listings SET item_id = 'bloody-bait' WHERE item_id = 'chum-slick';`,
+    `UPDATE geo.bait b SET item_id = 'bloody-bait' WHERE item_id = 'chum-slick'
+        AND NOT EXISTS (SELECT 1 FROM geo.bait o WHERE o.player_id = b.player_id AND o.item_id = 'bloody-bait');`,
 ];

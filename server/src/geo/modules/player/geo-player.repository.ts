@@ -192,7 +192,7 @@ export async function findLunchbox(playerId: string, tx: TxQuery = db): Promise<
     const contents = await tx<LunchboxRow>(FIND_LUNCHBOX, [playerId]);
     return {
         slots: row?.lunchbox_slots ?? 1,
-        contents: contents.map(
+        contents: contents.filter(isKnownItem).map(
             (entry): GeoLunchboxSlot => ({ slot: entry.slot, itemId: entry.item_id, quantity: entry.quantity }),
         ),
     };
@@ -227,6 +227,15 @@ export async function clearLunchboxSlot(tx: TxQuery, playerId: string, slot: num
     await tx(DELETE_LUNCHBOX_SLOT, [playerId, slot]);
 }
 
+/**
+ * A packed slot of an item the content no longer has (renamed or removed)
+ * counts as empty: the screens can't draw it and nothing can use it, so
+ * packing just overwrites it.
+ */
+function isKnownItem(entry: { item_id: string }): boolean {
+    return CONTENT.items[entry.item_id] !== undefined;
+}
+
 /** How many bait slots the player has unlocked, and what's packed in them. */
 export async function findBait(playerId: string, tx: TxQuery = db): Promise<GeoBait> {
     // One after another: `tx` may be a transaction's single connection.
@@ -234,7 +243,7 @@ export async function findBait(playerId: string, tx: TxQuery = db): Promise<GeoB
     const contents = await tx<BaitRow>(FIND_BAIT, [playerId]);
     return {
         slots: row?.bait_slots ?? 1,
-        contents: contents.map(
+        contents: contents.filter(isKnownItem).map(
             (entry): GeoBaitSlot => ({ slot: entry.slot, itemId: entry.item_id, quantity: entry.quantity }),
         ),
     };
@@ -270,7 +279,9 @@ export async function findSeedBag(playerId: string, tx: TxQuery = db): Promise<G
     const contents = await tx<BaitRow>(FIND_SEED_BAG, [playerId]);
     return {
         slots: row?.seed_bag_slots ?? 1,
-        contents: contents.map((entry) => ({ slot: entry.slot, itemId: entry.item_id, quantity: entry.quantity })),
+        contents: contents
+            .filter(isKnownItem)
+            .map((entry) => ({ slot: entry.slot, itemId: entry.item_id, quantity: entry.quantity })),
     };
 }
 
