@@ -16,7 +16,7 @@ import {
 } from "../../fishing/fishing-run";
 import { playerModifiers } from "../../world/global-effects";
 import * as playerRepository from "../player/geo-player.repository";
-import { ABANDON_AFTER_MINUTES } from "../runs/geo-runs.repository";
+import { ABANDON_AFTER_MINUTES, openCombatRun } from "../runs/geo-runs.repository";
 import { ABANDON_STALE_RUNS, FIND_ACTIVE_RUN, FIND_RUN_FOR_UPDATE, INSERT_RUN, UPDATE_RUN } from "../runs/geo-runs.sql";
 import { toFishingView } from "./geo-fishing.view";
 
@@ -81,7 +81,9 @@ export async function startFishing(playerId: string, tier: GeoFishingTier): Prom
 /**
  * One step: cast, wait, strike, a card… Saved with what it costs and gives
  * in one transaction: bait off the hook, card charges, and a landed fish into
- * the inventory with its fishing XP.
+ * the inventory with its fishing XP. Fighting a sea creature leaves the spot
+ * and starts its combat Run; if that's refused (say, an empty combat hand),
+ * nothing changes and the creature is still on the line.
  */
 export async function actFishing(playerId: string, runId: string, action: GeoFishingAction): Promise<GeoFishingRunView> {
     return withTransaction(async (tx) => {
@@ -131,6 +133,12 @@ export async function actFishing(playerId: string, runId: string, action: GeoFis
             const itemId = landed.tier ? qualityFishItemId(fish.id, landed.tier) : fishItemId(fish.id);
             await playerRepository.grantItems(tx, playerId, [{ itemId, quantity: 1 }]);
             await playerRepository.addSkillXp(tx, playerId, "fishing", fish.xp);
+        }
+
+        if (landed?.kind === "creature") {
+            await tx(UPDATE_RUN, [row.id, after, "left", null, null]);
+            await openCombatRun(tx, playerId, { enemyId: landed.enemyId, spawnId: null });
+            return toFishingView(row.id, after, setup);
         }
 
         await tx(UPDATE_RUN, [row.id, after, "active", null, null]);

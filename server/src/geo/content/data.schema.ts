@@ -467,6 +467,10 @@ const FishingConfig = z.strictObject({
     }),
     defaultRod: z
         .strictObject({ name: z.string(), power: z.int().min(0), line: count, maxTier: z.enum(GEO_QUALITY_TIERS) }),
+    seaCreatures: z.record(
+        z.enum(GEO_FISHING_TIERS),
+        z.array(z.strictObject({ enemyId: id, weight: z.number().positive() })),
+    ),
 });
 
 const FarmingConfig = z.strictObject({

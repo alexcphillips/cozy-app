@@ -108,53 +108,62 @@ async function loadLoadout(tx: TxQuery, playerId: string) {
 export type RunTarget = { enemyId: string; spawnId: string | null };
 
 export async function startCombatRun(playerId: string, target: RunTarget): Promise<GeoRunResponse> {
-    const { enemyId, spawnId } = target;
-    if (!CONTENT.enemies[enemyId]) throw AppError.badRequest("Unknown enemy");
+    if (!CONTENT.enemies[target.enemyId]) throw AppError.badRequest("Unknown enemy");
 
     return withTransaction(async (tx) => {
         // Before reading the hand: a hand change can't land while this starts.
         await playerRepository.lockPlayer(tx, playerId);
         // Checked again inside the transaction: it may have gone or been won since.
-        if (spawnId && !(await worldRepository.findLiveSpawn(tx, playerId, spawnId))) {
+        if (target.spawnId && !(await worldRepository.findLiveSpawn(tx, playerId, target.spawnId))) {
             throw AppError.badRequest("That enemy has moved on");
         }
-
-        await tx(ABANDON_STALE_RUNS, [playerId, ABANDON_AFTER_MINUTES]);
-        const [active] = await tx<RunRow>(FIND_ACTIVE_RUN, [playerId]);
-        // Walking off from a fishing spot to fight leaves the spot.
-        if (active && (active.kind as string) === "fishing") await fishingRepository.endOpenFishing(tx, active);
-        else if (active) throw AppError.badRequest("You're already in a Run. Finish or flee it first.");
-
-        const player = await playerRepository.findPlayer(playerId, tx);
-        if (!player) throw AppError.notFound("Player not found");
-        const loadout = await loadLoadout(tx, playerId);
-        if (loadout.hand.length === 0) throw AppError.badRequest("Your combat hand is empty");
-
-        const combatLevel = (await playerRepository.findSkillLevels(tx, playerId)).combat ?? 1;
-        const you = playerCombatant(
-            { name: player.displayName, ...loadout, combatLevel, globalModifiers: await globalModifiers(tx) },
-            CONTENT,
-        );
-        // Else the fight could only be fled.
-        if (!loadout.hand.some((card) => canWield(CONTENT.cards[card.cardId]!, you.weaponTags))) {
-            throw AppError.badRequest("None of the cards in your hand can be used with your weapon");
-        }
-
-        const enemyIds = [enemyId];
-        const { state, log } = createBattle(
-            [
-                you,
-                ...enemyIds.map((id, index) => enemyCombatant(id, index, CONTENT)),
-            ],
-            randomSeed(),
-            CONTENT,
-        );
-
-        const [inserted] = await tx<RunRow>(INSERT_RUN, [playerId, "combat", enemyIds, spawnId, state]);
-        if (!inserted) throw new Error("Run insert returned nothing");
-        // A battle can, in principle, end before the player acts.
-        return settle(tx, inserted, inserted.state, state, log);
+        return openCombatRun(tx, playerId, target);
     });
+}
+
+/**
+ * Starts a combat Run in the caller's transaction, e.g. a sea creature
+ * hooked while fishing. The caller holds the player lock and has checked the
+ * spawn, if any.
+ */
+export async function openCombatRun(tx: TxQuery, playerId: string, target: RunTarget): Promise<GeoRunResponse> {
+    const { enemyId, spawnId } = target;
+    if (!CONTENT.enemies[enemyId]) throw new Error(`Unknown enemy "${enemyId}"`);
+    await tx(ABANDON_STALE_RUNS, [playerId, ABANDON_AFTER_MINUTES]);
+    const [active] = await tx<RunRow>(FIND_ACTIVE_RUN, [playerId]);
+    // Walking off from a fishing spot to fight leaves the spot.
+    if (active && (active.kind as string) === "fishing") await fishingRepository.endOpenFishing(tx, active);
+    else if (active) throw AppError.badRequest("You're already in a Run. Finish or flee it first.");
+
+    const player = await playerRepository.findPlayer(playerId, tx);
+    if (!player) throw AppError.notFound("Player not found");
+    const loadout = await loadLoadout(tx, playerId);
+    if (loadout.hand.length === 0) throw AppError.badRequest("Your combat hand is empty");
+
+    const combatLevel = (await playerRepository.findSkillLevels(tx, playerId)).combat ?? 1;
+    const you = playerCombatant(
+        { name: player.displayName, ...loadout, combatLevel, globalModifiers: await globalModifiers(tx) },
+        CONTENT,
+    );
+    // Else the fight could only be fled.
+    if (!loadout.hand.some((card) => canWield(CONTENT.cards[card.cardId]!, you.weaponTags))) {
+        throw AppError.badRequest("None of the cards in your hand can be used with your weapon");
+    }
+
+    const enemyIds = [enemyId];
+    const { state, log } = createBattle(
+        [
+            you,
+            ...enemyIds.map((id, index) => enemyCombatant(id, index, CONTENT)),
+        ],
+        randomSeed(),
+        CONTENT,
+    );
+
+    const [inserted] = await tx<RunRow>(INSERT_RUN, [playerId, "combat", enemyIds, spawnId, state]);
+    if (!inserted) throw new Error("Run insert returned nothing");
+    // A battle can, in principle, end before the player acts.
+    return settle(tx, inserted, inserted.state, state, log);
 }
 
 /** A turn: a card from the hand, or a food from a lunchbox slot. */

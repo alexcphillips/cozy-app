@@ -18,4 +18,11 @@ export default {
         maxTurns: 40,
     },
     defaultRod: { name: "Ashwood Rod", power: 7, line: 12, maxTier: "silver" },
+    // PLACEHOLDER: the Kraken is the only sea creature so far. Nothing lurks in a puddle.
+    seaCreatures: {
+        puddle: [],
+        pond: [{ enemyId: "kraken", weight: 1 }],
+        lake: [{ enemyId: "kraken", weight: 1 }],
+        open: [{ enemyId: "kraken", weight: 1 }],
+    },
 } satisfies FishingConfig;

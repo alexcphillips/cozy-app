@@ -33,6 +33,13 @@ function playCast(start: FishingState): FishingState {
     return state;
 }
 
+/** Casts and strikes the bite: the phase it hooks into (or "over" if it spooked). */
+function hook(start: FishingState, using: FishingSetup): FishingState {
+    let state = stepFishing(start, { type: "cast" }, using, worm);
+    while (state.phase === "waiting") state = stepFishing(state, { type: state.signals[state.signalIndex] === "bite" ? "strike" : "wait" }, using);
+    return state;
+}
+
 describe("fishing Run", () => {
     it("won't cast without bait", () => {
         assert.throws(() => stepFishing(newFishingState("pond", hand, 1), { type: "cast" }, setup, null), FishingRuleError);
@@ -66,6 +73,27 @@ describe("fishing Run", () => {
     it("rolls no tier without Finesse, and never past the rod's best", () => {
         assert.equal(rollTier(0, "common", "ruby", 0.99), null);
         assert.equal(rollTier(100, "common", "silver", 0.99), "silver");
+    });
+
+    it("hooks a sea creature at the creature chance, and fighting it names the enemy", () => {
+        const always = { ...setup, seaCreatureChance: 1 };
+        const state = hook(newFishingState("open", hand, 5), always);
+        assert.equal(state.phase, "creature");
+        assert.equal(state.creatureId, "kraken");
+        assert.throws(() => stepFishing(state, { type: "play", inventoryId: "inv-0" }, always), FishingRuleError);
+
+        const fought = stepFishing(state, { type: "fightCreature" }, always);
+        assert.equal(fought.phase, "over");
+        assert.deepEqual(fought.result, { kind: "creature", enemyId: "kraken" });
+        assert.equal(stepFishing(state, { type: "cutLine" }, always).result?.kind, "lost");
+    });
+
+    it("hooks no sea creature where none live, or at no chance", () => {
+        const always = { ...setup, seaCreatureChance: 1 };
+        for (let seed = 0; seed < 100; seed++) {
+            assert.notEqual(hook(newFishingState("puddle", hand, seed), always).phase, "creature", "nothing lurks in a puddle");
+            assert.notEqual(hook(newFishingState("open", hand, seed), setup).phase, "creature", "0% chance");
+        }
     });
 
     it("lets rarer fish bite in better water", () => {

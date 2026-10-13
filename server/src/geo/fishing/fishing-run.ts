@@ -9,7 +9,7 @@ import type {
 } from "@cozy/shared/geo";
 import { GEO_QUALITY_TIERS } from "@cozy/shared/geo";
 import type { Rarity } from "../content/content.types";
-import { FISHING_TUNING, PAR_TURNS, RARITY_DIFFICULTY, RARITY_WEIGHT, WATER_RARITIES } from "../content";
+import { FISHING_TUNING, PAR_TURNS, RARITY_DIFFICULTY, RARITY_WEIGHT, SEA_CREATURES, WATER_RARITIES } from "../content";
 import { isFishingCardId, type FishDef, type FishingCardId, type RodDef } from "../content/fishing";
 import { createRng, type Rng } from "../engine/rng";
 
@@ -49,7 +49,8 @@ export type FishingFight = {
 export type FishingResult =
     | { kind: "landed"; fishId: string; tier: GeoQualityTier | null; how: string; turns: number }
     | { kind: "lost"; reason: string; turns: number }
-    | { kind: "creature" };
+    /** The cast ends here; the repository starts the creature's combat Run. */
+    | { kind: "creature"; enemyId: string };
 
 /** Everything a fishing Run keeps between steps, in `geo.runs.state`. */
 export type FishingState = {
@@ -61,6 +62,8 @@ export type FishingState = {
     signals: GeoCastSignal[];
     signalIndex: number;
     fishId: string | null;
+    /** The enemy on the line in the `creature` phase. */
+    creatureId?: string | null;
     fight: FishingFight | null;
     result: FishingResult | null;
     message: string;
@@ -94,6 +97,7 @@ export function newFishingState(tier: GeoFishingTier, hand: FishingHandCard[], s
         signals: [],
         signalIndex: 0,
         fishId: null,
+        creatureId: null,
         fight: null,
         result: null,
         message: "Cast when you're ready.",
@@ -161,8 +165,8 @@ function applyAction(state: FishingState, action: GeoFishingAction, setup: Fishi
             if (state.phase !== "creature") throw new FishingRuleError("Nothing to cut loose");
             return over(state, { kind: "lost", reason: "You cut the line. The bait's gone, but you're safe.", turns: 0 });
         case "fightCreature":
-            if (state.phase !== "creature") throw new FishingRuleError("Nothing to fight");
-            return over(state, { kind: "creature" });
+            if (state.phase !== "creature" || !state.creatureId) throw new FishingRuleError("Nothing to fight");
+            return over(state, { kind: "creature", enemyId: state.creatureId });
         case "play":
             return playCard(state, action.inventoryId, setup, rng);
     }
@@ -182,6 +186,7 @@ function cast(state: FishingState, rng: Rng, bait: CastBait): FishingState {
         signals: [...Array<GeoCastSignal>(nibbles).fill("nibble"), "bite"],
         signalIndex: 0,
         fishId: null,
+        creatureId: null,
         fight: null,
         result: null,
         baitItemId: bait.itemId,
@@ -211,9 +216,12 @@ function strike(state: FishingState, setup: FishingSetup, rng: Rng): FishingStat
         };
     }
 
+    const creatures = SEA_CREATURES[state.tier];
     const creatureChance = Math.min(1, setup.seaCreatureChance * (state.chum ? 3 : 1));
-    if (rng.next() < creatureChance) {
-        return { ...state, phase: "creature", message: "The water goes still. The line pulls sideways…" };
+    if (creatures.length > 0 && rng.next() < creatureChance) {
+        const weights = Object.fromEntries(creatures.map((c) => [c.enemyId, c.weight])) as Record<string, number>;
+        const creatureId = pickWeighted(weights, rng.next());
+        return { ...state, phase: "creature", creatureId, message: "The water goes still. The line pulls sideways…" };
     }
 
     const fish = randomFish(state.tier, setup, rng);

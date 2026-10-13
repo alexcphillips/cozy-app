@@ -666,6 +666,11 @@ export type FishingConfig = {
     };
     /** Every player fishes with this until rods are gear. */
     defaultRod: { name: string; power: number; line: number; maxTier: GeoQualityTier };
+    /**
+     * The enemies a sea creature can be in each water, picked by weight. An
+     * empty list means no sea creatures bite there at all.
+     */
+    seaCreatures: Record<GeoFishingTier, { enemyId: string; weight: number }[]>;
 };
 
 export type ElectionsConfig = {

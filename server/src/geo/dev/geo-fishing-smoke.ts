@@ -105,6 +105,67 @@ try {
         step("starting a fight leaves the fishing spot");
     }
 
+    // Sea creatures: cast with chum (3× the creature chance) until one bites.
+    // Fish are let go (leave and come back) to keep it quick.
+    await grant(player.player.id, [{ itemId: "chum-slick", quantity: 1000 }]);
+    const baitPath = GEO_API_PATHS.me.baitSlot.replace(":slot", "0");
+    run = (await call<GeoFishingRunView>("POST", GEO_API_PATHS.fishing.start, token, { tier: "open" })).body;
+    let bites = 0;
+    while (run.phase !== "creature") {
+        assert.ok(bites < 600, "no sea creature in 600 bites with chum");
+        if (run.phase === "fight" || run.phase === "outclassed") {
+            await call("POST", GEO_API_PATHS.fishing.leave.replace(":runId", run.id), token);
+            run = (await call<GeoFishingRunView>("POST", GEO_API_PATHS.fishing.start, token, { tier: "open" })).body;
+        }
+        if (run.phase === "ready" || run.phase === "over") {
+            if (baitLeft(await me(token)) === 0 || run.baitItemId !== "chum-slick") {
+                const packed = await call("PUT", baitPath, token, { itemId: "chum-slick", quantity: 25 });
+                assert.equal(packed.status, 200, JSON.stringify(packed.body));
+            }
+            await act({ type: "cast" });
+            continue;
+        }
+        if (run.phase === "waiting") {
+            if (run.signal === "bite") bites++;
+            await act({ type: run.signal === "bite" ? "strike" : "wait" });
+        }
+    }
+    step(`a sea creature bit after ${bites} chum bite${bites === 1 ? "" : "s"}`);
+
+    // No combat hand: the fight is refused, and it's still on the line.
+    const combatHand = (await me(token)).hands.combat ?? [];
+    const handPath = GEO_API_PATHS.me.hand.replace(":skill", "combat");
+    await call("PUT", handPath, token, { inventoryIds: [] });
+    const noHand = await call<{ error: string }>("POST", actPath(run.id), token, { type: "fightCreature" });
+    assert.equal(noHand.status, 400, JSON.stringify(noHand.body));
+    const still = (await call<GeoFishingRunView>("POST", GEO_API_PATHS.fishing.start, token, { tier: "open" })).body;
+    assert.equal(still.id, run.id);
+    assert.equal(still.phase, "creature", "refused: the creature is still on the line");
+    assert.equal((await call("GET", GEO_API_PATHS.runs.active, token)).body, null, "and no fight started");
+    step(`fighting it with an empty combat hand is refused ("${noHand.body.error}"), creature still hooked`);
+
+    await call("PUT", handPath, token, { inventoryIds: combatHand });
+    await act({ type: "fightCreature" });
+    assert.equal(run.phase, "over");
+    assert.deepEqual(run.outcome, { kind: "creature", enemyId: "kraken", name: "Kraken" });
+    const gone = await call("POST", actPath(run.id), token, { type: "cast" });
+    assert.equal(gone.status, 400, "the fishing Run is over");
+    const active = (await call<GeoRunResponse | null>("GET", GEO_API_PATHS.runs.active, token)).body;
+    assert.ok(active, "a combat Run started");
+    assert.equal(active.run.status, "active");
+    const kraken = active.run.combatants.find((c) => c.side === "enemy");
+    assert.equal(kraken?.name, "Kraken");
+    assert.equal(kraken?.maxHealth, CONTENT.enemies.kraken!.stats.maxHealth);
+    step("fighting it ends the fishing Run and opens a combat Run against a Kraken");
+
+    const turnsPath = GEO_API_PATHS.runs.turns.replace(":runId", active.run.id);
+    const turn = await call<GeoRunResponse>("POST", turnsPath, token, { inventoryId: active.run.hand[0]!.inventoryId });
+    assert.equal(turn.status, 200, JSON.stringify(turn.body));
+    const hurt = turn.body.run.combatants.find((c) => c.side === "enemy")!;
+    assert.ok(hurt.health + hurt.guard < kraken!.maxHealth + kraken!.guard || turn.body.log.length > 0, "the turn did something");
+    await call("POST", GEO_API_PATHS.runs.flee.replace(":runId", active.run.id), token);
+    step(`played a turn against the Kraken (${hurt.health}/${hurt.maxHealth} health), then fled`);
+
     // Soulbound fish stay put.
     const [silverId] = await grant(player.player.id, [{ itemId: "fish.salmon.silver", quantity: 1 }]);
     const listing = await call("POST", GEO_API_PATHS.market.listings, token, {

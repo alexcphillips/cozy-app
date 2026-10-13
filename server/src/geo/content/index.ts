@@ -246,6 +246,11 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
     if (spawns.minSpawnMetres > spawns.reachMetres) problems.push("config/spawns.ts: minSpawnMetres is past reachMetres");
     if (spawns.lifetimeMinutes.min > spawns.lifetimeMinutes.max) problems.push("config/spawns.ts: lifetimeMinutes min is over max");
     if (fishing.tuning.zoneLow >= fishing.tuning.zoneHigh) problems.push("config/fishing.ts: zoneLow must be under zoneHigh");
+    for (const [water, creatures] of Object.entries(fishing.seaCreatures)) {
+        for (const { enemyId } of creatures) {
+            if (!content.enemies[enemyId]) problems.push(`config/fishing.ts: ${water} seaCreatures has unknown enemy "${enemyId}"`);
+        }
+    }
 
     const kit = config["starter-kit"];
     for (const { itemId } of kit.items) needItem("config/starter-kit.ts items", itemId);
@@ -300,6 +305,8 @@ export const PAR_TURNS = fishing.parTurns;
 export const FISHING_TUNING = fishing.tuning;
 /** PLACEHOLDER: every player fishes with this until rods are gear. */
 export const DEFAULT_ROD = fishing.defaultRod;
+/** The enemies a sea creature can be, per water. */
+export const SEA_CREATURES = fishing.seaCreatures;
 
 /** Every farming tuning number (`data/config/farming.ts`). */
 export const FARMING = GAME_CONFIG.farming;

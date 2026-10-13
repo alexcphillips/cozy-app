@@ -37,7 +37,11 @@ export function toFishingView(id: string, state: FishingState, setup: FishingSet
 function toOutcome(state: FishingState): GeoFishingOutcome | null {
     const result = state.result;
     if (!result) return null;
-    if (result.kind !== "landed") return result;
+    if (result.kind === "lost") return result;
+    if (result.kind === "creature") {
+        const enemy = CONTENT.enemies[result.enemyId];
+        return { kind: "creature", enemyId: result.enemyId, name: enemy?.name ?? "Sea creature" };
+    }
     const fish = CONTENT.fish[result.fishId];
     if (!fish) return null;
     return {

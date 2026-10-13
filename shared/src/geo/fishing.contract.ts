@@ -84,8 +84,11 @@ export type GeoFishingOutcome =
           xp: number;
       }
     | { kind: "lost"; reason: string; turns: number }
-    /** Combat with sea creatures isn't built: the cast ends here. */
-    | { kind: "creature" };
+    /**
+     * A sea creature: the fishing Run is over and its combat Run has started.
+     * Open the combat screen to fight it.
+     */
+    | { kind: "creature"; enemyId: string; name: string };
 
 export type GeoFishingRunView = {
     id: string;
