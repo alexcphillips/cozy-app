@@ -1,6 +1,6 @@
 import type { Mutation } from "#geo/models";
 
-// PLACEHOLDER numbers. Recipe: PLACEHOLDER condition until Blood Moon events: two ripe melons, Overcast, rich soil (6+).
+// PLACEHOLDER numbers. Recipe: two ripe melons, during a Blood Moon, rich soil (6+).
 export default {
     id: "bloodmelon",
     name: "Bloodmelon",
@@ -11,7 +11,7 @@ export default {
     yield: { min: 1, max: 2 },
     fertilityCost: 4,
     xp: 90,
-    recipe: { parents: [{ cropId: "melon", count: 2 }], weather: "overcast", minFertility: 6 },
+    recipe: { parents: [{ cropId: "melon", count: 2 }], event: "blood-moon", minFertility: 6 },
     chance: 0.2,
     research: { coins: 500, xp: 120 },
 } satisfies Mutation;

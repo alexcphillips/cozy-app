@@ -2,8 +2,8 @@
  * The inbox, and the feedback that feeds part of it.
  *
  * Two kinds of mail, stored differently:
- * - **Messages** are for one player (a reply to their feedback): a row each,
- *   read when the player opens the inbox.
+ * - **Messages** are for one player (a reply to their feedback, their farm
+ *   contest results): a row each, read when the player opens the inbox.
  * - **Announcements** are for everyone (news, changelogs, events, a new
  *   mayor): one row in all, never copied per player. Each player keeps one
  *   "read up to" time; announcements after it are unread.
@@ -22,8 +22,8 @@ export const GEO_MAIL_BODY_MAX = 4000;
 
 export type GeoInboxMessage = {
     id: string;
-    /** For now, only replies to the player's feedback. */
-    kind: "feedbackReply";
+    /** A reply to the player's feedback, or their farm contest results. */
+    kind: "feedbackReply" | "contest";
     title: string;
     body: string;
     /** The admin's display name; null once their account is gone. */

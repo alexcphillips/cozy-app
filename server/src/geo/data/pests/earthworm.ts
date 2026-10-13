@@ -9,9 +9,11 @@ export default {
     likes: ["melon", "carrot"],
     behaviour: { kind: "drain", amount: 2 },
     weight: 1,
+    soils: ["boggy"],
     drops: [
         { itemId: "worm-castings", chance: 1, quantity: { min: 1, max: 2 } },
         { itemId: "golden-scarab", chance: 0.03, quantity: { min: 1, max: 1 } },
     ],
     xp: 5,
+    bounty: 1,
 } satisfies Pest;

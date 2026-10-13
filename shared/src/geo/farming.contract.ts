@@ -22,8 +22,16 @@ export const GEO_FARM_WEATHERS = ["clear", "overcast", "rain", "heatwave", "stor
 export type GeoFarmWeather = (typeof GEO_FARM_WEATHERS)[number];
 
 /** What a farming card aims at, so the app can preview it on the grid. */
-/** `ring` is the 8 tiles around the one aimed at. */
-export type GeoFarmCardShape = "tile" | "row" | "square3" | "ring" | "none";
+/**
+ * Soil. Every tile starts `normal`; amendment items change it for good, and
+ * cards lay a soil over it for a few turns. `rocky` and `ancient` come from
+ * skills not built yet.
+ */
+export const GEO_FARM_SOILS = ["normal", "rich", "boggy", "cursed", "rocky", "ancient"] as const;
+export type GeoFarmSoil = (typeof GEO_FARM_SOILS)[number];
+
+/** `ring` is the 8 tiles around the one aimed at; `cross` the 4 beside it, not the middle. */
+export type GeoFarmCardShape = "tile" | "row" | "square3" | "ring" | "cross" | "none";
 
 /** A crop growing (or rotting) on a tile. */
 export type GeoFarmCrop = {
@@ -64,10 +72,27 @@ export type GeoFarmTile = {
     pollinated: boolean;
     /** A structure standing here instead of a crop. */
     structure: GeoFarmStructure | null;
+    /** Nuclear waste: nothing grows here, it spreads, and it stirs up mutations and glowing pests nearby. */
+    waste: boolean;
+    /** The tile's own soil, changed only by an amendment. */
+    soil: GeoFarmSoil;
+    /** A card's soil laid over it for `turnsLeft` more Advances; it counts instead of `soil`. */
+    soilOverlay: { soil: GeoFarmSoil; turnsLeft: number } | null;
 };
 
 /** What a structure does; the rules are the server's. */
-export type GeoStructureKind = "jukebox" | "cage" | "beehive" | "compost" | "pond" | "greenhouse";
+export type GeoStructureKind =
+    | "jukebox"
+    | "cage"
+    | "beehive"
+    | "compost"
+    | "pond"
+    | "greenhouse"
+    | "reactor"
+    | "portal"
+    | "shrine"
+    | "well"
+    | "lightning-rod";
 
 /** A structure on a tile, with what it holds. */
 export type GeoFarmStructure = {
@@ -78,6 +103,70 @@ export type GeoFarmStructure = {
     caged: string | null;
     /** Compost Bin: compost waiting, spent 1 a turn to feed the soil around. */
     compost: number;
+    /** Portal: torn open, so elite pests come through on the next Advance. */
+    open: boolean;
+    /** Well: water stored; plain watering draws on it for no Labor. */
+    water: number;
+};
+
+/** A farm event, as the app shows it. */
+export type GeoFarmEventView = {
+    id: string;
+    name: string;
+    icon: string;
+    description: string;
+    /** Travelling Merchant: what's for sale this turn. */
+    offers: { itemId: string; price: number; bought: boolean }[];
+};
+
+/** One order on the board: deliver `quantity` of `itemId` by the week's end. */
+export type GeoFarmOrder = {
+    id: string;
+    itemId: string;
+    quantity: number;
+    delivered: number;
+    /** Coins paid on completion, on top of the deposit back. */
+    reward: number;
+    /** Coins paid to accept, lost if the week ends first. */
+    deposit: number;
+    status: "offered" | "accepted" | "done";
+};
+
+export type GeoOrderBoard = {
+    orders: GeoFarmOrder[];
+    /** When this week's orders end (ISO); unfinished accepted ones lose their deposit. */
+    endsAt: string;
+};
+
+export type GeoGlobalFarmEvent = {
+    event: GeoFarmEventView;
+    startsAt: string;
+    endsAt: string;
+    /** On now: Advances played now get it. */
+    active: boolean;
+};
+
+/** The weekly farm contests. `harvest` and `crop` add up NPC value; `mutation` is the best single harvest. */
+export const GEO_FARM_CONTESTS = ["harvest", "mutation", "crop"] as const;
+export type GeoFarmContestId = (typeof GEO_FARM_CONTESTS)[number];
+
+export type GeoFarmContests = {
+    /** When this week's contests close and pay out (ISO). */
+    endsAt: string;
+    /** The crop this week's crop contest is for. */
+    cropId: string;
+    /** Coins for 1st, 2nd, 3rd; `participation` for every other entrant. */
+    prizes: number[];
+    participation: number;
+    standings: {
+        contest: GeoFarmContestId;
+        /** The player's score, and rank among `entrants` (null before they enter). */
+        score: number;
+        rank: number | null;
+        entrants: number;
+        /** The leaders, best first. */
+        top: { name: string; score: number }[];
+    }[];
 };
 
 export type GeoFarmWeatherSource = {
@@ -128,6 +217,8 @@ export type GeoFarmPest = {
     intent: GeoFarmPestIntent;
     /** The intent in words: "Eats the Carrot at (4, 5)". */
     intentText: string;
+    /** Hits left: most pests go down in one, elite ones take more. */
+    hp: number;
 };
 
 /** A kind of pest, as the app needs it to draw and explain one. */
@@ -138,6 +229,15 @@ export type GeoPestView = {
     description: string;
     /** Crop ids it's drawn to: growing them is what brings it. */
     likes: string[];
+    /** Pesthunter points for turning one in from a Pest Cage. */
+    bounty: number;
+};
+
+/** The Pesthunter: caged pests turned in for points, spent in a small shop. */
+export type GeoPesthunter = {
+    points: number;
+    /** Each buy is one of `itemId` for `price` points; `offer` in a buy is the index here. */
+    shop: { itemId: string; price: number }[];
 };
 
 export const GEO_FARM_MAX_MOISTURE = 3;
@@ -200,7 +300,10 @@ export type GeoFarmView = {
     /** Farm Turns played so far. */
     turn: number;
     labor: number;
+    /** What each Advance refills Labor to; it grows with farming level. */
     laborPerTurn: number;
+    /** The farming level that next adds 1 Labor per turn; null past the last. */
+    laborNextLevel: number | null;
     /** Turns waiting to be spent; Advance spends one. */
     turnsBanked: number;
     maxTurnsBanked: number;
@@ -210,6 +313,18 @@ export type GeoFarmView = {
     forecast: GeoFarmWeather[];
     /** Where the weather comes from. */
     weather: GeoFarmWeatherSource;
+    /** Farm events: the one coming on the next Advance (telegraphed), and the one on now. */
+    events: { next: GeoFarmEventView | null; active: GeoFarmEventView | null };
+    /** This week's Order Board. */
+    orders: GeoOrderBoard;
+    /** This week's server-wide event, if any: everyone's Advances during it get it. */
+    global: GeoGlobalFarmEvent | null;
+    /** This week's contests, with the player's standing. */
+    contests: GeoFarmContests;
+    /** Amendment items and the soil each makes, for the tile panel. */
+    amendments: { itemId: string; soil: GeoFarmSoil }[];
+    /** Shrine blessings (and curses) on the farm, each with the Advances it has left. */
+    blessings: { id: string; name: string; description: string; curse: boolean; turnsLeft: number }[];
     /** Coins the next tile costs; null when every tile is owned. */
     unlockCost: number | null;
     hand: GeoFarmHandCard[];
@@ -221,6 +336,7 @@ export type GeoFarmView = {
     /** Every kind of pest there is. */
     pestTypes: GeoPestView[];
     lab: GeoResearchLab;
+    pesthunter: GeoPesthunter;
     structureTypes: GeoStructureView[];
     /** Structures the player holds, ready to place. */
     structureKit: { structureId: string; itemId: string; quantity: number }[];
@@ -249,19 +365,20 @@ export const GEO_SEED_BAG_STACK_SIZE = 50;
 export type GeoPackSeedsRequest = { itemId: string; quantity: number };
 
 /**
- * `POST /geo/farm/actions`. Work (everything but `blueprint`) needs the
- * player at a farming place; `blueprint` is planning and works anywhere.
+ * `POST /geo/farm/actions`. Work needs the player at a farming place;
+ * `blueprint` (planning) and the Pesthunter (`turn-in`, `pesthunter-buy`)
+ * work anywhere.
  */
 export type GeoFarmAction =
     /** Free: takes one seed from the Seed Bag slot. */
     | { type: "plant"; tile: number; slot: number }
-    /** 1 Labor: +1 moisture. */
+    /** 1 Labor, or 1 water from a Well instead: +1 moisture. */
     | { type: "water"; tile: number }
     /** 1 Labor: a ripe crop into the inventory. */
     | { type: "harvest"; tile: number }
     /** 1 Labor: pulls up whatever is there, rotten or not, for nothing. */
     | { type: "clear"; tile: number }
-    /** 2 Labor: clears every pest on the tile, each rolling its drops. */
+    /** 2 Labor: hits every pest on the tile; each one cleared rolls its drops. */
     | { type: "swat"; tile: number }
     /** Free: a structure from the inventory onto an empty tile. */
     | { type: "place"; tile: number; itemId: string }
@@ -273,8 +390,24 @@ export type GeoFarmAction =
     | { type: "cage"; tile: number }
     /** Free: the Pest Cage's pest is let out and cleared, rolling its drops. */
     | { type: "release"; tile: number }
+    /** Free: the Pest Cage's pest goes to the Pesthunter for its bounty in points (no drops). */
+    | { type: "turn-in"; tile: number }
+    /** Pesthunter points: one of the Pesthunter's shop items, by index. */
+    | { type: "pesthunter-buy"; offer: number }
+    /** Free: an amendment item from the inventory changes the tile's soil for good. */
+    | { type: "amend"; tile: number; itemId: string }
+    /** 3 Labor: scrubs the nuclear waste off a tile (Hazmat Scrub does it for 1). */
+    | { type: "scrub"; tile: number }
+    /** Free: items onto the Mysterious Shrine. Their NPC value buys a roll for a blessing; it may answer with a curse. */
+    | { type: "offer"; tile: number; itemId: string; quantity: number }
     /** Free: the farm's weather comes from this place's region from now on. Rarely allowed. */
     | { type: "home"; latitude: number; longitude: number }
+    /** Coins: buy the Travelling Merchant's offer at this index. */
+    | { type: "buy"; offer: number }
+    /** Coins (the deposit): take an order on. */
+    | { type: "accept-order"; orderId: string }
+    /** Hands in as much of the order's crop as the player holds; pays out when it's complete. */
+    | { type: "deliver-order"; orderId: string }
     /** A farming card at a tile (any tile for shape "none"). */
     | { type: "play"; inventoryId: string; tile: number }
     /** Spends a Farm Turn: everything grows, Labor refills. */
@@ -295,7 +428,15 @@ export const GEO_FARM_ACTION_TYPES = [
     "tune",
     "cage",
     "release",
+    "turn-in",
+    "pesthunter-buy",
     "home",
+    "scrub",
+    "offer",
+    "amend",
+    "buy",
+    "accept-order",
+    "deliver-order",
     "play",
     "advance",
     "unlock",

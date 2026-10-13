@@ -108,6 +108,41 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
         }
         if (mutation.recipe.parents.reduce((sum, parent) => sum + parent.count, 0) > 8) problems.push(`${where} needs more than 8 parents`);
         if (mutation.recipe.pest && !content.pests[mutation.recipe.pest]) problems.push(`${where} needs unknown pest "${mutation.recipe.pest}"`);
+        if (mutation.recipe.structure && !content.structures[mutation.recipe.structure]) problems.push(`${where} needs unknown structure "${mutation.recipe.structure}"`);
+        if (mutation.recipe.event && !content.farmEvents[mutation.recipe.event]) problems.push(`${where} needs unknown farm event "${mutation.recipe.event}"`);
+    }
+    for (const global of config.farming.globalEvents) {
+        const event = content.farmEvents[global.eventId];
+        if (!event) problems.push(`config/farming.ts globalEvents has unknown farm event "${global.eventId}"`);
+        // Only events that act on the Advance itself can be global.
+        else if (event.effect.kind !== "blood-moon" && event.effect.kind !== "meteor-shower") {
+            problems.push(`config/farming.ts globalEvents: "${global.eventId}" can't be global (only blood-moon and meteor-shower kinds)`);
+        }
+    }
+    for (const event of Object.values(content.farmEvents)) {
+        if (event.effect.kind === "meteor-shower" && !item(event.effect.itemId)) problems.push(`Farm event "${event.id}" drops unknown item "${event.effect.itemId}"`);
+        if (event.effect.kind !== "merchant") continue;
+        for (const offer of event.effect.stock) {
+            if (!item(offer.itemId)) problems.push(`Farm event "${event.id}" sells unknown item "${offer.itemId}"`);
+        }
+    }
+
+    const { waste, shrine, soil } = config.farming;
+    for (const itemId of [...soil.amendments.map((entry) => entry.itemId), soil.peatItem, soil.ashItem]) {
+        if (!item(itemId)) problems.push(`config/farming.ts soil uses unknown item "${itemId}"`);
+    }
+    for (const offer of config.farming.pesthunter.shop) {
+        if (!item(offer.itemId)) problems.push(`config/farming.ts pesthunter sells unknown item "${offer.itemId}"`);
+    }
+    if (config.farming.laborLevels.some((level, i, all) => i > 0 && level <= all[i - 1]!)) problems.push("config/farming.ts laborLevels must go up");
+    if (!content.pests[waste.pest]) problems.push(`config/farming.ts waste.pest is unknown pest "${waste.pest}"`);
+    if (!shrine.blessings.some((blessing) => !blessing.curse)) problems.push("config/farming.ts shrine needs a blessing that isn't a curse");
+    if (!shrine.blessings.some((blessing) => blessing.curse)) problems.push("config/farming.ts shrine needs a curse");
+    for (const structure of Object.values(content.structures)) {
+        if (structure.effect.kind !== "portal") continue;
+        for (const pestId of structure.effect.pests) {
+            if (!content.pests[pestId]) problems.push(`Structure "${structure.id}" brings unknown pest "${pestId}"`);
+        }
     }
 
     for (const pest of Object.values(content.pests)) {

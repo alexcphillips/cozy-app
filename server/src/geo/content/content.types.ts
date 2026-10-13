@@ -1,5 +1,5 @@
 import type { GeoChestTier, GeoQualityTier } from "@cozy/shared/geo";
-import type { CropDef, MutationDef, PestDef, StructureDef } from "./farming";
+import type { CropDef, FarmEventDef, MutationDef, PestDef, StructureDef } from "./farming";
 import type { FishDef } from "./fishing";
 import type { Action, CardDef, EffectDef, EnemyMove, FoodDef, StatModifier, Stats, StatusDef } from "../engine/engine.types";
 
@@ -261,6 +261,8 @@ export type GameContent = {
     mutations: Record<string, MutationDef>;
     /** Farm structures (`data/structures/`); each also makes a `structure.<id>` item. */
     structures: Record<string, StructureDef>;
+    /** Farm events (`data/farm-events/`). */
+    farmEvents: Record<string, FarmEventDef>;
     enemies: Record<string, EnemyDef>;
     vendors: Record<string, VendorDef>;
     mayors: Record<string, MayorDef>;

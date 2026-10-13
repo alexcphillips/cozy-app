@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
-import { GEO_API_PATHS, type GeoFarmAction, type GeoFarmView, type GeoMeResponse } from "@cozy/shared/geo";
-import { CONTENT } from "../content";
+import { GEO_API_PATHS, type GeoFarmAction, type GeoFarmView, type GeoInboxResponse, type GeoMeResponse } from "@cozy/shared/geo";
+import { CONTENT, FARMING } from "../content";
+import { weekEndsAt } from "../farming/farm";
+import { settleFarmWeeks } from "../modules/farming/geo-farming.contests";
 import { withTransaction } from "../db/transaction";
 import { addCoins, grantItems } from "../modules/player/geo-player.repository";
 import { startSmokeServer, step } from "./smoke-kit";
@@ -10,8 +12,8 @@ import { startSmokeServer, step } from "./smoke-kit";
  * farming hand and Seed Bag, a farm made on first look, planting spending a
  * seed, Labor and banked turns enforced, a harvest into the inventory with
  * its XP, a card charge spent, a pest swatted for its drop, a tile bought
- * with coins, a mutation turned in at the Research Lab, a structure placed
- * and picked up, and packing seeds.
+ * with coins, a mutation turned in at the Research Lab, an order delivered,
+ * a structure placed and picked up, a Shrine offering, and packing seeds.
  * `npm run smoke:geo-farming`.
  */
 const { call, registerPlayer, stop } = await startSmokeServer();
@@ -78,7 +80,7 @@ try {
         if (!farm.tiles[MID]!.crop) await act({ type: "plant", tile: MID, slot: 0 });
         if (farm.tiles[MID]!.moisture === 0) await act({ type: "water", tile: MID });
         // Pests may come for the wheat: swat each before it acts.
-        for (const tile of new Set(farm.pests.map((pest) => pest.tile))) await act({ type: "swat", tile });
+        for (const tile of new Set(farm.pests.map((pest) => pest.tile))) if (farm.labor >= 2) await act({ type: "swat", tile });
         await act({ type: "advance" });
     }
     const pick = farm.hand.find((card) => card.cardId === "farm.careful-pick")!;
@@ -130,6 +132,33 @@ try {
     assert.equal((await call("POST", GEO_API_PATHS.farm.lab, token, { mutationId: "emberwheat" })).status, 400);
     step("the Research Lab takes the first Emberwheat, logs its recipe and pays once");
 
+    const harvestStanding = farm.contests.standings.find((standing) => standing.contest === "harvest")!;
+    assert.ok(harvestStanding.score > 0 && harvestStanding.rank !== null, "the harvest counted for this week's contest");
+    // Settle a made-up week long past, so no real week is touched; cleared first, so runs repeat.
+    await withTransaction(async (tx) => {
+        await tx(`DELETE FROM geo.farm_weeks WHERE week IN (1, 2)`);
+        await tx(`DELETE FROM geo.farm_contest_scores WHERE week = 1`);
+        await tx(`INSERT INTO geo.farm_contest_scores (week, contest, player_id, score) VALUES (1, 'harvest', $1, 50)`, [playerId]);
+    });
+    const beforePrize = (await me(token)).player.coins;
+    await settleFarmWeeks(weekEndsAt(1));
+    assert.equal((await me(token)).player.coins, beforePrize + FARMING.contests.prizes[0]!);
+    const inbox = (await call<GeoInboxResponse>("GET", GEO_API_PATHS.inbox.root, token)).body;
+    assert.ok(inbox.messages.some((message) => message.kind === "contest"));
+    await settleFarmWeeks(weekEndsAt(1));
+    assert.equal((await me(token)).player.coins, beforePrize + FARMING.contests.prizes[0]!, "a week pays out once");
+    step("a harvest scores for the week's contest; a finished week pays its winner once, with an inbox message");
+
+    assert.equal(farm.orders.orders.length, 3);
+    const order = farm.orders.orders[0]!;
+    const beforeOrder = (await me(token)).player.coins;
+    await act({ type: "accept-order", orderId: order.id });
+    await withTransaction((tx) => grantItems(tx, playerId, [{ itemId: order.itemId, quantity: order.quantity }]));
+    await act({ type: "deliver-order", orderId: order.id });
+    assert.equal(farm.orders.orders[0]!.status, "done");
+    assert.equal((await me(token)).player.coins, beforeOrder + order.reward);
+    step("an Order Board order takes a deposit, and pays reward plus deposit on delivery");
+
     await withTransaction((tx) => grantItems(tx, playerId, [{ itemId: "structure.compost-bin", quantity: 1 }]));
     farm = (await call<GeoFarmView>("GET", GEO_API_PATHS.farm.root, token)).body;
     assert.deepEqual(farm.structureKit.map((entry) => entry.structureId), ["compost-bin"]);
@@ -141,6 +170,16 @@ try {
     assert.equal(farm.tiles[MID]!.structure, null);
     assert.ok((await me(token)).inventory.some((entry) => entry.itemId === "structure.compost-bin"));
     step("a Compost Bin leaves the inventory when placed, and comes back on pick-up");
+
+    await withTransaction((tx) => grantItems(tx, playerId, [{ itemId: "structure.mysterious-shrine", quantity: 1 }, { itemId: "mouse-tail", quantity: 4 }]));
+    farm = (await call<GeoFarmView>("GET", GEO_API_PATHS.farm.root, token)).body;
+    await act({ type: "place", tile: MID, itemId: "structure.mysterious-shrine" });
+    const tailsBefore = (await me(token)).inventory.find((entry) => entry.itemId === "mouse-tail")?.quantity ?? 0;
+    await act({ type: "offer", tile: MID, itemId: "mouse-tail", quantity: 4 });
+    assert.ok(farm.log.some((line) => line.startsWith("The Shrine")), "the Shrine answered");
+    assert.equal((await me(token)).inventory.find((entry) => entry.itemId === "mouse-tail")?.quantity ?? 0, tailsBefore - 4);
+    await act({ type: "pickup", tile: MID });
+    step("the Mysterious Shrine takes an offering from the inventory and answers");
 
     await act({ type: "blueprint", tile: 0, cropId: "melon" });
     assert.equal(farm.tiles[0]!.blueprint, "melon");

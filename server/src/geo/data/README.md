@@ -68,6 +68,7 @@ One entry per file, named by its id: `data/weapons/broadsword.ts` has
 | `pests/` | Pests that come for the farm's crops | [pests](pests/README.md) |
 | `mutations/` | Secret crops that sprout from recipes | [mutations](mutations/README.md) |
 | `structures/` | Farm structures, each also an item | [structures](structures/README.md) |
+| `farm-events/` | Things that happen to a farm, telegraphed a turn ahead | [farm events](farm-events/README.md) |
 | `enemies/` | Enemies, their moves and their loot | [enemies](enemies/README.md) |
 | `statuses/` | Burning, Frozen, Well Fed… | [statuses](statuses/README.md) |
 | `recipes/` | Crafting and cooking recipes | [recipes](recipes/README.md) |

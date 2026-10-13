@@ -1,7 +1,10 @@
 import {
     GEO_FARM_SIZE,
     type GeoCropView,
+    type GeoFarmEventView,
+    type GeoFarmContests,
     type GeoFarmGain,
+    type GeoGlobalFarmEvent,
     type GeoFarmPestIntent,
     type GeoFarmView,
     type GeoFarmWeather,
@@ -16,10 +19,13 @@ import {
     homeMovableAt,
     isRipe,
     isUnlockable,
+    laborFor,
+    nextLaborLevel,
     nextTurnAt,
     rotChance,
     tileXY,
     unlockCost,
+    weekEndsAt,
     type FarmHandCard,
     type FarmState,
 } from "../../farming/farm";
@@ -107,6 +113,13 @@ function intentText(state: FarmState, from: number, intent: GeoFarmPestIntent): 
     }
 }
 
+/** A farm event as the app shows it. */
+function eventView(eventId: string | null, offers: GeoFarmEventView["offers"]): GeoFarmEventView | null {
+    const event = eventId ? CONTENT.farmEvents[eventId] : undefined;
+    if (!event) return null;
+    return { id: event.id, name: event.name, icon: event.icon, description: event.description, offers };
+}
+
 /** Where the farm's weather comes from, for the forecast. */
 export type FarmWeather = { lookup: WeatherLookup; source: "real" | "placeholder" };
 
@@ -116,15 +129,19 @@ export type FarmReport = { log: string[]; gained: GeoFarmGain[]; xpGained: numbe
 const NO_REPORT: FarmReport = { log: [], gained: [], xpGained: 0 };
 
 /** The farm as the app sees it: every tile, the clock, the hand and the Seed Bag. */
-export function toFarmView(
-    state: FarmState,
-    hand: FarmHandCard[],
-    seedBag: GeoSeedBag,
+/** Everything a farm view needs besides the farm itself, loaded by the repository. */
+export type FarmViewExtras = {
+    hand: FarmHandCard[];
+    seedBag: GeoSeedBag;
     /** How many of each item the player holds, for the Research Lab and structures. */
-    held: Record<string, number>,
-    weather: FarmWeather,
-    report: FarmReport = NO_REPORT,
-): GeoFarmView {
+    held: Record<string, number>;
+    weather: FarmWeather;
+    contests: GeoFarmContests;
+    global: GeoGlobalFarmEvent | null;
+    farmingLevel: number;
+};
+
+export function toFarmView(state: FarmState, { hand, seedBag, held, weather, contests, global, farmingLevel }: FarmViewExtras, report: FarmReport = NO_REPORT): GeoFarmView {
     const next = nextTurnAt(state, FARMING);
     return {
         size: GEO_FARM_SIZE,
@@ -155,15 +172,34 @@ export function toFarmView(
                 trap: tile.trap,
                 pollinated: tile.pollinated,
                 structure: tile.structure,
+                waste: tile.waste,
+                soil: tile.soil,
+                soilOverlay: tile.soilOverlay,
             };
         }),
         turn: state.turn,
         labor: state.labor,
-        laborPerTurn: FARMING.laborPerTurn,
+        laborPerTurn: laborFor(FARMING, farmingLevel),
+        laborNextLevel: nextLaborLevel(FARMING, farmingLevel),
         turnsBanked: state.turnsBanked,
         maxTurnsBanked: FARMING.maxTurnsBanked,
         nextTurnAt: next ? next.toISOString() : null,
         forecast: forecast(state, FARMING, weather.lookup),
+        events: {
+            next: eventView(state.nextEvent, []),
+            active: state.activeEvent ? eventView(state.activeEvent.eventId, state.activeEvent.offers) : null,
+        },
+        global,
+        contests,
+        amendments: FARMING.soil.amendments,
+        blessings: state.blessings.flatMap((blessing) => {
+            const def = FARMING.shrine.blessings.find((entry) => entry.id === blessing.id);
+            return def ? [{ id: def.id, name: def.name, description: def.description, curse: def.curse, turnsLeft: blessing.turnsLeft }] : [];
+        }),
+        orders: {
+            orders: state.orders?.list ?? [],
+            endsAt: weekEndsAt(state.orders?.week ?? 0).toISOString(),
+        },
         weather: {
             source: weather.source,
             home: state.home ? { latitude: state.home.latitude, longitude: state.home.longitude } : null,
@@ -182,9 +218,11 @@ export function toFarmView(
             tile: pest.tile,
             intent: pest.intent,
             intentText: intentText(state, pest.tile, pest.intent),
+            hp: pest.hp ?? 1,
         })),
-        pestTypes: Object.values(CONTENT.pests).map(({ id, name, icon, description, likes }) => ({ id, name, icon, description, likes })),
+        pestTypes: Object.values(CONTENT.pests).map(({ id, name, icon, description, likes, bounty }) => ({ id, name, icon, description, likes, bounty })),
         lab: toLab(state, held),
+        pesthunter: { points: state.pesthunterPoints, shop: FARMING.pesthunter.shop },
         structureTypes: Object.values(CONTENT.structures).map(({ id, name, icon, description, itemId, effect }) => ({
             id,
             kind: effect.kind,

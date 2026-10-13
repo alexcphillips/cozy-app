@@ -6,7 +6,7 @@ export default {
     name: "Hopper Beetle",
     icon: "flying-beetle",
     description: "Leaps across the rows and lands mouth first.",
-    likes: ["wheat"],
+    likes: ["wheat", "corn"],
     behaviour: { kind: "eat", reach: 2 },
     weight: 1,
     drops: [
@@ -14,4 +14,5 @@ export default {
         { itemId: "golden-scarab", chance: 0.03, quantity: { min: 1, max: 1 } },
     ],
     xp: 8,
+    bounty: 2,
 } satisfies Pest;

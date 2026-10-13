@@ -1,4 +1,5 @@
 import { query } from "../db";
+import { settleFarmWeeks } from "./modules/farming/geo-farming.contests";
 import { settleEndedAuctions } from "./modules/market/geo-market.repository";
 import { advanceElections } from "./modules/mayor/geo-mayor.repository";
 
@@ -17,8 +18,9 @@ const DELETE_OLD_REFRESH_TOKENS = `
 `;
 
 /**
- * geo-game's clock: settles auctions whose time is up and closes elections
- * when theirs is. Every read also does this first, so the job is what makes
+ * geo-game's clock: settles auctions whose time is up, closes elections
+ * when theirs is, and pays out last week's farm contests (and announces the
+ * new week's). Every read also does this first, so the job is what makes
  * it happen when nobody is looking (a winner gets their item, the new mayor's
  * perks start) rather than what makes it correct.
  *
@@ -33,6 +35,7 @@ export function startGeoJobs(): () => void {
         try {
             await settleEndedAuctions();
             await advanceElections();
+            await settleFarmWeeks();
         } catch (error) {
             console.error("geo jobs:", error);
         } finally {

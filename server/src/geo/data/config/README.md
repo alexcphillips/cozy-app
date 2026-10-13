@@ -62,7 +62,8 @@ Enemy spawns around each player.
 
 | Field | What it does |
 | --- | --- |
-| `laborPerTurn` | Labor each Farm Turn gives. |
+| `laborPerTurn` | Labor each Advance refills to, at farming level 1. |
+| `laborLevels` | Farming levels that each add 1 Labor per turn, lowest first (e.g. `[10, 20, 35, 50]`: 3 Labor up to 7). |
 | `turnHours`, `maxTurnsBanked` | A Farm Turn comes in this often, and this many can wait unspent. |
 | `startTurnsBanked`, `startSize` | A new farm's banked turns, and the odd-sized square it owns in the middle of the 9×9. |
 | `unlockCost` | `{ first, step }`: coins for the nth extra tile are first + step × (n − 1). |
@@ -72,6 +73,14 @@ Enemy spawns around each player.
 | `rotChances` | Harvest or push: rot chance on each Advance a ripe crop waits. Each wait it survives adds +1 yield; the list's length caps that. |
 | `labor` | Labor for the plain actions: `water`, `harvest`, `clear`, `swat` (clears the pests on a tile), `cage` (a pest into a Pest Cage). |
 | `pests` | `fromTurn`: no pests before this Advance. Then each Advance one spawns with chance `chancePerCrop` × liked crops growing, at most `maxChance`, while fewer than `max` are on the farm. |
+| `events` | `fromTurn`: no farm events before this Advance. Then each Advance telegraphs one for the next with this `chance` (which one: their `weight`s in `farm-events/`). |
+| `orders` | The weekly Order Board: `perWeek` orders for plain crops, each asking for `value` (`{ min, max }`) coins of NPC sell value. Completing pays that × `rewardMultiplier` plus the deposit back; accepting costs `depositShare` of the reward, lost if the week ends first. |
+| `contests` | Weekly farm contests (Total Harvest, Top Mutation, a rotating crop). `prizes`: coins for 1st, 2nd, 3rd…; `participation`: for every other entrant. Paid each Monday 00:00 UTC. |
+| `pesthunter` | The Pesthunter button on the farm. A caged pest turned in pays its `bounty` (in the pest's file) in points, and no drops. `shop`: `{ itemId, price }` items those points buy. |
+| `globalEvents` | Server-wide events: one `{ eventId, days, weight }` picked each week by `weight`, announced Monday, running the week's last `days` days (UTC). Every farm's Advances during it get the event. |
+| `waste` | Nuclear waste from a Reactor. Each Advance a waste tile spreads to one beside it with `spreadChance` (killing what grows there); empty tiles next to waste get mutation chances × `mutationBoost`; each waste tile has `pestChance` of a `pest` crawling out. `labor.scrub` clears one by hand. |
+| `soil` | Soil types. `rich` rests to `richFallowCap` fertility at `richRecovery` a turn; `boggy` never dries below 1 water; plain crops on `cursed` yield `cursedYield` (negative). `amendments`: `{ itemId, soil }`, items that change a tile's soil for good. A Pond turns up `peatItem` `peatChance` a turn; the Shrine leaves `ashItem` when it doesn't bless. Rocky and Ancient soils wait for mining and archaeology. |
+| `shrine` | The Mysterious Shrine. An offering worth `value` coins (NPC sell value) grants a blessing with chance value ÷ (value + `halfValue`), so more is better but never certain. A failed roll is a curse `curseShare` of the time. `blessings`: `{ id, name, description, turns, weight, curse }`; ids are `growth`, `plenty`, `mutation` and (a curse) `pests`. |
 | `pollinateBoost` | Hand Pollinate multiplies a tile's mutation chances by this on the next Advance. |
 | `weatherWeights` | Placeholder weather, rolled when a farm has no home region or the weather service is down: how often each of `clear`, `overcast`, `rain`, `heatwave`, `storm`, `frost` comes. |
 | `weather` | Real weather (Open-Meteo, per home region). A turn's 12 hours are a `storm` with any thunderstorm hour, else `frost` at or below `frostC` °C, else `heatwave` at or above `heatwaveC` °C, else `rain` with `rainMm` mm or more, else `overcast` with mean cloud `overcastCloud` % or more, else `clear`. `regionDegrees`: the home region's grid square. `homeCooldownDays`: how often it can move. `stormFlattenChance`: each open-field crop flattened in a storm. `frostKillsUpToStage`: growing open-field crops at this stage or below die in a frost. |

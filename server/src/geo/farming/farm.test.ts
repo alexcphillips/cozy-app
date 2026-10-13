@@ -10,6 +10,12 @@ import {
     isUnlockable,
     newFarm,
     nextTurnAt,
+    refreshOrders,
+    weekOf,
+    weekEndsAt,
+    globalEventFor,
+    activeGlobalEvent,
+    contestCropFor,
     planIntent,
     stepFarm,
     upgradeFarm,
@@ -26,6 +32,7 @@ const config = {
     ...FARMING,
     rotChances: [0, 0, 0, 1],
     pests: { ...FARMING.pests, max: 0 },
+    events: { ...FARMING.events, chance: 0 },
     weatherWeights: { ...FARMING.weatherWeights, storm: 0, frost: 0 },
 };
 const hand = [
@@ -39,6 +46,18 @@ const hand = [
     "farm.bait-ring",
     "farm.snap-trap",
     "farm.hand-pollinate",
+    "farm.hazmat-scrub",
+    "farm.controlled-leak",
+    "farm.tear-the-veil",
+    "farm.mulch",
+    "farm.hex-the-earth",
+    "farm.coax",
+    "farm.compost-spread",
+    "farm.lime-dust",
+    "farm.moon-rite",
+    "farm.exterminators-oath",
+    "farm.rush-order",
+    "farm.chain-reaction",
 ].map(
     (cardId, i) => ({ inventoryId: `inv-${i}`, itemId: `card.${cardId}`, cardId, chargesLeft: 10 }),
 );
@@ -47,6 +66,8 @@ const ctx: FarmContext = {
     mutations: CONTENT.mutations,
     pests: CONTENT.pests,
     structures: CONTENT.structures,
+    events: CONTENT.farmEvents,
+    sellValue: (itemId) => CONTENT.items[itemId]?.sellValue ?? 1,
     config,
     now: NOW,
     hand,
@@ -55,6 +76,7 @@ const ctx: FarmContext = {
         { slot: 1, itemId: "melon-seeds", quantity: 5 },
     ],
     held: Object.fromEntries(Object.values(CONTENT.structures).map((structure) => [structure.itemId, 2])),
+    farmingLevel: 1,
 };
 const card = (cardId: string) => hand.find((entry) => entry.cardId === cardId)!.inventoryId;
 
@@ -66,7 +88,7 @@ const farm = (overrides: Partial<FarmState> = {}): FarmState => ({ ...newFarm(co
 /** The farm with a pest of `pestId` on `tile`, its move planned. */
 function withPest(state: FarmState, pestId: string, tile: number): FarmState {
     const next = structuredClone(state);
-    const pest: FarmPest = { id: next.nextPestId++, pestId, tile, age: 0, intent: { kind: "move", tile } };
+    const pest: FarmPest = { id: next.nextPestId++, pestId, tile, age: 0, intent: { kind: "move", tile }, hp: CONTENT.pests[pestId]!.hp };
     next.pests.push(pest);
     pest.intent = planIntent(next, pest, CONTENT.pests[pestId]!, createRng(7));
     return next;
@@ -90,6 +112,10 @@ const sure = (chance = 1): FarmContext => ({
     ...ctx,
     mutations: Object.fromEntries(Object.entries(CONTENT.mutations).map(([id, mutation]) => [id, { ...mutation, chance }])),
 });
+
+/** A structure from the (test) inventory onto a tile. */
+const place = (state: FarmState, structureId: string, tile: number) =>
+    stepFarm(state, { type: "place", tile, itemId: CONTENT.structures[structureId]!.itemId }, ctx).state;
 
 /** Advances with every owned tile kept wet, so weather can't stall growth. */
 function advanceWet(state: FarmState, times: number): FarmState {
@@ -117,6 +143,16 @@ describe("farm", () => {
         const full = accrue(empty, config, new Date(NOW.getTime() + config.turnHours * HOUR * 100));
         assert.equal(full.turnsBanked, config.maxTurnsBanked);
         assert.equal(nextTurnAt(full, config), null);
+    });
+
+    it("Labor refills to more at higher farming levels", () => {
+        const [first, second] = config.laborLevels;
+        const refill = (farmingLevel: number) => stepFarm(farm({ labor: 0 }), { type: "advance" }, { ...ctx, farmingLevel }).state.labor;
+        assert.equal(refill(1), config.laborPerTurn);
+        assert.equal(refill(first! - 1), config.laborPerTurn);
+        assert.equal(refill(first!), config.laborPerTurn + 1);
+        assert.equal(refill(second!), config.laborPerTurn + 2);
+        assert.equal(refill(99), config.laborPerTurn + config.laborLevels.length);
     });
 
     it("won't advance with no turns banked", () => {
@@ -305,10 +341,37 @@ describe("farm", () => {
         });
 
         it("upgrades a farm saved before pests and mutations", () => {
-            const { pests: _pests, nextPestId: _next, lab: _lab, turnWeather: _weather, home: _home, ...old } = newFarm(config, 1, 2, NOW);
-            const v1 = { ...old, version: 1, tiles: old.tiles.map(({ trap: _trap, pollinated: _pollinated, structure: _structure, ...tile }) => tile) };
+            const {
+                pests: _pests,
+                nextPestId: _next,
+                lab: _lab,
+                turnWeather: _weather,
+                home: _home,
+                nextEvent: _nextEvent,
+                activeEvent: _activeEvent,
+                orders: _orders,
+                blessings: _blessings,
+                oath: _oath,
+                rushOrder: _rush,
+                ...old
+            } = newFarm(config, 1, 2, NOW);
+            const v1 = {
+                ...old,
+                version: 1,
+                tiles: old.tiles.map(
+                    ({ trap: _trap, pollinated: _pollinated, structure: _structure, waste: _waste, soil: _soil, soilOverlay: _overlay, limed: _limed, ...tile }) =>
+                        tile,
+                ),
+            };
             const upgraded = upgradeFarm(v1);
-            assert.equal(upgraded.version, 5);
+            assert.equal(upgraded.version, 11);
+            assert.equal(upgraded.pesthunterPoints, 0);
+            assert.equal(upgraded.oath, 0);
+            assert.deepEqual(upgraded.blessings, []);
+            assert.equal(upgraded.tiles[MID]!.waste, false);
+            assert.equal(upgraded.tiles[MID]!.soil, "normal");
+            assert.equal(upgraded.nextEvent, null);
+            assert.equal(upgraded.orders, null);
             assert.deepEqual(upgraded.turnWeather, []);
             assert.equal(upgraded.home, null);
             assert.equal(upgraded.tiles[MID]!.structure, null);
@@ -368,8 +431,6 @@ describe("farm", () => {
     });
 
     describe("structures", () => {
-        const place = (state: FarmState, structureId: string, tile: number) =>
-            stepFarm(state, { type: "place", tile, itemId: CONTENT.structures[structureId]!.itemId }, ctx).state;
 
         it("places from the inventory onto an empty tile, and picks back up", () => {
             const placed = stepFarm(farm(), { type: "place", tile: MID, itemId: "structure.pond" }, ctx);
@@ -415,6 +476,24 @@ describe("farm", () => {
             const released = stepFarm(state, { type: "release", tile: MID + 1 }, ctx);
             assert.equal(released.state.tiles[MID + 1]!.structure!.caged, null);
             assert.ok(released.gains.some((gain) => gain.itemId === "mouse-tail"));
+        });
+
+        it("the Pesthunter takes a caged pest for points, spent in its shop", () => {
+            let state = { ...place(farm(), "pest-cage", MID + 1), labor: 3 };
+            state = withPest(state, "field-mouse", MID);
+            state = stepFarm(state, { type: "cage", tile: MID }, ctx).state;
+            const turnedIn = stepFarm(state, { type: "turn-in", tile: MID + 1 }, ctx);
+            assert.equal(turnedIn.state.tiles[MID + 1]!.structure!.caged, null);
+            assert.equal(turnedIn.state.pesthunterPoints, CONTENT.pests["field-mouse"]!.bounty);
+            assert.equal(turnedIn.gains.length, 0);
+            assert.throws(() => stepFarm(turnedIn.state, { type: "turn-in", tile: MID + 1 }, ctx), FarmRuleError);
+
+            const [offer] = config.pesthunter.shop;
+            const bought = stepFarm(farm({ pesthunterPoints: offer!.price + 1 }), { type: "pesthunter-buy", offer: 0 }, ctx);
+            assert.equal(bought.state.pesthunterPoints, 1);
+            assert.deepEqual(bought.gains, [{ itemId: offer!.itemId, quantity: 1 }]);
+            assert.throws(() => stepFarm(farm(), { type: "pesthunter-buy", offer: 0 }, ctx), FarmRuleError);
+            assert.throws(() => stepFarm(farm({ pesthunterPoints: 999 }), { type: "pesthunter-buy", offer: 999 }, ctx), FarmRuleError);
         });
 
         it("a Beehive boosts mutation odds around it", () => {
@@ -483,6 +562,361 @@ describe("farm", () => {
             assert.throws(() => stepFarm(set, { type: "home", latitude: 40.7, longitude: -74 }, ctx), FarmRuleError);
             const later = { ...ctx, now: new Date(NOW.getTime() + (config.weather.homeCooldownDays + 1) * 24 * HOUR) };
             assert.equal(stepFarm(set, { type: "home", latitude: 40.7, longitude: -74 }, later).state.home!.latitude, 40.5);
+        });
+    });
+
+    describe("events", () => {
+        /** Only `eventId` exists, and one is telegraphed every Advance. */
+        const only = (eventId: string): FarmContext => ({
+            ...ctx,
+            events: { [eventId]: CONTENT.farmEvents[eventId]! },
+            config: { ...config, events: { fromTurn: 0, chance: 1 } },
+        });
+
+        it("telegraphs an event for the next Advance, then runs it", () => {
+            const first = stepFarm(farm(), { type: "advance" }, only("bumper-harvest"));
+            assert.equal(first.state.nextEvent, "bumper-harvest");
+            assert.ok(first.log.some((line) => line.includes("Coming next turn")));
+            const second = stepFarm(first.state, { type: "advance" }, only("bumper-harvest")).state;
+            assert.equal(second.activeEvent?.eventId, "bumper-harvest");
+        });
+
+        it("Bumper Harvest adds yield for the turn", () => {
+            const ripeWheat = ripe(farm(), "wheat", [MID]);
+            const plainYield = stepFarm(ripeWheat, { type: "harvest", tile: MID }, ctx).gains.find((gain) => gain.itemId === "wheat")!.quantity;
+            const bumper = { ...ripeWheat, activeEvent: { eventId: "bumper-harvest", offers: [] } };
+            const bumperYield = stepFarm(bumper, { type: "harvest", tile: MID }, ctx).gains.find((gain) => gain.itemId === "wheat")!.quantity;
+            assert.equal(bumperYield, plainYield + 1);
+        });
+
+        it("a Pest Swarm brings extra pests, past the cap", () => {
+            const state = { ...plant(farm(), MID), nextEvent: "pest-swarm" };
+            const after = stepFarm(state, { type: "advance" }, ctx).state;
+            assert.equal(after.pests.length, 2);
+        });
+
+        it("a Blood Moon lets Bloodmelon sprout", () => {
+            const melons = { ...ripe(farm(), "melon", [MID - 1, MID + 1]), tiles: ripe(farm(), "melon", [MID - 1, MID + 1]).tiles.map((tile, i) => (i === MID ? { ...tile, fertility: 8 } : tile)) };
+            const sure = { ...ctx, mutations: { bloodmelon: { ...CONTENT.mutations.bloodmelon!, chance: 1 } } };
+            assert.equal(stepFarm(melons, { type: "advance" }, sure).state.tiles[MID]!.crop, null);
+            assert.equal(stepFarm({ ...melons, nextEvent: "blood-moon" }, { type: "advance" }, sure).state.tiles[MID]!.crop?.cropId, "bloodmelon");
+        });
+
+        it("the Travelling Merchant sells each offer once", () => {
+            const state = stepFarm({ ...farm(), nextEvent: "travelling-merchant" }, { type: "advance" }, ctx).state;
+            const offers = state.activeEvent!.offers;
+            assert.equal(offers.length, 2);
+            const bought = stepFarm(state, { type: "buy", offer: 0 }, ctx);
+            assert.equal(bought.coins, offers[0]!.price);
+            assert.deepEqual(bought.gains, [{ itemId: offers[0]!.itemId, quantity: 1 }]);
+            assert.throws(() => stepFarm(bought.state, { type: "buy", offer: 0 }, ctx), FarmRuleError);
+        });
+    });
+
+    describe("orders", () => {
+        const price = (itemId: string) => CONTENT.items[itemId]?.sellValue ?? 1;
+        const board = () => refreshOrders(farm(), config, CONTENT.crops, price, NOW);
+
+        it("posts the week's orders, and keeps them until the week ends", () => {
+            const state = board();
+            assert.equal(state.orders!.list.length, config.orders.perWeek);
+            assert.equal(state.orders!.week, weekOf(NOW));
+            assert.equal(refreshOrders(state, config, CONTENT.crops, price, new Date(NOW.getTime() + HOUR)), state);
+            const nextWeek = refreshOrders(state, config, CONTENT.crops, price, new Date(NOW.getTime() + 7 * 24 * HOUR));
+            assert.notEqual(nextWeek.orders!.week, state.orders!.week);
+        });
+
+        it("takes a deposit to accept, and pays reward and deposit on delivery", () => {
+            const state = board();
+            const order = state.orders!.list[0]!;
+            const accepted = stepFarm(state, { type: "accept-order", orderId: order.id }, ctx);
+            assert.equal(accepted.coins, order.deposit);
+            const partial = stepFarm(accepted.state, { type: "deliver-order", orderId: order.id }, { ...ctx, held: { [order.itemId]: order.quantity - 1 } });
+            assert.equal(partial.coinsGained, 0);
+            const done = stepFarm(partial.state, { type: "deliver-order", orderId: order.id }, { ...ctx, held: { [order.itemId]: 5 } });
+            assert.deepEqual(done.itemsUsed, [{ itemId: order.itemId, quantity: 1 }]);
+            assert.equal(done.coinsGained, order.reward + order.deposit);
+            assert.equal(done.state.orders!.list[0]!.status, "done");
+            assert.throws(() => stepFarm(state, { type: "deliver-order", orderId: order.id }, ctx), FarmRuleError);
+        });
+    });
+
+    describe("global events and contests", () => {
+        it("picks the same global event for a week every time, in its last days", () => {
+            const week = weekOf(NOW);
+            const global = globalEventFor(week, config)!;
+            assert.deepEqual(globalEventFor(week, config), global);
+            assert.equal(global.endsAt.getTime(), weekEndsAt(week).getTime());
+            const days = config.globalEvents.find((entry) => entry.eventId === global.eventId)!.days;
+            assert.equal(global.endsAt.getTime() - global.startsAt.getTime(), days * 24 * HOUR);
+            assert.equal(activeGlobalEvent(new Date(global.startsAt.getTime() - HOUR), config, CONTENT.farmEvents), undefined);
+            assert.equal(activeGlobalEvent(global.startsAt, config, CONTENT.farmEvents)?.id, global.eventId);
+        });
+
+        it("a global Blood Moon lets Bloodmelon sprout on any farm", () => {
+            const melons = ripe(farm(), "melon", [MID - 1, MID + 1]);
+            const rich = { ...melons, tiles: melons.tiles.map((tile, i) => (i === MID ? { ...tile, fertility: 8 } : tile)) };
+            const sure = { ...ctx, mutations: { bloodmelon: { ...CONTENT.mutations.bloodmelon!, chance: 1 } }, globalEvent: CONTENT.farmEvents["blood-moon"] };
+            assert.equal(stepFarm(rich, { type: "advance" }, sure).state.tiles[MID]!.crop?.cropId, "bloodmelon");
+        });
+
+        it("a Meteor Shower drops Stardust on empty tiles", () => {
+            const meteor = { ...CONTENT.farmEvents["meteor-shower"]!, effect: { kind: "meteor-shower" as const, mutationBoost: 2, dropChance: 1, itemId: "stardust" } };
+            const after = stepFarm(farm(), { type: "advance" }, { ...ctx, globalEvent: meteor });
+            assert.deepEqual(after.gains, [{ itemId: "stardust", quantity: config.startSize ** 2 }]);
+        });
+
+        it("records each harvest for the contests, mutations marked", () => {
+            const result = stepFarm(ripe(farm(), "wheat", [MID]), { type: "harvest", tile: MID }, ctx);
+            assert.deepEqual(result.harvested.map(({ cropId, mutation }) => ({ cropId, mutation })), [{ cropId: "wheat", mutation: false }]);
+        });
+
+        it("rotates the crop contest through every plain crop", () => {
+            const ids = Object.keys(CONTENT.crops);
+            const seen = new Set(Array.from({ length: ids.length }, (_, i) => contestCropFor(100 + i, CONTENT.crops)));
+            assert.equal(seen.size, ids.length);
+        });
+    });
+
+    describe("gambles", () => {
+        const withConfig = (patch: Partial<typeof config>): FarmContext => ({ ...ctx, config: { ...config, ...patch } });
+        const wasteAt = (state: FarmState, tiles: number[]): FarmState => ({
+            ...state,
+            tiles: state.tiles.map((tile, i) => (tiles.includes(i) ? { ...tile, waste: true, crop: null } : tile)),
+        });
+        const calmWaste = { ...config.waste, spreadChance: 0, pestChance: 0 };
+
+        it("an elite pest takes several hits; frogs and cages won't take it", () => {
+            let state = { ...withPest(farm(), "shade-rat", MID), labor: 3 };
+            assert.equal(state.pests[0]!.hp, 3);
+            state = stepFarm(state, { type: "swat", tile: MID }, ctx).state;
+            assert.equal(state.pests[0]!.hp, 2);
+            assert.throws(() => stepFarm({ ...place(state, "pest-cage", MID + 1), labor: 3 }, { type: "cage", tile: MID }, ctx), FarmRuleError);
+            const withPond = place(state, "pond", MID + 1);
+            withPond.pests[0]!.intent = { kind: "move", tile: MID };
+            assert.equal(stepFarm(withPond, { type: "advance" }, ctx).state.pests.length, 1);
+        });
+
+        it("a Reactor speeds crops near it, and leaks waste that kills", () => {
+            const reactor = (wasteChance: number): FarmContext => ({
+                ...withConfig({ waste: calmWaste }),
+                structures: {
+                    ...CONTENT.structures,
+                    "nuclear-reactor": { ...CONTENT.structures["nuclear-reactor"]!, effect: { kind: "reactor", radius: 2, growth: 1, wasteChance } },
+                },
+            });
+            const state = { ...farmWith("clear"), tiles: plant(place(farm(), "nuclear-reactor", MID), MID + 1).tiles.map((tile) => (tile.owned ? { ...tile, moisture: 3 } : tile)) };
+            assert.equal(stepFarm(state, { type: "advance" }, reactor(0)).state.tiles[MID + 1]!.crop!.stage, 2, "1 stage + 1 extra");
+            const leaked = stepFarm(state, { type: "advance" }, reactor(1)).state;
+            assert.equal(leaked.tiles.filter((tile) => tile.waste).length, 1);
+        });
+
+        it("waste blocks planting, is scrubbed by hand or card, and boosts mutations beside it", () => {
+            let state = { ...wasteAt(farm(), [MID]), labor: 3 };
+            assert.throws(() => stepFarm(state, { type: "plant", tile: MID, slot: 0 }, ctx), FarmRuleError);
+            assert.equal(stepFarm(state, { type: "scrub", tile: MID }, ctx).state.tiles[MID]!.waste, false);
+            assert.equal(stepFarm(state, { type: "play", inventoryId: card("farm.hazmat-scrub"), tile: MID }, ctx).state.labor, 2);
+            // Emberwheat at 0.4 × waste 3 is certain beside waste, not without it.
+            state = ripe(farmWith("heatwave"), "wheat", [MID - 1, MID + 1]);
+            const mutations = { ...ctx, config: { ...config, waste: calmWaste }, mutations: { emberwheat: { ...CONTENT.mutations.emberwheat!, chance: 0.4 } } };
+            const beside = wasteAt(state, [MID + GEO_FARM_SIZE]);
+            assert.equal(stepFarm(beside, { type: "advance" }, mutations).state.tiles[MID]!.crop?.cropId, "emberwheat");
+        });
+
+        it("waste spreads, and glowing pests crawl out", () => {
+            const wild = withConfig({ waste: { ...config.waste, spreadChance: 1, pestChance: 1 }, pests: { ...config.pests, max: 4 } });
+            const after = stepFarm(wasteAt(farm(), [MID]), { type: "advance" }, wild).state;
+            assert.equal(after.tiles.filter((tile) => tile.waste).length, 2);
+            assert.ok(after.pests.some((pest) => pest.pestId === config.waste.pest));
+        });
+
+        it("Controlled Leak puts waste on the 4 tiles beside, killing crops", () => {
+            const state = { ...plant(farm(), MID + 1), labor: 3 };
+            const after = stepFarm(state, { type: "play", inventoryId: card("farm.controlled-leak"), tile: MID }, ctx).state;
+            assert.deepEqual(
+                [MID - 1, MID + 1, MID - GEO_FARM_SIZE, MID + GEO_FARM_SIZE].map((i) => after.tiles[i]!.waste),
+                [true, true, true, true],
+            );
+            assert.equal(after.tiles[MID]!.waste, false);
+            assert.equal(after.tiles[MID + 1]!.crop, null);
+        });
+
+        it("Tear the Veil opens a Portal: elite pests come through on Advance, then it shuts", () => {
+            let state = { ...place(farm(), "portal", MID), labor: 3 };
+            assert.throws(() => stepFarm(state, { type: "play", inventoryId: card("farm.tear-the-veil"), tile: MID + 1 }, ctx), FarmRuleError);
+            state = stepFarm(state, { type: "play", inventoryId: card("farm.tear-the-veil"), tile: MID }, ctx).state;
+            assert.equal(state.tiles[MID]!.structure!.open, true);
+            const after = stepFarm(state, { type: "advance" }, ctx).state;
+            assert.equal(after.pests.length, 2);
+            assert.ok(after.pests.every((pest) => (pest.hp ?? 1) > 1));
+            assert.equal(after.tiles[MID]!.structure!.open, false);
+        });
+
+        it("the Shrine turns offerings into blessings, or curses", () => {
+            const state = place(farm(), "mysterious-shrine", MID);
+            const kind = withConfig({ shrine: { ...config.shrine, halfValue: 1e-9, blessings: config.shrine.blessings.map((b) => ({ ...b, weight: b.id === "plenty" || b.curse ? 1 : 0 })) } });
+            const held = { ...kind, held: { wheat: 10 } };
+            const blessed = stepFarm(state, { type: "offer", tile: MID, itemId: "wheat", quantity: 10 }, held);
+            assert.deepEqual(blessed.itemsUsed, [{ itemId: "wheat", quantity: 10 }]);
+            assert.deepEqual(blessed.state.blessings, [{ id: "plenty", turnsLeft: 3 }]);
+            const ripeWheat = ripe(blessed.state, "wheat", [MID + 1]);
+            const plainYield = stepFarm(ripe(state, "wheat", [MID + 1]), { type: "harvest", tile: MID + 1 }, ctx).gains[0]!.quantity;
+            assert.equal(stepFarm(ripeWheat, { type: "harvest", tile: MID + 1 }, ctx).gains[0]!.quantity, plainYield + 1);
+
+            const cruel = { ...withConfig({ shrine: { ...config.shrine, halfValue: 1e12, curseShare: 1 } }), held: { wheat: 1 } };
+            const cursed = stepFarm(state, { type: "offer", tile: MID, itemId: "wheat", quantity: 1 }, cruel).state;
+            assert.deepEqual(cursed.blessings.map((b) => b.id), ["pests"]);
+            assert.throws(() => stepFarm(state, { type: "offer", tile: MID, itemId: "wheat", quantity: 5 }, cruel), FarmRuleError);
+        });
+    });
+
+    describe("Well and Lightning Rod", () => {
+        it("a Well fills with rain, and waters for no Labor while it has water", () => {
+            let state: FarmState = { ...place(farm(), "well", MID), turnWeather: ["rain"] };
+            state = stepFarm(state, { type: "advance" }, ctx).state;
+            assert.equal(state.tiles[MID]!.structure!.water, 3);
+            state = { ...state, tiles: state.tiles.map((tile, i) => (i === MID + 1 ? { ...tile, moisture: 0 } : tile)), labor: 3 };
+            const watered = stepFarm(state, { type: "water", tile: MID + 1 }, ctx).state;
+            assert.equal(watered.labor, 3);
+            assert.equal(watered.tiles[MID]!.structure!.water, 2);
+        });
+
+        it("a Lightning Rod keeps storms from flattening the crops around it", () => {
+            const stormy = { ...ctx, config: { ...config, weather: { ...config.weather, stormFlattenChance: 1 } } };
+            const state = { ...plant(place(farm(), "lightning-rod", MID), MID + 1), turnWeather: ["storm" as const] };
+            assert.ok(stepFarm(state, { type: "advance" }, stormy).state.tiles[MID + 1]!.crop);
+        });
+
+        it("Stormcorn sprouts by ripe corn and a Lightning Rod in a storm", () => {
+            const sure = { ...ctx, mutations: { stormcorn: { ...CONTENT.mutations.stormcorn!, chance: 1 } } };
+            const state = { ...place(ripe(farm(), "corn", [MID - 1]), "lightning-rod", MID + 1), turnWeather: ["storm" as const] };
+            assert.equal(stepFarm(state, { type: "advance" }, sure).state.tiles[MID]!.crop?.cropId, "stormcorn");
+            const noRod = { ...ripe(farm(), "corn", [MID - 1]), turnWeather: ["storm" as const] };
+            assert.equal(stepFarm(noRod, { type: "advance" }, sure).state.tiles[MID]!.crop, null);
+        });
+    });
+
+    describe("soil", () => {
+        const soiled = (state: FarmState, soil: FarmState["tiles"][number]["soil"], tiles: number[]): FarmState => ({
+            ...state,
+            tiles: state.tiles.map((tile, i) => (tiles.includes(i) ? { ...tile, soil } : tile)),
+        });
+
+        it("an amendment changes a tile's soil for good, from the inventory", () => {
+            const result = stepFarm(farm(), { type: "amend", tile: MID, itemId: "bone-meal-blend" }, { ...ctx, held: { "bone-meal-blend": 1 } });
+            assert.equal(result.state.tiles[MID]!.soil, "rich");
+            assert.deepEqual(result.itemsUsed, [{ itemId: "bone-meal-blend", quantity: 1 }]);
+            assert.throws(() => stepFarm(farm(), { type: "amend", tile: MID, itemId: "bone-meal-blend" }, ctx), FarmRuleError);
+            assert.throws(() => stepFarm(farm(), { type: "amend", tile: MID, itemId: "wheat" }, { ...ctx, held: { wheat: 1 } }), FarmRuleError);
+        });
+
+        it("Rich soil rests higher and faster", () => {
+            const state = soiled({ ...farm(), turnWeather: ["clear"] }, "rich", [MID]);
+            const tired = { ...state, tiles: state.tiles.map((tile, i) => (i === MID ? { ...tile, fertility: 5 } : tile)) };
+            assert.equal(stepFarm(tired, { type: "advance" }, ctx).state.tiles[MID]!.fertility, 5 + config.soil.richRecovery);
+        });
+
+        it("Boggy soil never dries out", () => {
+            const state = soiled({ ...farm(), turnWeather: ["heatwave"] }, "boggy", [MID]);
+            assert.equal(stepFarm(state, { type: "advance" }, ctx).state.tiles[MID]!.moisture, 1);
+        });
+
+        it("Cursed soil costs plain crops a yield", () => {
+            const normal = stepFarm(ripe(farm(), "wheat", [MID]), { type: "harvest", tile: MID }, ctx).gains[0]!.quantity;
+            const cursed = stepFarm(soiled(ripe(farm(), "wheat", [MID]), "cursed", [MID]), { type: "harvest", tile: MID }, ctx).gains[0]!.quantity;
+            assert.equal(cursed, Math.max(1, normal + config.soil.cursedYield));
+        });
+
+        it("Hex the Earth curses a tile for one Advance: enough for Hexroot", () => {
+            const sure = { ...ctx, mutations: { hexroot: { ...CONTENT.mutations.hexroot!, chance: 1 } } };
+            let state = { ...ripe(farm(), "potato", [MID - 1, MID + 1]), labor: 3 };
+            state = stepFarm(state, { type: "play", inventoryId: card("farm.hex-the-earth"), tile: MID }, sure).state;
+            assert.equal(state.tiles[MID]!.soilOverlay?.soil, "cursed");
+            const after = stepFarm(state, { type: "advance" }, sure).state;
+            assert.equal(after.tiles[MID]!.crop?.cropId, "hexroot");
+            assert.equal(after.tiles[MID]!.soilOverlay, null);
+        });
+
+        it("Mulch makes a row Boggy for two Advances", () => {
+            let state = stepFarm({ ...farm(), labor: 3 }, { type: "play", inventoryId: card("farm.mulch"), tile: MID }, ctx).state;
+            assert.equal(state.tiles[MID - 1]!.soilOverlay?.soil, "boggy");
+            state = advanceWet(state, 1);
+            assert.equal(state.tiles[MID]!.soilOverlay?.turnsLeft, 1);
+            state = advanceWet(state, 1);
+            assert.equal(state.tiles[MID]!.soilOverlay, null);
+        });
+
+        it("the Shrine leaves Cursed Ash when it keeps an offering", () => {
+            const state = place(farm(), "mysterious-shrine", MID);
+            const stingy = { ...ctx, config: { ...config, shrine: { ...config.shrine, halfValue: 1e12, curseShare: 0 } }, held: { wheat: 1 } };
+            assert.deepEqual(stepFarm(state, { type: "offer", tile: MID, itemId: "wheat", quantity: 1 }, stingy).gains, [{ itemId: "cursed-ash", quantity: 1 }]);
+        });
+    });
+
+    describe("more cards", () => {
+        const play = (state: FarmState, cardId: string, tile = MID, context = ctx) =>
+            stepFarm({ ...state, labor: 3 }, { type: "play", inventoryId: card(cardId), tile }, context);
+
+        it("Coax rolls the recipes that hold now; a miss tires the soil", () => {
+            const wheat = ripe(farmWith("heatwave"), "wheat", [MID - 1, MID + 1]);
+            const sure = { ...ctx, mutations: { emberwheat: { ...CONTENT.mutations.emberwheat!, chance: 1 } } };
+            // Chance 1 at half share is 50%: find a seed each way.
+            const outcome = (seed: number) => play({ ...wheat, seed }, "farm.coax", MID, sure).state.tiles[MID]!;
+            const seeds = Array.from({ length: 20 }, (_, i) => i + 1);
+            assert.ok(seeds.some((seed) => outcome(seed).crop?.cropId === "emberwheat"));
+            assert.ok(seeds.some((seed) => !outcome(seed).crop && outcome(seed).fertility === config.startFertility - 2));
+        });
+
+        it("Compost Spread feeds a cross from a Compost Bin's compost", () => {
+            const state = place(farm(), "compost-bin", MID + GEO_FARM_SIZE + 1);
+            assert.throws(() => play(state, "farm.compost-spread"), FarmRuleError);
+            const stocked = { ...state, tiles: state.tiles.map((tile) => (tile.structure ? { ...tile, structure: { ...tile.structure, compost: 3 } } : tile)) };
+            const after = play(stocked, "farm.compost-spread").state;
+            assert.equal(after.tiles[MID]!.fertility, config.startFertility + 2);
+            assert.equal(after.tiles[MID - 1]!.fertility, config.startFertility + 2);
+            assert.equal(after.tiles[MID + GEO_FARM_SIZE + 1]!.structure!.compost, 1);
+        });
+
+        it("Lime Dust holds fertility through the next Advance, and stops growth", () => {
+            let state = withPest(plant(farm(), MID), "earthworm", MID);
+            state = play(state, "farm.lime-dust").state;
+            const after = advanceWet(state, 1);
+            assert.equal(after.tiles[MID]!.fertility, config.startFertility);
+            assert.equal(after.tiles[MID]!.crop!.stage, 0);
+            assert.equal(after.tiles[MID]!.limed, false);
+        });
+
+        it("Moon Rite brings a Blood Moon next", () => {
+            assert.equal(play(farm(), "farm.moon-rite").state.nextEvent, "blood-moon");
+        });
+
+        it("Exterminator's Oath doubles the next 3 pests' drops", () => {
+            const sworn = play(withPest(farm(), "field-mouse", MID), "farm.exterminators-oath").state;
+            assert.equal(sworn.oath, 3);
+            const swatted = stepFarm({ ...sworn, labor: 3 }, { type: "swat", tile: MID }, ctx);
+            assert.equal(swatted.state.oath, 2);
+            const tails = swatted.gains.find((gain) => gain.itemId === "mouse-tail")!.quantity;
+            assert.ok(tails >= 2, "two rolls of 1–2 tails");
+        });
+
+        it("Rush Order counts one crop more on the next delivery", () => {
+            const price = (itemId: string) => CONTENT.items[itemId]?.sellValue ?? 1;
+            let state = refreshOrders(farm(), config, CONTENT.crops, price, NOW);
+            const order = state.orders!.list[0]!;
+            state = stepFarm(state, { type: "accept-order", orderId: order.id }, ctx).state;
+            state = play(state, "farm.rush-order").state;
+            const delivered = stepFarm(state, { type: "deliver-order", orderId: order.id }, { ...ctx, held: { [order.itemId]: order.quantity } });
+            assert.deepEqual(delivered.itemsUsed, [{ itemId: order.itemId, quantity: order.quantity - 1 }]);
+            assert.equal(delivered.state.orders!.list[0]!.status, "done");
+        });
+
+        it("Chain Reaction turns waste into mutations, or Glow Beetles", () => {
+            const state = { ...farm(), tiles: farm().tiles.map((tile, i) => (i === MID || i === MID + 1 ? { ...tile, waste: true } : tile)) };
+            const after = play(state, "farm.chain-reaction").state;
+            for (const i of [MID, MID + 1]) {
+                const tile = after.tiles[i]!;
+                assert.ok((!tile.waste && tile.crop) || after.pests.some((pest) => pest.tile === i));
+            }
         });
     });
 });

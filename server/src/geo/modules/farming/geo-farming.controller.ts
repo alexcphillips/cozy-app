@@ -30,6 +30,18 @@ export async function act(req: Request, res: Response) {
     let action: GeoFarmAction;
     if (type === "advance") {
         action = { type };
+    } else if (type === "buy" || type === "pesthunter-buy") {
+        if (!isInt(body.offer)) throw AppError.badRequest("Missing offer");
+        action = { type, offer: body.offer };
+    } else if (type === "accept-order" || type === "deliver-order") {
+        if (typeof body.orderId !== "string") throw AppError.badRequest("Missing orderId");
+        action = { type, orderId: body.orderId };
+    } else if (type === "offer") {
+        if (!isInt(body.tile) || typeof body.itemId !== "string" || !isInt(body.quantity)) throw AppError.badRequest("Missing tile, itemId or quantity");
+        action = { type, tile: body.tile, itemId: body.itemId, quantity: body.quantity };
+    } else if (type === "amend") {
+        if (!isInt(body.tile) || typeof body.itemId !== "string") throw AppError.badRequest("Missing tile or itemId");
+        action = { type, tile: body.tile, itemId: body.itemId };
     } else if (type === "home") {
         if (typeof body.latitude !== "number" || typeof body.longitude !== "number") throw AppError.badRequest("Missing latitude and longitude");
         action = { type, latitude: body.latitude, longitude: body.longitude };
@@ -52,7 +64,7 @@ export async function act(req: Request, res: Response) {
             if (body.cropId !== null && typeof body.cropId !== "string") throw AppError.badRequest("cropId must be a crop or null");
             action = { type, tile, cropId: body.cropId };
         } else {
-            action = { type: type as "water" | "harvest" | "clear" | "swat" | "pickup" | "cage" | "release" | "unlock", tile };
+            action = { type: type as "water" | "harvest" | "clear" | "swat" | "pickup" | "cage" | "release" | "turn-in" | "scrub" | "unlock", tile };
         }
     }
     res.status(200).json(await farmingRepository.actFarm(requirePlayerId(req), action));

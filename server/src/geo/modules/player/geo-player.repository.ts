@@ -376,6 +376,8 @@ export type CoinReason =
     | "vendor-buy"
     | "farm-tile"
     | "research-lab"
+    | "farm-order"
+    | "farm-contest"
     | "vendor-sell"
     | "market-fee"
     | "market-bid-hold"

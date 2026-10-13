@@ -1,4 +1,4 @@
-import type { GeoChestTier, GeoFarmWeather, GeoFishingTier, GeoQualityTier } from "@cozy/shared/geo";
+import type { GeoChestTier, GeoFarmSoil, GeoFarmWeather, GeoFishingTier, GeoQualityTier } from "@cozy/shared/geo";
 import type { Action, Amount, Condition, EffectDef, StatModifier } from "../engine/engine.types";
 
 /**
@@ -220,6 +220,37 @@ export type Crop = {
 };
 
 /**
+ * A farm event. Each Advance may telegraph one for the next Advance (see
+ * `config/farming.ts` `events`). Some act on their Advance, some last the
+ * turn after it.
+ */
+export type FarmEvent = {
+    /** Must match the file name. */
+    id: string;
+    name: string;
+    icon: string;
+    description: string;
+    /** How often it's the one rolled on a farm, against the others. 0: only ever global (`config/farming.ts` `globalEvents`). */
+    weight: number;
+    /**
+     * What it does. On its Advance: `pest-swarm` (`count` extra pests, past
+     * the cap), `fairy-ring` (+`fertility` round an empty tile, whose
+     * mutation chances × `mutationBoost`), `blood-moon` (recipes can need it;
+     * pests `pestBoost` × likelier). For the turn after: `bumper-harvest`
+     * (+`bonus` yield on every harvest), `merchant` (`count` picks from
+     * `stock` for sale), `meteor-shower` (mutation chances × `mutationBoost`,
+     * and `dropChance` per empty tile of `itemId` falling there).
+     */
+    effect:
+        | { kind: "pest-swarm"; count: number }
+        | { kind: "fairy-ring"; fertility: number; mutationBoost: number }
+        | { kind: "blood-moon"; pestBoost: number }
+        | { kind: "bumper-harvest"; bonus: number }
+        | { kind: "merchant"; count: number; stock: { itemId: string; price: number }[] }
+        | { kind: "meteor-shower"; mutationBoost: number; dropChance: number; itemId: string };
+};
+
+/**
  * A farm structure. Each file makes an item, `structure.<id>` (crafted by a
  * recipe, kept in the misc tab), that is placed on one empty farm tile and
  * picked back up whole.
@@ -235,6 +266,14 @@ export type Structure = ItemBase & {
      * the 4 tiles beside it watered, and a frog eats 1 pest near it a turn.
      * `greenhouse`: the 8 tiles around get no weather (they grow as on a
      * clear day), no pests arrive there, and no mutations sprout there.
+     * `reactor`: crops within `radius` grow `growth` extra stages a turn, but
+     * each Advance `wasteChance` nuclear waste lands within `radius`.
+     * `portal`: Tear the Veil opens it; on the next Advance `wave` pests from
+     * `pests` come through. `shrine`: takes offerings for blessings
+     * (`config/farming.ts` `shrine`). `well`: stores up to `capacity` water
+     * (rain +`rain`, a storm +`storm`, a heatwave −`heatwave`); plain watering
+     * draws 1 from it for no Labor. `lightning-rod`: storms can't flatten
+     * crops within `radius`, and recipes can need one nearby.
      */
     effect:
         | { kind: "jukebox"; boost: number }
@@ -242,7 +281,12 @@ export type Structure = ItemBase & {
         | { kind: "beehive"; boost: number; swarmChance: number }
         | { kind: "compost"; capacity: number }
         | { kind: "pond" }
-        | { kind: "greenhouse" };
+        | { kind: "greenhouse" }
+        | { kind: "reactor"; radius: number; growth: number; wasteChance: number }
+        | { kind: "portal"; wave: number; pests: string[] }
+        | { kind: "shrine" }
+        | { kind: "well"; capacity: number; rain: number; storm: number; heatwave: number }
+        | { kind: "lightning-rod"; radius: number };
 };
 
 /**
@@ -272,10 +316,16 @@ export type Mutation = {
         parents: { cropId: string; count: number }[];
         /** The weather of that Advance. */
         weather?: GeoFarmWeather;
+        /** A farm event on that Advance (`data/farm-events/`), e.g. "blood-moon". */
+        event?: string;
         /** A pest of this kind on the tile or one of the 8 around. */
         pest?: string;
         /** The empty tile's fertility, at least. */
         minFertility?: number;
+        /** A structure of this id on one of the 8 tiles around, e.g. "lightning-rod". */
+        structure?: string;
+        /** The empty tile's soil (a card's overlay counts), e.g. "cursed". */
+        soil?: GeoFarmSoil;
     };
     /** Chance (0–1) it sprouts on an Advance where the recipe holds. Hand Pollinate multiplies it. */
     chance: number;
@@ -294,7 +344,7 @@ export type Pest = {
     name: string;
     icon: string;
     description: string;
-    /** Crop ids it's drawn to. It only spawns while one of them grows, and goes for them first. */
+    /** Crop ids it's drawn to. It only spawns while one of them grows, and goes for them first. May be empty for a Portal or waste pest. */
     likes: string[];
     /**
      * How it acts on Advance. `eat`: eats a crop within `reach` tiles (the
@@ -303,12 +353,18 @@ export type Pest = {
      * new one appears on a crop next door.
      */
     behaviour: { kind: "eat"; reach: number } | { kind: "drain"; amount: number } | { kind: "breed"; every: number };
-    /** How likely it is to be the one that spawns, per liked crop growing. */
+    /** How likely it is to be the one that spawns, per liked crop growing. 0: only from a Portal or waste. */
     weight: number;
+    /** Hits it takes to clear (Swat and Smoke hit once; traps and frogs only take 1-hit pests). Default 1; more is elite. */
+    hp?: number;
+    /** Soils it's drawn to: those tiles count like crops it likes, for where and how often it spawns. */
+    soils?: GeoFarmSoil[];
     /** Rolled one by one when it's cleared: each lands with its `chance` (0–1). */
     drops: { itemId: string; chance: number; quantity: Range }[];
     /** Farming XP when it's cleared. */
     xp: number;
+    /** Pesthunter points for turning it in from a Pest Cage. Default 0 (elites can't be caged). */
+    bounty?: number;
 };
 
 /** One possible pick in a chest pool, weighted against the others. */
@@ -469,8 +525,10 @@ export type SpawnsConfig = {
 };
 
 export type FarmingConfig = {
-    /** Labor each Farm Turn gives. */
+    /** Labor each Farm Turn gives at farming level 1. */
     laborPerTurn: number;
+    /** Farming levels that each add 1 Labor per turn, lowest first. */
+    laborLevels: number[];
     /** A Farm Turn comes in this often. */
     turnHours: number;
     /** Turns that can wait unspent; none come in past this. */
@@ -493,7 +551,40 @@ export type FarmingConfig = {
     /** Harvest or push: rot chance on each Advance a ripe crop waits; the list's length caps the bonus. */
     rotChances: number[];
     /** Labor for the plain actions. */
-    labor: { water: number; harvest: number; clear: number; swat: number; cage: number };
+    labor: { water: number; harvest: number; clear: number; swat: number; cage: number; scrub: number };
+    /**
+     * Nuclear waste. Each Advance a waste tile spreads to a tile beside it
+     * with `spreadChance` (killing what grows there); empty tiles next to
+     * waste get mutation chances × `mutationBoost`; and each waste tile has
+     * `pestChance` of a `pest` crawling out.
+     */
+    waste: { spreadChance: number; mutationBoost: number; pestChance: number; pest: string };
+    /**
+     * Soil. `rich` rests to `richFallowCap` fertility, `richRecovery` a turn;
+     * `boggy` never dries below 1 water; plain crops on `cursed` give
+     * `cursedYield` (negative) yield. `amendments`: item id → the soil it
+     * makes for good. A Pond turns up `peatChance` a turn of `peatItem`; the
+     * Shrine leaves `ashItem` when it doesn't bless.
+     */
+    soil: {
+        richFallowCap: number;
+        richRecovery: number;
+        cursedYield: number;
+        amendments: { itemId: string; soil: GeoFarmSoil }[];
+        peatChance: number;
+        peatItem: string;
+        ashItem: string;
+    };
+    /**
+     * The Mysterious Shrine. An offering worth `value` coins (NPC) grants a
+     * blessing with chance value ÷ (value + `halfValue`); a failed roll is a
+     * curse `curseShare` of the time. Picks by `weight`.
+     */
+    shrine: {
+        halfValue: number;
+        curseShare: number;
+        blessings: { id: "growth" | "plenty" | "mutation" | "pests"; name: string; description: string; turns: number; weight: number; curse: boolean }[];
+    };
     /**
      * Pests. None spawn before Advance number `fromTurn`. Each Advance, one
      * spawns with chance `chancePerCrop` × liked crops growing, at most
@@ -502,6 +593,27 @@ export type FarmingConfig = {
     pests: { fromTurn: number; chancePerCrop: number; maxChance: number; max: number };
     /** Hand Pollinate multiplies a tile's mutation chances by this. */
     pollinateBoost: number;
+    /** Farm events: from Advance `fromTurn`, each Advance telegraphs one for the next with this `chance`. */
+    events: { fromTurn: number; chance: number };
+    /**
+     * The weekly Order Board: `perWeek` orders for plain crops, each worth
+     * `value` coins of NPC sell value; completing pays that × `rewardMultiplier`,
+     * and accepting costs `depositShare` of the reward.
+     */
+    orders: { perWeek: number; value: Range; rewardMultiplier: number; depositShare: number };
+    /** Weekly contests: coins for 1st, 2nd, 3rd…, and `participation` for every other entrant. */
+    contests: { prizes: number[]; participation: number };
+    /**
+     * The Pesthunter: a caged pest turned in pays its `bounty` in points,
+     * spent here on `shop` items (`price` in points).
+     */
+    pesthunter: { shop: { itemId: string; price: number }[] };
+    /**
+     * Server-wide events, one picked each week by `weight` and announced on
+     * Monday. It runs for the week's last `days` days (2: Saturday and Sunday,
+     * UTC), and every farm's Advances during it get it.
+     */
+    globalEvents: { eventId: string; days: number; weight: number }[];
     /** Placeholder weather, rolled when there's no real weather: how often each comes. */
     weatherWeights: Record<GeoFarmWeather, number>;
     /**

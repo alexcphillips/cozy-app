@@ -2,7 +2,7 @@ import { GEO_QUALITY_TIERS, type GeoChestTier, type GeoQualityTier } from "@cozy
 import type { CardDef, FoodDef, StatusDef } from "../engine/engine.types";
 import type { GameData } from "./data.schema";
 import type { ChestTierDef, EnemyDef, GameContent, ItemDef, MayorDef, RecipeDef, VendorDef } from "./content.types";
-import { structureItemId, type CropDef, type MutationDef, type PestDef, type StructureDef } from "./farming";
+import { structureItemId, type CropDef, type FarmEventDef, type MutationDef, type PestDef, type StructureDef } from "./farming";
 import { fishItemId, qualityFishItemId, type FishDef } from "./fishing";
 
 /**
@@ -156,9 +156,13 @@ export function buildContent(data: GameData): BuiltContent {
         items: byId(items, "item"),
         fish: byId(fish, "fish"),
         crops: byId<CropDef>(data.crops, "crop"),
-        pests: byId<PestDef>(data.pests, "pest"),
+        pests: byId<PestDef>(
+            data.pests.map((pest) => ({ ...pest, hp: pest.hp ?? 1, bounty: pest.bounty ?? 0 })),
+            "pest",
+        ),
         mutations: byId<MutationDef>(data.mutations, "mutation"),
         structures: byId(structures, "structure"),
+        farmEvents: byId<FarmEventDef>(data["farm-events"], "farm event"),
         enemies: byId<EnemyDef>(data.enemies, "enemy"),
         vendors: byId<VendorDef>(data.vendors, "vendor"),
         mayors: byId<MayorDef>(data.mayors, "mayor"),

@@ -14,4 +14,5 @@ export default {
         { itemId: "golden-scarab", chance: 0.03, quantity: { min: 1, max: 1 } },
     ],
     xp: 4,
+    bounty: 1,
 } satisfies Pest;

@@ -477,6 +477,29 @@ const STATEMENTS = [
         CHECK (kind <> 'changelog' OR version IS NOT NULL)
     );`,
     `CREATE INDEX IF NOT EXISTS announcements_created_idx ON geo.announcements (created_at);`,
+    // A message can also be a player's farm contest results.
+    `ALTER TABLE geo.messages DROP CONSTRAINT IF EXISTS messages_kind_check;`,
+    `ALTER TABLE geo.messages ADD CONSTRAINT messages_kind_check CHECK (kind IN ('feedbackReply', 'contest'));`,
+
+    // Weekly farm contests (modules/farming). A harvest adds to the player's
+    // score for its week; weeks run Monday to Monday UTC, counted by
+    // farming/farm.ts weekOf. `mutation` keeps the best single harvest.
+    `CREATE TABLE IF NOT EXISTS geo.farm_contest_scores (
+        week INTEGER NOT NULL,
+        contest VARCHAR(20) NOT NULL CHECK (contest IN ('harvest', 'mutation', 'crop')),
+        player_id UUID NOT NULL REFERENCES geo.players(id) ON DELETE CASCADE,
+        score BIGINT NOT NULL DEFAULT 0 CHECK (score >= 0),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (week, contest, player_id)
+    );`,
+    `CREATE INDEX IF NOT EXISTS farm_contest_scores_rank_idx ON geo.farm_contest_scores (week, contest, score DESC);`,
+    // One row per week once its start is announced and its contests settled;
+    // the job uses them so each happens once, even with several servers.
+    `CREATE TABLE IF NOT EXISTS geo.farm_weeks (
+        week INTEGER PRIMARY KEY,
+        announced_at TIMESTAMPTZ,
+        settled_at TIMESTAMPTZ
+    );`,
     `ALTER TABLE geo.players ADD COLUMN IF NOT EXISTS inbox_read_at TIMESTAMPTZ;`,
 
     // Farming (modules/farming). One farm per player, made the first time
