@@ -9,3 +9,4 @@ export const geoFarmingRouter: Router = Router();
 
 geoFarmingRouter.get(GEO_API_PATHS.farm.root, geoAuth, asyncHandler(farmingController.getFarm));
 geoFarmingRouter.post(GEO_API_PATHS.farm.actions, geoAuth, asyncHandler(farmingController.act));
+geoFarmingRouter.post(GEO_API_PATHS.farm.lab, geoAuth, asyncHandler(farmingController.research));

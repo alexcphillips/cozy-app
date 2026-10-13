@@ -96,6 +96,30 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
         if (!isRange(crop.yield) || !isRange(crop.seedsBack)) problems.push(`Crop "${crop.id}": a min is over its max`);
     }
 
+    for (const mutation of Object.values(content.mutations)) {
+        const where = `Mutation "${mutation.id}"`;
+        if (content.crops[mutation.id]) problems.push(`${where} shares its id with a crop`);
+        const produce = item(mutation.produce);
+        if (!produce) problems.push(`${where} uses unknown item "${mutation.produce}"`);
+        else if (produce.kind !== "material" || produce.skill !== "farming") problems.push(`${where} uses "${mutation.produce}", which isn't a farming material`);
+        if (!isRange(mutation.yield)) problems.push(`${where}: yield min is over its max`);
+        for (const parent of mutation.recipe.parents) {
+            if (!content.crops[parent.cropId]) problems.push(`${where} needs unknown crop "${parent.cropId}" (mutations can't be parents yet)`);
+        }
+        if (mutation.recipe.parents.reduce((sum, parent) => sum + parent.count, 0) > 8) problems.push(`${where} needs more than 8 parents`);
+        if (mutation.recipe.pest && !content.pests[mutation.recipe.pest]) problems.push(`${where} needs unknown pest "${mutation.recipe.pest}"`);
+    }
+
+    for (const pest of Object.values(content.pests)) {
+        for (const cropId of pest.likes) {
+            if (!content.crops[cropId]) problems.push(`Pest "${pest.id}" likes unknown crop "${cropId}"`);
+        }
+        for (const drop of pest.drops) {
+            if (!item(drop.itemId)) problems.push(`Pest "${pest.id}" drops unknown item "${drop.itemId}"`);
+            if (!isRange(drop.quantity)) problems.push(`Pest "${pest.id}": a drop's min is over its max`);
+        }
+    }
+
     for (const entry of Object.values(content.items)) {
         if (entry.kind === "equipment" || entry.kind === "talisman") needStatuses(`Item "${entry.id}"`, [], entry.effects);
         if (entry.kind === "equipment") {

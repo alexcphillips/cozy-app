@@ -375,6 +375,7 @@ export type CoinReason =
     | GeoDeathCause
     | "vendor-buy"
     | "farm-tile"
+    | "research-lab"
     | "vendor-sell"
     | "market-fee"
     | "market-bid-hold"

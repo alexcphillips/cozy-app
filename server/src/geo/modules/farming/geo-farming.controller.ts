@@ -8,6 +8,13 @@ export async function getFarm(req: Request, res: Response) {
     res.status(200).json(await farmingRepository.findFarm(requirePlayerId(req)));
 }
 
+/** Turn a mutation in at the Research Lab. */
+export async function research(req: Request, res: Response) {
+    const mutationId = (req.body as Record<string, unknown> | undefined)?.mutationId;
+    if (typeof mutationId !== "string") throw AppError.badRequest("Missing mutationId");
+    res.status(200).json(await farmingRepository.research(requirePlayerId(req), { mutationId }));
+}
+
 const isInt = (value: unknown): value is number => Number.isInteger(value);
 
 /**
@@ -23,6 +30,9 @@ export async function act(req: Request, res: Response) {
     let action: GeoFarmAction;
     if (type === "advance") {
         action = { type };
+    } else if (type === "home") {
+        if (typeof body.latitude !== "number" || typeof body.longitude !== "number") throw AppError.badRequest("Missing latitude and longitude");
+        action = { type, latitude: body.latitude, longitude: body.longitude };
     } else {
         if (!isInt(body.tile)) throw AppError.badRequest("Missing tile");
         const tile = body.tile;
@@ -32,11 +42,17 @@ export async function act(req: Request, res: Response) {
         } else if (type === "play") {
             if (typeof body.inventoryId !== "string") throw AppError.badRequest("Missing inventoryId");
             action = { type, tile, inventoryId: body.inventoryId };
+        } else if (type === "place") {
+            if (typeof body.itemId !== "string") throw AppError.badRequest("Missing itemId");
+            action = { type, tile, itemId: body.itemId };
+        } else if (type === "tune") {
+            if (body.pestId !== null && typeof body.pestId !== "string") throw AppError.badRequest("pestId must be a pest or null");
+            action = { type, tile, pestId: body.pestId };
         } else if (type === "blueprint") {
             if (body.cropId !== null && typeof body.cropId !== "string") throw AppError.badRequest("cropId must be a crop or null");
             action = { type, tile, cropId: body.cropId };
         } else {
-            action = { type: type as "water" | "harvest" | "clear" | "unlock", tile };
+            action = { type: type as "water" | "harvest" | "clear" | "swat" | "pickup" | "cage" | "release" | "unlock", tile };
         }
     }
     res.status(200).json(await farmingRepository.actFarm(requirePlayerId(req), action));

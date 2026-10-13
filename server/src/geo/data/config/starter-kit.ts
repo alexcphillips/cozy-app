@@ -13,6 +13,7 @@ export default {
         { itemId: "card.farm.careful-pick", quantity: 1 },
         { itemId: "card.farm.green-manure", quantity: 1 },
         { itemId: "card.farm.read-sky", quantity: 1 },
+        { itemId: "card.farm.smoke", quantity: 1 },
     ],
     equip: { mainHand: "bronze-dagger" },
     handSkills: ["combat", "fishing", "farming"],

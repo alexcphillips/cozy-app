@@ -44,6 +44,8 @@ export const GEO_API_PATHS = {
         root: "/geo/farm",
         /** POST a GeoFarmAction. */
         actions: "/geo/farm/actions",
+        /** POST `GeoResearchRequest`: turn a mutation in at the Research Lab, from anywhere. */
+        lab: "/geo/farm/lab",
     },
     vendors: {
         list: "/geo/vendors",

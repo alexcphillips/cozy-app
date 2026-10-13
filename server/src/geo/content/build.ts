@@ -2,7 +2,7 @@ import { GEO_QUALITY_TIERS, type GeoChestTier, type GeoQualityTier } from "@cozy
 import type { CardDef, FoodDef, StatusDef } from "../engine/engine.types";
 import type { GameData } from "./data.schema";
 import type { ChestTierDef, EnemyDef, GameContent, ItemDef, MayorDef, RecipeDef, VendorDef } from "./content.types";
-import type { CropDef } from "./farming";
+import { structureItemId, type CropDef, type MutationDef, type PestDef, type StructureDef } from "./farming";
 import { fishItemId, qualityFishItemId, type FishDef } from "./fishing";
 
 /**
@@ -108,6 +108,23 @@ export function buildContent(data: GameData): BuiltContent {
         items.push({ ...itemBase(bait), kind: "consumable", stackSize: bait.stackSize, bait: { scent: bait.scent } });
     }
     for (const misc of data.misc) items.push({ ...itemBase(misc), kind: misc.kind, stackSize: misc.stackSize });
+    const structures: StructureDef[] = data.structures.map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        icon: entry.icon,
+        description: entry.description,
+        itemId: structureItemId(entry.id),
+        effect: entry.effect,
+    }));
+    for (const entry of data.structures) {
+        items.push({
+            ...itemBase(entry),
+            id: structureItemId(entry.id),
+            kind: "misc",
+            stackSize: 10,
+            stats: [{ label: "Farm structure", value: "Place it on an empty tile of your farm" }, ...(entry.stats ?? [])],
+        });
+    }
 
     // Every fish is a regular, tradable material, plus a Soulbound item per
     // quality tier: account-bound, for the collection log, quests or a fillet.
@@ -139,6 +156,9 @@ export function buildContent(data: GameData): BuiltContent {
         items: byId(items, "item"),
         fish: byId(fish, "fish"),
         crops: byId<CropDef>(data.crops, "crop"),
+        pests: byId<PestDef>(data.pests, "pest"),
+        mutations: byId<MutationDef>(data.mutations, "mutation"),
+        structures: byId(structures, "structure"),
         enemies: byId<EnemyDef>(data.enemies, "enemy"),
         vendors: byId<VendorDef>(data.vendors, "vendor"),
         mayors: byId<MayorDef>(data.mayors, "mayor"),

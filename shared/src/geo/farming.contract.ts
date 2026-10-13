@@ -13,12 +13,17 @@ import type { GeoHandCard, GeoLunchboxSlot } from "./run.contract";
 /** The farm is a square this many tiles across; tiles are unlocked one at a time. */
 export const GEO_FARM_SIZE = 9;
 
-/** PLACEHOLDER weather until real local weather: rolled per turn from the farm's seed. */
-export const GEO_FARM_WEATHERS = ["clear", "overcast", "rain", "heatwave"] as const;
+/**
+ * A Farm Turn's weather: the real weather of the farm's home region over the
+ * 12 hours the turn came in, or a seeded roll when there's no home region or
+ * the weather service can't answer.
+ */
+export const GEO_FARM_WEATHERS = ["clear", "overcast", "rain", "heatwave", "storm", "frost"] as const;
 export type GeoFarmWeather = (typeof GEO_FARM_WEATHERS)[number];
 
 /** What a farming card aims at, so the app can preview it on the grid. */
-export type GeoFarmCardShape = "tile" | "row" | "square3" | "none";
+/** `ring` is the 8 tiles around the one aimed at. */
+export type GeoFarmCardShape = "tile" | "row" | "square3" | "ring" | "none";
 
 /** A crop growing (or rotting) on a tile. */
 export type GeoFarmCrop = {
@@ -53,20 +58,132 @@ export type GeoFarmTile = {
     fertility: number;
     /** The planned crop: a faded ghost, nothing more. */
     blueprint: string | null;
+    /** A Snap Trap: catches a pest that moves onto it on the next Advance. */
+    trap: boolean;
+    /** Hand Pollinated: better mutation odds here on the next Advance. */
+    pollinated: boolean;
+    /** A structure standing here instead of a crop. */
+    structure: GeoFarmStructure | null;
+};
+
+/** What a structure does; the rules are the server's. */
+export type GeoStructureKind = "jukebox" | "cage" | "beehive" | "compost" | "pond" | "greenhouse";
+
+/** A structure on a tile, with what it holds. */
+export type GeoFarmStructure = {
+    structureId: string;
+    /** Jukebox: the pest whose tune is playing, or null when it's quiet. */
+    tune: string | null;
+    /** Pest Cage: the pest kept inside, or null when empty. */
+    caged: string | null;
+    /** Compost Bin: compost waiting, spent 1 a turn to feed the soil around. */
+    compost: number;
+};
+
+export type GeoFarmWeatherSource = {
+    /** "real": the home region's weather. "placeholder": seeded rolls (no home yet, or the service is down). */
+    source: "real" | "placeholder";
+    /** The home region's centre (a coarse grid square), or null before the farm has one. */
+    home: { latitude: number; longitude: number } | null;
+    /** When the home region can next be moved; null when it can be now. */
+    canMoveAt: string | null;
+    /** Home regions are grid squares this many degrees across (to tell if a place is in the home one). */
+    regionDegrees: number;
+};
+
+/** A kind of structure, as the app needs it to draw and explain one. */
+export type GeoStructureView = {
+    id: string;
+    kind: GeoStructureKind;
+    name: string;
+    icon: string;
+    description: string;
+    /** The item placed from the inventory, and given back on pick-up. */
+    itemId: string;
+};
+
+/**
+ * What a pest will do on the next Advance, shown before it happens. `tile`
+ * is where it acts; a pest moves there first if it isn't there already.
+ * Telegraphed moves are promises: clearing the crop first makes them miss.
+ */
+export type GeoFarmPestIntent =
+    /** Moves onto `tile` if it isn't there, and eats the crop: it's gone. */
+    | { kind: "eat"; tile: number }
+    /** Moves onto `tile` (its own tile: stays put). */
+    | { kind: "move"; tile: number }
+    /** Takes fertility from the tile it's on. */
+    | { kind: "drain"; tile: number; amount: number }
+    /** The crop on its tile doesn't grow. */
+    | { kind: "sap"; tile: number }
+    /** A new pest of its kind appears on `tile`; the crop it's on doesn't grow. */
+    | { kind: "breed"; tile: number };
+
+/** A pest on the farm: a piece on the grid, cleared with Swat or pest cards. */
+export type GeoFarmPest = {
+    /** Unique within the farm, for keys. */
+    id: number;
+    pestId: string;
+    tile: number;
+    intent: GeoFarmPestIntent;
+    /** The intent in words: "Eats the Carrot at (4, 5)". */
+    intentText: string;
+};
+
+/** A kind of pest, as the app needs it to draw and explain one. */
+export type GeoPestView = {
+    id: string;
+    name: string;
+    icon: string;
+    description: string;
+    /** Crop ids it's drawn to: growing them is what brings it. */
+    likes: string[];
 };
 
 export const GEO_FARM_MAX_MOISTURE = 3;
 export const GEO_FARM_MAX_FERTILITY = 10;
 
-/** A crop as the app needs it to plant, plan and draw. */
+/**
+ * A crop as the app needs it to plant, plan and draw. Mutations are listed
+ * only once found (turned in at the Research Lab) or growing on the farm,
+ * so the list never gives a secret away.
+ */
 export type GeoCropView = {
     id: string;
     name: string;
     icon: string;
-    seedItemId: string;
+    /** Null for a mutation: it can't be planted, only sprouted. */
+    seedItemId: string | null;
     produceItemId: string;
     stages: number;
+    mutation: boolean;
 };
+
+/** A mutation in the Research Lab's journal: found, so its recipe shows. */
+export type GeoLabEntry = {
+    mutationId: string;
+    name: string;
+    icon: string;
+    description: string;
+    produceItemId: string;
+    /** The recipe in words: "2 ripe Wheat next to an empty tile, on a Heatwave". */
+    recipe: string;
+};
+
+/**
+ * The Research Lab: mutations are found by experimenting, and turning the
+ * first of each in records its recipe here and pays a one-off reward.
+ */
+export type GeoResearchLab = {
+    found: GeoLabEntry[];
+    /** How many mutations there are in all, found or not. */
+    total: number;
+    /** Mutations not yet found whose crop the player holds: each can be turned in now. */
+    ready: { mutationId: string; itemId: string; coins: number; xp: number }[];
+};
+
+/** `POST /geo/farm/lab`. */
+export type GeoResearchRequest = { mutationId: string };
 
 /** One farming card in hand, with what it costs and aims at. */
 export type GeoFarmHandCard = GeoHandCard & {
@@ -91,12 +208,22 @@ export type GeoFarmView = {
     nextTurnAt: string | null;
     /** Weather for the coming Advances, soonest first. One unless the sky has been read. */
     forecast: GeoFarmWeather[];
+    /** Where the weather comes from. */
+    weather: GeoFarmWeatherSource;
     /** Coins the next tile costs; null when every tile is owned. */
     unlockCost: number | null;
     hand: GeoFarmHandCard[];
     /** The Seed Bag: slots unlocked and what's packed. Planting takes one seed. */
     seedBag: GeoSeedBag;
     crops: GeoCropView[];
+    /** Every pest on the farm, each with its next move. */
+    pests: GeoFarmPest[];
+    /** Every kind of pest there is. */
+    pestTypes: GeoPestView[];
+    lab: GeoResearchLab;
+    structureTypes: GeoStructureView[];
+    /** Structures the player holds, ready to place. */
+    structureKit: { structureId: string; itemId: string; quantity: number }[];
     /** What the last action did, in order. */
     log: string[];
     /** What the last action put in the inventory. */
@@ -134,6 +261,20 @@ export type GeoFarmAction =
     | { type: "harvest"; tile: number }
     /** 1 Labor: pulls up whatever is there, rotten or not, for nothing. */
     | { type: "clear"; tile: number }
+    /** 2 Labor: clears every pest on the tile, each rolling its drops. */
+    | { type: "swat"; tile: number }
+    /** Free: a structure from the inventory onto an empty tile. */
+    | { type: "place"; tile: number; itemId: string }
+    /** Free: the structure back into the inventory (a Pest Cage must be empty). */
+    | { type: "pickup"; tile: number }
+    /** Free: the Jukebox plays this pest's tune, or nothing. */
+    | { type: "tune"; tile: number; pestId: string | null }
+    /** 2 Labor: one pest on `tile` into an empty Pest Cage on or next to it, alive. */
+    | { type: "cage"; tile: number }
+    /** Free: the Pest Cage's pest is let out and cleared, rolling its drops. */
+    | { type: "release"; tile: number }
+    /** Free: the farm's weather comes from this place's region from now on. Rarely allowed. */
+    | { type: "home"; latitude: number; longitude: number }
     /** A farming card at a tile (any tile for shape "none"). */
     | { type: "play"; inventoryId: string; tile: number }
     /** Spends a Farm Turn: everything grows, Labor refills. */
@@ -148,6 +289,13 @@ export const GEO_FARM_ACTION_TYPES = [
     "water",
     "harvest",
     "clear",
+    "swat",
+    "place",
+    "pickup",
+    "tune",
+    "cage",
+    "release",
+    "home",
     "play",
     "advance",
     "unlock",

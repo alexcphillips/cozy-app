@@ -65,6 +65,9 @@ One entry per file, named by its id: `data/weapons/broadsword.ts` has
 | `misc/` | Keys, nets, lenses and anything else | [misc](misc/README.md) |
 | `fish/` | Fish that bite in a fishing Run | [fish](fish/README.md) |
 | `crops/` | Crops that grow on the farm | [crops](crops/README.md) |
+| `pests/` | Pests that come for the farm's crops | [pests](pests/README.md) |
+| `mutations/` | Secret crops that sprout from recipes | [mutations](mutations/README.md) |
+| `structures/` | Farm structures, each also an item | [structures](structures/README.md) |
 | `enemies/` | Enemies, their moves and their loot | [enemies](enemies/README.md) |
 | `statuses/` | Burning, Frozen, Well Fed… | [statuses](statuses/README.md) |
 | `recipes/` | Crafting and cooking recipes | [recipes](recipes/README.md) |

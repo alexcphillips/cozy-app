@@ -1,5 +1,5 @@
 import type { GeoChestTier, GeoQualityTier } from "@cozy/shared/geo";
-import type { CropDef } from "./farming";
+import type { CropDef, MutationDef, PestDef, StructureDef } from "./farming";
 import type { FishDef } from "./fishing";
 import type { Action, CardDef, EffectDef, EnemyMove, FoodDef, StatModifier, Stats, StatusDef } from "../engine/engine.types";
 
@@ -255,6 +255,12 @@ export type GameContent = {
     fish: Record<string, FishDef>;
     /** Crops that grow on the farm (`data/crops/`). */
     crops: Record<string, CropDef>;
+    /** Pests that come for the crops (`data/pests/`). */
+    pests: Record<string, PestDef>;
+    /** Secret crops that sprout from recipes (`data/mutations/`). */
+    mutations: Record<string, MutationDef>;
+    /** Farm structures (`data/structures/`); each also makes a `structure.<id>` item. */
+    structures: Record<string, StructureDef>;
     enemies: Record<string, EnemyDef>;
     vendors: Record<string, VendorDef>;
     mayors: Record<string, MayorDef>;

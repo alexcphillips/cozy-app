@@ -70,8 +70,11 @@ Enemy spawns around each player.
 | `startFertility`, `fallowRecovery`, `fallowCap` | Every tile's fertility to start; an empty tile gains `fallowRecovery` per Advance up to `fallowCap`. |
 | `fertilityYield` | `{ low, high }`: harvest −1 at or below `low` fertility, +1 at or above `high`. |
 | `rotChances` | Harvest or push: rot chance on each Advance a ripe crop waits. Each wait it survives adds +1 yield; the list's length caps that. |
-| `labor` | Labor for the plain actions: `water`, `harvest`, `clear`. |
-| `weatherWeights` | PLACEHOLDER weather until real local weather: how often `clear`, `overcast`, `rain`, `heatwave` come. |
+| `labor` | Labor for the plain actions: `water`, `harvest`, `clear`, `swat` (clears the pests on a tile), `cage` (a pest into a Pest Cage). |
+| `pests` | `fromTurn`: no pests before this Advance. Then each Advance one spawns with chance `chancePerCrop` × liked crops growing, at most `maxChance`, while fewer than `max` are on the farm. |
+| `pollinateBoost` | Hand Pollinate multiplies a tile's mutation chances by this on the next Advance. |
+| `weatherWeights` | Placeholder weather, rolled when a farm has no home region or the weather service is down: how often each of `clear`, `overcast`, `rain`, `heatwave`, `storm`, `frost` comes. |
+| `weather` | Real weather (Open-Meteo, per home region). A turn's 12 hours are a `storm` with any thunderstorm hour, else `frost` at or below `frostC` °C, else `heatwave` at or above `heatwaveC` °C, else `rain` with `rainMm` mm or more, else `overcast` with mean cloud `overcastCloud` % or more, else `clear`. `regionDegrees`: the home region's grid square. `homeCooldownDays`: how often it can move. `stormFlattenChance`: each open-field crop flattened in a storm. `frostKillsUpToStage`: growing open-field crops at this stage or below die in a frost. |
 
 ## elections.ts
 

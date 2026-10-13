@@ -20,6 +20,10 @@ export default {
         { itemId: "card.farm.scythe-sweep", price: 150 },
         { itemId: "card.farm.ripen", price: 150 },
         { itemId: "card.farm.hold", price: 120 },
+        { itemId: "card.farm.smoke", price: 120 },
+        { itemId: "card.farm.bait-ring", price: 60 },
+        { itemId: "card.farm.snap-trap", price: 80 },
+        { itemId: "card.farm.hand-pollinate", price: 150 },
     ],
     buys: { kinds: ["material"], skills: ["farming"] },
 } satisfies Vendor;

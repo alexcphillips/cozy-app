@@ -2,14 +2,16 @@ import assert from "node:assert/strict";
 import { GEO_API_PATHS, type GeoFarmAction, type GeoFarmView, type GeoMeResponse } from "@cozy/shared/geo";
 import { CONTENT } from "../content";
 import { withTransaction } from "../db/transaction";
-import { addCoins } from "../modules/player/geo-player.repository";
+import { addCoins, grantItems } from "../modules/player/geo-player.repository";
 import { startSmokeServer, step } from "./smoke-kit";
 
 /**
  * End-to-end check of the farm against the local database: the starter
  * farming hand and Seed Bag, a farm made on first look, planting spending a
  * seed, Labor and banked turns enforced, a harvest into the inventory with
- * its XP, a card charge spent, a tile bought with coins, and packing seeds.
+ * its XP, a card charge spent, a pest swatted for its drop, a tile bought
+ * with coins, a mutation turned in at the Research Lab, a structure placed
+ * and picked up, and packing seeds.
  * `npm run smoke:geo-farming`.
  */
 const { call, registerPlayer, stop } = await startSmokeServer();
@@ -23,7 +25,7 @@ try {
     const playerId = (await me(token)).player.id;
 
     const start = await me(token);
-    assert.equal(start.hands.farming?.length, 4, "a starter farming hand");
+    assert.equal(start.hands.farming?.length, 5, "a starter farming hand");
     assert.deepEqual(
         start.seedBag.contents.map((slot) => [slot.itemId, slot.quantity]),
         [
@@ -31,13 +33,13 @@ try {
             ["carrot-seeds", 6],
         ],
     );
-    step("starter kit: four farming cards in hand, wheat and carrot seeds in the Seed Bag");
+    step("starter kit: five farming cards in hand, wheat and carrot seeds in the Seed Bag");
 
     let farm = (await call<GeoFarmView>("GET", GEO_API_PATHS.farm.root, token)).body;
     assert.equal(farm.tiles.filter((tile) => tile.owned).length, 9);
     assert.equal(farm.labor, 3);
     assert.equal(farm.turnsBanked, 2);
-    assert.equal(farm.hand.length, 4);
+    assert.equal(farm.hand.length, 5);
     step("first look makes a 3×3 farm with 3 Labor and 2 turns banked");
 
     const act = async (action: GeoFarmAction, status = 200) => {
@@ -70,9 +72,13 @@ try {
 
     // Skip the clock: bank turns by hand, and keep the wheat watered until it's ripe.
     await withTransaction((tx) => tx(`UPDATE geo.farms SET state = jsonb_set(state, '{turnsBanked}', '10') WHERE player_id = $1`, [playerId]));
-    for (let guard = 0; !farm.tiles[MID]!.crop!.ripe; guard++) {
-        assert.ok(guard < 10, "wheat never ripened");
+    for (let guard = 0; !farm.tiles[MID]!.crop?.ripe; guard++) {
+        assert.ok(guard < 20, "wheat never ripened");
+        // Placeholder weather can storm or frost the wheat away: plant again.
+        if (!farm.tiles[MID]!.crop) await act({ type: "plant", tile: MID, slot: 0 });
         if (farm.tiles[MID]!.moisture === 0) await act({ type: "water", tile: MID });
+        // Pests may come for the wheat: swat each before it acts.
+        for (const tile of new Set(farm.pests.map((pest) => pest.tile))) await act({ type: "swat", tile });
         await act({ type: "advance" });
     }
     const pick = farm.hand.find((card) => card.cardId === "farm.careful-pick")!;
@@ -86,6 +92,21 @@ try {
     assert.equal(after.inventory.find((entry) => entry.id === pick.inventoryId)!.chargesLeft, pick.chargesLeft - 1);
     step(`Careful Pick harvested ${wheat.quantity} wheat into the inventory, with farming XP and a charge spent`);
 
+    const mouse = { id: 999, pestId: "field-mouse", tile: MID, age: 0, intent: { kind: "move", tile: MID } };
+    await withTransaction((tx) =>
+        tx(`UPDATE geo.farms SET state = jsonb_set(jsonb_set(state, '{pests}', $2::jsonb), '{labor}', '3') WHERE player_id = $1`, [
+            playerId,
+            JSON.stringify([mouse]),
+        ]),
+    );
+    await act({ type: "swat", tile: MID });
+    assert.equal(farm.pests.length, 0);
+    assert.equal(farm.labor, 1);
+    assert.ok(farm.gained.some((gain) => gain.itemId === "mouse-tail"));
+    assert.ok((await me(token)).inventory.some((entry) => entry.itemId === "mouse-tail"));
+    await act({ type: "swat", tile: MID }, 400);
+    step("Swat clears a pest for 2 Labor, its drop into the inventory");
+
     const edge = MID - 2;
     await act({ type: "unlock", tile: edge }, 400);
     await withTransaction((tx) => addCoins(tx, playerId, 1000, "vendor-sell", "smoke"));
@@ -93,6 +114,33 @@ try {
     assert.ok(farm.tiles[edge]!.owned);
     assert.equal((await me(token)).player.coins, 1000 - 50);
     step("a tile next to the farm costs coins, refused without them");
+
+    const coinsBefore = (await me(token)).player.coins;
+    assert.equal(farm.lab.found.length, 0);
+    assert.equal(farm.lab.total, Object.keys(CONTENT.mutations).length);
+    await withTransaction((tx) => grantItems(tx, playerId, [{ itemId: "emberwheat", quantity: 1 }]));
+    farm = (await call<GeoFarmView>("GET", GEO_API_PATHS.farm.root, token)).body;
+    assert.deepEqual(farm.lab.ready.map((entry) => entry.mutationId), ["emberwheat"]);
+    farm = (await call<GeoFarmView>("POST", GEO_API_PATHS.farm.lab, token, { mutationId: "emberwheat" })).body;
+    assert.deepEqual(farm.lab.found.map((entry) => entry.mutationId), ["emberwheat"]);
+    assert.ok(farm.crops.some((crop) => crop.id === "emberwheat" && crop.mutation));
+    const researched = await me(token);
+    assert.equal(researched.player.coins, coinsBefore + CONTENT.mutations.emberwheat!.research.coins);
+    assert.ok(!researched.inventory.some((entry) => entry.itemId === "emberwheat"));
+    assert.equal((await call("POST", GEO_API_PATHS.farm.lab, token, { mutationId: "emberwheat" })).status, 400);
+    step("the Research Lab takes the first Emberwheat, logs its recipe and pays once");
+
+    await withTransaction((tx) => grantItems(tx, playerId, [{ itemId: "structure.compost-bin", quantity: 1 }]));
+    farm = (await call<GeoFarmView>("GET", GEO_API_PATHS.farm.root, token)).body;
+    assert.deepEqual(farm.structureKit.map((entry) => entry.structureId), ["compost-bin"]);
+    await act({ type: "place", tile: MID, itemId: "structure.compost-bin" });
+    assert.equal(farm.tiles[MID]!.structure?.structureId, "compost-bin");
+    assert.ok(!(await me(token)).inventory.some((entry) => entry.itemId === "structure.compost-bin"));
+    await act({ type: "place", tile: MID, itemId: "structure.compost-bin" }, 400);
+    await act({ type: "pickup", tile: MID });
+    assert.equal(farm.tiles[MID]!.structure, null);
+    assert.ok((await me(token)).inventory.some((entry) => entry.itemId === "structure.compost-bin"));
+    step("a Compost Bin leaves the inventory when placed, and comes back on pick-up");
 
     await act({ type: "blueprint", tile: 0, cropId: "melon" });
     assert.equal(farm.tiles[0]!.blueprint, "melon");

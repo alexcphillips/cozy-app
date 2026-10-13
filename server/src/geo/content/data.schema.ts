@@ -247,6 +247,54 @@ const CropFile = z.strictObject({
     xp: z.int().min(0),
 });
 
+const StructureFile = z.strictObject({
+    ...itemBase,
+    effect: z.discriminatedUnion("kind", [
+        z.strictObject({ kind: z.literal("jukebox"), boost: z.number().min(1) }),
+        z.strictObject({ kind: z.literal("cage") }),
+        z.strictObject({ kind: z.literal("beehive"), boost: z.number().min(1), swarmChance: fraction }),
+        z.strictObject({ kind: z.literal("compost"), capacity: count }),
+        z.strictObject({ kind: z.literal("pond") }),
+        z.strictObject({ kind: z.literal("greenhouse") }),
+    ]),
+});
+
+const MutationFile = z.strictObject({
+    id,
+    name: z.string().min(1),
+    icon: z.string().min(1),
+    description: z.string(),
+    produce: ref,
+    stages: count,
+    yield: range(1),
+    fertilityCost: z.int().min(0),
+    xp: z.int().min(0),
+    recipe: z.strictObject({
+        parents: z.array(z.strictObject({ cropId: ref, count })).min(1),
+        weather: z.enum(GEO_FARM_WEATHERS).optional(),
+        pest: ref.optional(),
+        minFertility: z.int().min(0).max(10).optional(),
+    }),
+    chance: fraction,
+    research: z.strictObject({ coins: z.int().min(0), xp: z.int().min(0) }),
+});
+
+const PestFile = z.strictObject({
+    id,
+    name: z.string().min(1),
+    icon: z.string().min(1),
+    description: z.string(),
+    likes: z.array(ref).min(1),
+    behaviour: z.discriminatedUnion("kind", [
+        z.strictObject({ kind: z.literal("eat"), reach: count }),
+        z.strictObject({ kind: z.literal("drain"), amount: count }),
+        z.strictObject({ kind: z.literal("breed"), every: count }),
+    ]),
+    weight: z.number().positive(),
+    drops: z.array(z.strictObject({ itemId: ref, chance: fraction, quantity: range(1) })),
+    xp: z.int().min(0),
+});
+
 const ChestTier = z.enum(GEO_CHEST_TIERS);
 
 const EnemyFile = z.strictObject({
@@ -358,6 +406,9 @@ export const DATA_FOLDERS = {
     misc: MiscFile,
     fish: FishFile,
     crops: CropFile,
+    pests: PestFile,
+    mutations: MutationFile,
+    structures: StructureFile,
     enemies: EnemyFile,
     statuses: StatusFile,
     recipes: RecipeFile,
@@ -403,8 +454,20 @@ const FarmingConfig = z.strictObject({
     fallowCap: z.int().min(0).max(10),
     fertilityYield: z.strictObject({ low: z.int().min(0).max(10), high: z.int().min(0).max(10) }),
     rotChances: z.array(fraction).min(1),
-    labor: z.strictObject({ water: z.int().min(0), harvest: z.int().min(0), clear: z.int().min(0) }),
+    labor: z.strictObject({ water: z.int().min(0), harvest: z.int().min(0), clear: z.int().min(0), swat: z.int().min(0), cage: z.int().min(0) }),
+    pests: z.strictObject({ fromTurn: z.int().min(0), chancePerCrop: fraction, maxChance: fraction, max: z.int().min(0) }),
+    pollinateBoost: z.number().min(1),
     weatherWeights: z.record(z.enum(GEO_FARM_WEATHERS), z.number().min(0)),
+    weather: z.strictObject({
+        heatwaveC: z.number(),
+        frostC: z.number(),
+        rainMm: z.number().min(0),
+        overcastCloud: z.number().min(0).max(100),
+        regionDegrees: z.number().positive(),
+        homeCooldownDays: z.number().min(0),
+        stormFlattenChance: fraction,
+        frostKillsUpToStage: z.int().min(0),
+    }),
 });
 
 const PlayerConfig = z.strictObject({
@@ -491,6 +554,9 @@ const folderModels: { [K in DataFolder]: Same<z.input<(typeof DATA_FOLDERS)[K]>,
     misc: true,
     fish: true,
     crops: true,
+    pests: true,
+    mutations: true,
+    structures: true,
     enemies: true,
     statuses: true,
     recipes: true,
@@ -524,6 +590,9 @@ export type ModelOf = {
     misc: M.MiscItem;
     fish: M.Fish;
     crops: M.Crop;
+    pests: M.Pest;
+    mutations: M.Mutation;
+    structures: M.Structure;
     enemies: M.Enemy;
     statuses: M.Status;
     recipes: M.Recipe;

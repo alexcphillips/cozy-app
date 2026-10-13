@@ -219,6 +219,98 @@ export type Crop = {
     xp: number;
 };
 
+/**
+ * A farm structure. Each file makes an item, `structure.<id>` (crafted by a
+ * recipe, kept in the misc tab), that is placed on one empty farm tile and
+ * picked back up whole.
+ */
+export type Structure = ItemBase & {
+    /**
+     * What it does. `jukebox`: its tune makes that pest `boost` times
+     * likelier to spawn. `cage`: keeps a pest alive, which counts as that pest
+     * nearby for mutation recipes. `beehive`: mutation chances × `boost`
+     * around it; `swarmChance` each Advance the crops around don't grow.
+     * `compost`: each harvest and clear adds compost up to `capacity`; each
+     * Advance spends 1 for +1 fertility on the 8 tiles around. `pond`: keeps
+     * the 4 tiles beside it watered, and a frog eats 1 pest near it a turn.
+     * `greenhouse`: the 8 tiles around get no weather (they grow as on a
+     * clear day), no pests arrive there, and no mutations sprout there.
+     */
+    effect:
+        | { kind: "jukebox"; boost: number }
+        | { kind: "cage" }
+        | { kind: "beehive"; boost: number; swarmChance: number }
+        | { kind: "compost"; capacity: number }
+        | { kind: "pond" }
+        | { kind: "greenhouse" };
+};
+
+/**
+ * A mutation: a fantasy crop that can't be planted. It sprouts on an empty
+ * tile when its secret `recipe` is met there on an Advance, then grows and
+ * harvests like a crop (no seeds back). Its `produce` is an ordinary
+ * `farming` material. The first one turned in at the Research Lab records
+ * the recipe and pays `research`.
+ */
+export type Mutation = {
+    /** Must match the file name. */
+    id: string;
+    name: string;
+    icon: string;
+    description: string;
+    /** The item a harvest gives. */
+    produce: string;
+    /** Advances from sprouting to ripe, each needing moisture. */
+    stages: number;
+    yield: Range;
+    fertilityCost: number;
+    /** Farming XP per harvest. */
+    xp: number;
+    /** Checked around an empty tile on each Advance, after growth. Every part given must hold. */
+    recipe: {
+        /** Ripe crops among the 8 tiles around: at least `count` of each. */
+        parents: { cropId: string; count: number }[];
+        /** The weather of that Advance. */
+        weather?: GeoFarmWeather;
+        /** A pest of this kind on the tile or one of the 8 around. */
+        pest?: string;
+        /** The empty tile's fertility, at least. */
+        minFertility?: number;
+    };
+    /** Chance (0–1) it sprouts on an Advance where the recipe holds. Hand Pollinate multiplies it. */
+    chance: number;
+    /** Paid once, for the first one turned in at the Research Lab. */
+    research: { coins: number; xp: number };
+};
+
+/**
+ * A pest: a piece on the farm grid that comes for the crops it likes, shows
+ * its next move, and acts on Advance. Cleared with Swat or pest cards, each
+ * rolling its `drops`.
+ */
+export type Pest = {
+    /** Must match the file name. */
+    id: string;
+    name: string;
+    icon: string;
+    description: string;
+    /** Crop ids it's drawn to. It only spawns while one of them grows, and goes for them first. */
+    likes: string[];
+    /**
+     * How it acts on Advance. `eat`: eats a crop within `reach` tiles (the
+     * crop is gone). `drain`: takes `amount` fertility from its tile.
+     * `breed`: the crop it's on doesn't grow, and every `every` Advances a
+     * new one appears on a crop next door.
+     */
+    behaviour: { kind: "eat"; reach: number } | { kind: "drain"; amount: number } | { kind: "breed"; every: number };
+    /** How likely it is to be the one that spawns, per liked crop growing. */
+    weight: number;
+    /** Rolled one by one when it's cleared: each lands with its `chance` (0–1). */
+    drops: { itemId: string; chance: number; quantity: Range }[];
+    /** Farming XP when it's cleared. */
+    xp: number;
+};
+
 /** One possible pick in a chest pool, weighted against the others. */
 export type ChestEntry = { itemId: string; weight: number; quantity: Range };
 
@@ -401,9 +493,37 @@ export type FarmingConfig = {
     /** Harvest or push: rot chance on each Advance a ripe crop waits; the list's length caps the bonus. */
     rotChances: number[];
     /** Labor for the plain actions. */
-    labor: { water: number; harvest: number; clear: number };
-    /** PLACEHOLDER weather until real local weather: how often each comes. */
+    labor: { water: number; harvest: number; clear: number; swat: number; cage: number };
+    /**
+     * Pests. None spawn before Advance number `fromTurn`. Each Advance, one
+     * spawns with chance `chancePerCrop` × liked crops growing, at most
+     * `maxChance`, while fewer than `max` are on the farm.
+     */
+    pests: { fromTurn: number; chancePerCrop: number; maxChance: number; max: number };
+    /** Hand Pollinate multiplies a tile's mutation chances by this. */
+    pollinateBoost: number;
+    /** Placeholder weather, rolled when there's no real weather: how often each comes. */
     weatherWeights: Record<GeoFarmWeather, number>;
+    /**
+     * Real weather. A period is a `storm` with any thunderstorm hour; else
+     * `frost` at or below `frostC`; else `heatwave` at or above `heatwaveC`;
+     * else `rain` with `rainMm` or more in all; else `overcast` with mean
+     * cloud cover at or above `overcastCloud` %; else `clear`.
+     */
+    weather: {
+        heatwaveC: number;
+        frostC: number;
+        rainMm: number;
+        overcastCloud: number;
+        /** The home region is a grid square this many degrees across. */
+        regionDegrees: number;
+        /** Days before the home region can be moved again. */
+        homeCooldownDays: number;
+        /** Storm: chance each open-field crop is flattened. */
+        stormFlattenChance: number;
+        /** Frost: growing open-field crops at this stage or below die. */
+        frostKillsUpToStage: number;
+    };
 };
 
 export type FishingConfig = {

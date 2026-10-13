@@ -1,0 +1,22 @@
+# Structures
+
+Farm structures. Each file makes an item, `structure.<id>`, kept in the misc
+tab. A recipe in `recipes/` crafts it; at a farming place it's placed on one
+empty tile, and picked back up whole (a Pest Cage must be empty first).
+
+What each kind does is in the rules (`farming/farm.ts`); a file only tunes
+its numbers.
+
+## Fields
+
+Model: `Structure` in `#geo/models` (`content/models.ts`), plus the
+[fields every item has](../README.md#fields-every-item-has).
+
+| `effect` | What it does |
+| --- | --- |
+| `{ kind: "jukebox", boost }` | Its tune (picked on the tile, free) makes that pest `boost` times likelier to be the one that spawns. Spawn odds overall don't change. |
+| `{ kind: "cage" }` | Holds one pest alive (the Cage action, 2 Labor, from a tile on or next to it). A caged pest doesn't act, and counts as that pest nearby for mutation recipes. Release it to clear it for its drops. |
+| `{ kind: "beehive", boost, swarmChance }` | Mutation chances × `boost` on empty tiles around it. Each Advance, `swarmChance` the bees swarm and the crops around don't grow. |
+| `{ kind: "compost", capacity }` | Each harvest and clear on the farm adds 1 compost, up to `capacity`. Each Advance spends 1 for +1 fertility on the 8 tiles around. |
+| `{ kind: "pond" }` | Keeps the 4 tiles beside it at 1 water or more, and its frog eats 1 pest on or around it each Advance (no drops). |
+| `{ kind: "greenhouse" }` | Shelters the 8 tiles around: they get no weather (they grow as on a clear day, safe from storms and frost), no pests arrive there (they can still walk in), and no mutations sprout there. |
