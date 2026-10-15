@@ -4,7 +4,8 @@ export default {
     id: "green-slime",
     name: "Green Slime",
     sprite: "green-slime",
-    stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
+    tier: 1,
+    stats: { maxHealth: 25, attack: 12, defence: 0, speed: 12 },
     moves: [
         {
             id: "bite",

@@ -170,6 +170,8 @@ export type EnemyDef = {
     name: string;
     /** The app's sprite name. */
     sprite: string;
+    /** From 1; spawns only for players whose combat level has opened it. */
+    tier: number;
     stats: Stats;
     moves: EnemyMove[];
     /** Innate effects, e.g. a spider that poisons on hit. */

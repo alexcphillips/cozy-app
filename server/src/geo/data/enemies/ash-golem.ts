@@ -4,6 +4,7 @@ export default {
     id: "ash-golem",
     name: "Ash Golem",
     sprite: "ash-golem",
+    tier: 3,
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {

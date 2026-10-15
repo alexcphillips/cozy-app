@@ -4,6 +4,7 @@ export default {
     id: "kingsguard",
     name: "Kingsguard",
     sprite: "kingsguard",
+    tier: 4,
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {

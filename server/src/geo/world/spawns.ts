@@ -70,6 +70,31 @@ export function rollLifetimeMs(rng: Rng): number {
     return (min + rng.next() * (max - min)) * 60_000;
 }
 
+/** The highest enemy tier a combat level has opened: 1 to tierUnlockLevels.length. */
+export function enemyTierFor(combatLevel: number): number {
+    return Math.max(1, SPAWN_RULES.tierUnlockLevels.filter((level) => combatLevel >= level).length);
+}
+
+/**
+ * How common an enemy is for a player of `tier`, against its weight: 1 at
+ * their tier, less below it (lowerTierWeights), never above it.
+ */
+function tierWeight(enemyId: string, tier: number): number {
+    const below = tier - (CONTENT.enemies[enemyId]?.tier ?? 1);
+    if (below < 0) return 0;
+    if (below === 0) return 1;
+    const { lowerTierWeights } = SPAWN_RULES;
+    return lowerTierWeights[Math.min(below, lowerTierWeights.length) - 1]!;
+}
+
+/** A spawn table as a player of `tier` sees it: higher tiers gone, lower ones rarer. */
+export function tableForTier<T extends { enemyId: string; weight: number }>(table: readonly T[], tier: number): T[] {
+    return table.flatMap((entry) => {
+        const scale = tierWeight(entry.enemyId, tier);
+        return scale > 0 ? [{ ...entry, weight: entry.weight * scale }] : [];
+    });
+}
+
 const METRES_PER_DEGREE_LAT = 111_320;
 
 /**
@@ -124,17 +149,21 @@ const FACING_SPREAD = Math.PI / 4;
  * Where a new spawn comes from, by weight: the anywhere table has 1, and each
  * nearby place its habitat's `weight`, fading to nothing at its
  * `influenceMetres`. A place pulls only if someone lives there (in that kind
- * of water, for water).
+ * of water, for water) of a tier the player has opened.
  */
-function spawnSources(here: GeoPoint, near: NearPlaces) {
-    const sources: { weight: number; table: readonly HabitatEntry[]; place?: NearPlace }[] = [{ weight: 1, table: SPAWN_RULES.enemies }];
+function spawnSources(here: GeoPoint, near: NearPlaces, tier: number) {
+    // Never empty: config needs a tier 1 enemy, and lowerTierWeights are above 0.
+    const sources: { weight: number; table: readonly HabitatEntry[]; place?: NearPlace }[] = [
+        { weight: 1, table: tableForTier(SPAWN_RULES.enemies, tier) },
+    ];
     for (const habitat of GEO_WORLD_HABITATS) {
         const place = near[habitat];
         if (!place) continue;
         const { influenceMetres, weight } = SPAWN_RULES.habitats[habitat];
         const pull = weight * (1 - distanceMetres(here, place) / influenceMetres);
-        const table = HABITAT_ENEMIES[habitat].filter(
-            (entry) => !entry.waters || (place.waterKind !== undefined && entry.waters.includes(place.waterKind)),
+        const table = tableForTier(
+            HABITAT_ENEMIES[habitat].filter((entry) => !entry.waters || (place.waterKind !== undefined && entry.waters.includes(place.waterKind))),
+            tier,
         );
         if (pull > 0 && table.length > 0) sources.push({ weight: pull, table, place });
     }
@@ -144,10 +173,11 @@ function spawnSources(here: GeoPoint, near: NearPlaces) {
 /**
  * One new spawn. Nearby places (`near`) pull some toward their own enemies:
  * beside the place when it's within reach, else on the player's side facing
- * it. The rest come from `enemies`, anywhere in the ring.
+ * it. The rest come from `enemies`, anywhere in the ring. Only enemies of
+ * `tier` (enemyTierFor the player's combat level) and below.
  */
-export function rollSpawn(rng: Rng, here: GeoPoint, near: NearPlaces): { enemyId: string; point: GeoPoint } {
-    const source = pickWeighted(spawnSources(here, near), rng.next())!;
+export function rollSpawn(rng: Rng, here: GeoPoint, near: NearPlaces, tier: number): { enemyId: string; point: GeoPoint } {
+    const source = pickWeighted(spawnSources(here, near, tier), rng.next())!;
     const enemyId = rollEnemyId(rng, source.table);
     if (!source.place) return { enemyId, point: randomPointNear(here, rng) };
     return { enemyId, point: pointToward(source.place, here, rng) };

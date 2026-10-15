@@ -4,6 +4,7 @@ export default {
     id: "the-last-witness",
     name: "The Last Witness",
     sprite: "the-last-witness",
+    tier: 5,
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {

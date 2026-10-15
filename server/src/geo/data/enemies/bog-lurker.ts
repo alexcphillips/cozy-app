@@ -4,6 +4,7 @@ export default {
     id: "bog-lurker",
     name: "Bog Lurker",
     sprite: "bog-lurker",
+    tier: 2,
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {

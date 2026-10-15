@@ -4,6 +4,7 @@ export default {
     id: "clusterflesh",
     name: "Clusterflesh",
     sprite: "clusterflesh",
+    tier: 3,
     stats: { maxHealth: 30, attack: 4, defence: 0, speed: 5 },
     moves: [
         {

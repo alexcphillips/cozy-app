@@ -4,6 +4,7 @@ export default {
     id: "oathbreaker-mira",
     name: "Oathbreaker Mira",
     sprite: "oathbreaker-mira",
+    tier: 5,
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {

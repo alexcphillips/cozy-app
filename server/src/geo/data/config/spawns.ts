@@ -9,6 +9,11 @@ export default {
     windowMinutes: 15,
     spawnGapSeconds: 180,
     lifetimeMinutes: { min: 4, max: 8 },
+    // PLACEHOLDER. Front-loaded: tier 2 comes quickly (~25 kills), later
+    // tiers take longer as levels do.
+    tierUnlockLevels: [1, 5, 12, 22, 35],
+    // One tier below is 40% as common as your own, two below 15%, any lower 5%.
+    lowerTierWeights: [0.4, 0.15, 0.05],
     enemies: [
         { enemyId: "spider", weight: 10 },
         { enemyId: "green-slime", weight: 10 },

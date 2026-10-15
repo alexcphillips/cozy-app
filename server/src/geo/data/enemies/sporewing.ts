@@ -4,6 +4,7 @@ export default {
     id: "sporewing",
     name: "Sporewing",
     sprite: "sporewing",
+    tier: 2,
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {

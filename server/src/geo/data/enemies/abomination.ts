@@ -4,6 +4,7 @@ export default {
     id: "abomination",
     name: "Abomination",
     sprite: "abomination",
+    tier: 4,
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {

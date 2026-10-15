@@ -19,6 +19,7 @@ export function spawnCountFor(playerId: string, now: number): number {
 }
 
 export {
+    enemyTierFor,
     MAX_SPAWNS,
     randomPointNear,
     rollLifetimeMs,

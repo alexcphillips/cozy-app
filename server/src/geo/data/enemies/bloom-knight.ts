@@ -4,6 +4,7 @@ export default {
     id: "bloom-knight",
     name: "Bloom Knight",
     sprite: "bloom-knight",
+    tier: 4,
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {

@@ -4,6 +4,7 @@ export default {
     id: "creeping-vine",
     name: "Creeping Vine",
     sprite: "creeping-vine",
+    tier: 1,
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {

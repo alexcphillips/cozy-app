@@ -4,7 +4,8 @@ export default {
     id: "spider",
     name: "Giant Spider",
     sprite: "spider",
-    stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
+    tier: 1,
+    stats: { maxHealth: 34, attack: 12, defence: 0, speed: 12 },
     moves: [
         {
             id: "bite",

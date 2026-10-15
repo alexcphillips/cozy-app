@@ -328,6 +328,7 @@ const EnemyFile = z.strictObject({
     id,
     name: z.string().min(1),
     sprite: z.string().min(1),
+    tier: z.int().min(1),
     stats: z.record(z.string(), z.number()),
     moves: z
         .array(
@@ -565,6 +566,8 @@ const SpawnsConfig = z.strictObject({
     windowMinutes: z.number().positive(),
     spawnGapSeconds: z.number().min(0),
     lifetimeMinutes: z.strictObject({ min: z.number().positive(), max: z.number().positive() }),
+    tierUnlockLevels: z.array(z.int().min(1)).min(1),
+    lowerTierWeights: z.array(z.number().positive()).min(1),
     enemies: z.array(z.strictObject({ enemyId: ref, weight: z.number().positive() })).min(1),
     habitats: z.record(
         z.enum(GEO_WORLD_HABITATS),

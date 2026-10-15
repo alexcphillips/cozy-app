@@ -249,7 +249,15 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
     for (const { enemyId } of spawns.enemies) {
         if (!content.enemies[enemyId]) problems.push(`config/spawns.ts spawns unknown enemy "${enemyId}"`);
     }
+    const unlocks = spawns.tierUnlockLevels;
+    if (unlocks[0] !== 1) problems.push("config/spawns.ts: tierUnlockLevels must start at 1, so new players have tier 1");
+    if (unlocks.some((level, i) => i > 0 && level <= unlocks[i - 1]!)) problems.push("config/spawns.ts: tierUnlockLevels must go up");
+    if (unlocks.some((level) => level > GEO_MAX_SKILL_LEVEL)) problems.push(`config/spawns.ts: tierUnlockLevels is past the max level of ${GEO_MAX_SKILL_LEVEL}`);
+    if (!spawns.enemies.some(({ enemyId }) => content.enemies[enemyId]?.tier === 1)) {
+        problems.push("config/spawns.ts: enemies needs a tier 1 enemy, for new players");
+    }
     for (const enemy of Object.values(content.enemies)) {
+        if (enemy.tier > unlocks.length) problems.push(`Enemy "${enemy.id}" is tier ${enemy.tier}, but tierUnlockLevels only opens ${unlocks.length}`);
         const habitats = enemy.habitats ?? [];
         if (new Set(habitats.map((habitat) => habitat.near)).size !== habitats.length) {
             problems.push(`Enemy "${enemy.id}" lists a habitat twice`);

@@ -4,6 +4,7 @@ import { withTransaction, type TxQuery } from "../../db/transaction";
 import { createRng, randomSeed } from "../../engine/rng";
 import {
     advanceTravel,
+    enemyTierFor,
     MAX_SPAWNS,
     randomPointNear,
     rollLifetimeMs,
@@ -14,6 +15,7 @@ import {
     type NearPlaces,
     type Travel,
 } from "../../world";
+import { findSkillLevels } from "../player/geo-player.repository";
 import {
     CLAIM_SPAWN,
     DELETE_SPAWNS,
@@ -116,8 +118,9 @@ export async function spawnsAround(
         ]);
 
         const rng = createRng(randomSeed());
+        const tier = missing > 0 ? enemyTierFor((await findSkillLevels(tx, playerId)).combat ?? 1) : 1;
         for (let i = 0; i < missing; i++) {
-            const { enemyId, point } = rollSpawn(rng, here, near);
+            const { enemyId, point } = rollSpawn(rng, here, near, tier);
             const [row] = await tx<SpawnRow>(INSERT_SPAWN, [
                 playerId,
                 enemyId,

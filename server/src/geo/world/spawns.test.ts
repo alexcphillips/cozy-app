@@ -4,9 +4,22 @@ import { distanceMetres } from "@cozy/shared/geo";
 import { createRng } from "../engine/rng";
 import { CONTENT } from "../content";
 import { APP_SPRITES } from "./app-sprites.generated";
-import { HABITAT_ENEMIES, MAX_SPAWNS, randomPointNear, rollEnemyId, rollLifetimeMs, rollSpawn, rollSpawnCount, SPAWN_RULES } from "./spawns";
+import {
+    enemyTierFor,
+    HABITAT_ENEMIES,
+    MAX_SPAWNS,
+    randomPointNear,
+    rollEnemyId,
+    rollLifetimeMs,
+    rollSpawn,
+    rollSpawnCount,
+    SPAWN_RULES,
+    tableForTier,
+} from "./spawns";
 
 const DALLAS = { latitude: 32.7894, longitude: -96.8016 };
+/** The highest tier, so every enemy can spawn. */
+const TOP = SPAWN_RULES.tierUnlockLevels.length;
 
 describe("spawns", () => {
     it("land in the ring around the player", () => {
@@ -58,7 +71,7 @@ describe("spawns", () => {
             const rolls = 5000;
             let wet = 0;
             for (let i = 0; i < rolls; i++) {
-                const { enemyId, point } = rollSpawn(rng, DALLAS, { water: { ...shore, waterKind: "lake" } });
+                const { enemyId, point } = rollSpawn(rng, DALLAS, { water: { ...shore, waterKind: "lake" } }, TOP);
                 assert.ok(distanceMetres(DALLAS, point) <= SPAWN_RULES.maxSpawnMetres + 0.5);
                 if (!waterIds.has(enemyId)) continue;
                 wet += 1;
@@ -72,7 +85,7 @@ describe("spawns", () => {
         it("only roll creatures that live in that kind of water", () => {
             const rng = createRng(5);
             for (let i = 0; i < 2000; i++) {
-                const { enemyId } = rollSpawn(rng, DALLAS, { water: { ...shore, waterKind: "pond" } });
+                const { enemyId } = rollSpawn(rng, DALLAS, { water: { ...shore, waterKind: "pond" } }, TOP);
                 const entry = HABITAT_ENEMIES.water.find((candidate) => candidate.enemyId === enemyId);
                 if (entry?.waters) assert.ok(entry.waters.includes("pond"), `${enemyId} in a pond`);
             }
@@ -82,8 +95,8 @@ describe("spawns", () => {
             const rng = createRng(6);
             const far = { ...north(SPAWN_RULES.habitats.water.influenceMetres + 5), waterKind: "ocean" as const };
             for (let i = 0; i < 1000; i++) {
-                assert.ok(!waterIds.has(rollSpawn(rng, DALLAS, { water: far }).enemyId));
-                assert.ok(!waterIds.has(rollSpawn(rng, DALLAS, {}).enemyId));
+                assert.ok(!waterIds.has(rollSpawn(rng, DALLAS, { water: far }, TOP).enemyId));
+                assert.ok(!waterIds.has(rollSpawn(rng, DALLAS, {}, TOP).enemyId));
             }
         });
     });
@@ -94,7 +107,7 @@ describe("spawns", () => {
                 const rng = createRng(7);
                 const miners = idsOf("mining");
                 let hits = 0;
-                for (let i = 0; i < 3000; i++) if (miners.has(rollSpawn(rng, DALLAS, { mining: north(metres) }).enemyId)) hits += 1;
+                for (let i = 0; i < 3000; i++) if (miners.has(rollSpawn(rng, DALLAS, { mining: north(metres) }, TOP).enemyId)) hits += 1;
                 return hits / 3000;
             };
             const close = share(10);
@@ -108,7 +121,7 @@ describe("spawns", () => {
             const mine = north(120);
             const miners = idsOf("mining");
             for (let i = 0; i < 2000; i++) {
-                const { enemyId, point } = rollSpawn(rng, DALLAS, { mining: mine });
+                const { enemyId, point } = rollSpawn(rng, DALLAS, { mining: mine }, TOP);
                 assert.ok(distanceMetres(DALLAS, point) <= SPAWN_RULES.maxSpawnMetres + 0.5);
                 if (miners.has(enemyId)) assert.ok(point.latitude > DALLAS.latitude, "north, toward the mine");
             }
@@ -117,7 +130,7 @@ describe("spawns", () => {
         it("mix several places at once", () => {
             const rng = createRng(9);
             const seen = new Set<string>();
-            for (let i = 0; i < 3000; i++) seen.add(rollSpawn(rng, DALLAS, { mining: north(5), landmark: north(-5) }).enemyId);
+            for (let i = 0; i < 3000; i++) seen.add(rollSpawn(rng, DALLAS, { mining: north(5), landmark: north(-5) }, TOP).enemyId);
             assert.ok([...idsOf("mining")].some((id) => seen.has(id)), "a miner");
             assert.ok([...idsOf("landmark")].some((id) => seen.has(id)), "a landmark foe");
             assert.ok(SPAWN_RULES.enemies.some(({ enemyId }) => seen.has(enemyId)), "and the usual");
@@ -130,6 +143,40 @@ describe("spawns", () => {
 
         it("give every habitat someone to spawn", () => {
             for (const [habitat, table] of Object.entries(HABITAT_ENEMIES)) assert.ok(table.length > 0, habitat);
+        });
+    });
+
+    describe("by tier", () => {
+        const tierOf = (enemyId: string) => CONTENT.enemies[enemyId]!.tier;
+        const everywhere = { mining: north(5), landmark: north(-5), foraging: north(5), farming: north(-5) };
+
+        it("open at each tierUnlockLevel", () => {
+            const [, second] = SPAWN_RULES.tierUnlockLevels;
+            assert.equal(enemyTierFor(1), 1);
+            assert.equal(enemyTierFor(second! - 1), 1);
+            assert.equal(enemyTierFor(second!), 2);
+            assert.equal(enemyTierFor(50), TOP);
+        });
+
+        it("never spawn above the player's tier", () => {
+            for (let tier = 1; tier <= TOP; tier++) {
+                const rng = createRng(10 + tier);
+                for (let i = 0; i < 2000; i++) {
+                    const { enemyId } = rollSpawn(rng, DALLAS, everywhere, tier);
+                    assert.ok(tierOf(enemyId) <= tier, `${enemyId} (tier ${tierOf(enemyId)}) for tier ${tier}`);
+                }
+            }
+        });
+
+        it("make lower tiers rarer by lowerTierWeights, and drop none", () => {
+            const table = [
+                { enemyId: "green-slime", weight: 10 },
+                { enemyId: "magma-slime", weight: 10 },
+            ];
+            assert.deepEqual(tableForTier(table, 1), [table[0]]);
+            const [oneBelow] = SPAWN_RULES.lowerTierWeights;
+            assert.deepEqual(tableForTier(table, 2), [{ enemyId: "green-slime", weight: 10 * oneBelow! }, table[1]]);
+            assert.equal(tableForTier(table, TOP + 5).length, 2, "far past both");
         });
     });
 });

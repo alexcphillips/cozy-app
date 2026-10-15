@@ -4,6 +4,7 @@ export default {
     id: "wandering-swordsman",
     name: "Wandering Swordsman",
     sprite: "wandering-swordsman",
+    tier: 3,
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {

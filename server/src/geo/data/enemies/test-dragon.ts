@@ -6,6 +6,7 @@ export default {
     id: "test-dragon",
     name: "Test Dragon",
     sprite: "placeholder-red",
+    tier: 1,
     leavesAfterWinning: true,
     stats: { maxHealth: 999, attack: 999, defence: 0, speed: 99 },
     moves: [

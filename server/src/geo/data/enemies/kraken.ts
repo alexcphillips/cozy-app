@@ -6,6 +6,7 @@ export default {
     id: "kraken",
     name: "Kraken",
     sprite: "placeholder-red",
+    tier: 5,
     stats: { maxHealth: 65, attack: 11, defence: 0, speed: 7 },
     moves: [
         {

@@ -4,6 +4,7 @@ export default {
     id: "hexer",
     name: "Hexer",
     sprite: "hexer",
+    tier: 3,
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {

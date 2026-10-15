@@ -398,6 +398,12 @@ export type Enemy = {
     name: string;
     /** The app's sprite name. */
     sprite: string;
+    /**
+     * How far into the game it belongs, from 1. It only spawns on the map for
+     * players whose combat level has opened its tier (`config/spawns.ts`
+     * `tierUnlockLevels`).
+     */
+    tier: number;
     /** maxHealth, attack, defence, speed, critChance… Missing = 0. */
     stats: Record<string, number>;
     /** Each turn it picks one by weight. At least one. */
@@ -551,6 +557,18 @@ export type SpawnsConfig = {
     spawnGapSeconds: number;
     /** How long one spawn lasts. */
     lifetimeMinutes: { min: number; max: number };
+    /**
+     * The combat level that opens each enemy tier: the first is tier 1 (so 1),
+     * the next tier 2, and so on. Enemies of a tier the player hasn't opened
+     * never spawn for them.
+     */
+    tierUnlockLevels: number[];
+    /**
+     * How common enemies of tiers below the player's are, against their own
+     * tier's (1): one tier below, two below… The last carries on for any
+     * lower. Above 0, so old materials still turn up.
+     */
+    lowerTierWeights: number[];
     /** Which enemies spawn anywhere, how often. Enemies with no `habitats` spawn only from here. */
     enemies: { enemyId: string; weight: number }[];
     /**

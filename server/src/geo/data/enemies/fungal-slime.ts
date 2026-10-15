@@ -4,6 +4,7 @@ export default {
     id: "fungal-slime",
     name: "Fungal Slime",
     sprite: "fungal-slime",
+    tier: 1,
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {

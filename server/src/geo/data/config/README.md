@@ -42,6 +42,8 @@ Enemy spawns around each player.
 | `windowMinutes` | How long one roll of `countWeights` holds. |
 | `spawnGapSeconds` | At most one new spawn this often. |
 | `lifetimeMinutes` | `{ min, max }` a spawn lasts. |
+| `tierUnlockLevels` | The combat level that opens each enemy tier: `[1, 5, 12…]` is tier 1 from level 1, tier 2 from 5, tier 3 from 12. Must start at 1 and go up. An enemy whose [`tier`](../enemies/README.md#fields) the player hasn't opened never spawns for them. |
+| `lowerTierWeights` | How common enemies of tiers below the player's are, against their own tier's (1): one tier below, two below… The last carries on for any lower. Above 0, so old materials still turn up. |
 | `enemies` | `{ enemyId, weight }`: which enemies spawn anywhere, how often. Enemies with no `habitats` spawn only from here. |
 | `habitats` | Per kind of place (`water`, `mining`, `foraging`, `farming`, `landmark`): `{ influenceMetres, weight }`. Each new spawn picks where it's from by weight: `enemies` has 1, and each kind of place nearby has its `weight` when the player is on it, fading to nothing at `influenceMetres` (at most 250). Who lives there is each enemy's [`habitats`](../enemies/README.md#habitats). A place within reach gets its spawns beside it; farther, they land on the player's side facing it. Keep `water` within `reachMetres`, so water creatures land on the shore. |
 
