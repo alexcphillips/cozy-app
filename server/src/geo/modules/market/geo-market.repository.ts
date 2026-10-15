@@ -66,6 +66,7 @@ function toListingView(row: ListingRow, viewerId: string): GeoMarketListing {
             itemId: row.item_id,
             quantity: row.status === "active" ? row.quantity_left : row.quantity_listed,
             chargesLeft: row.charges_left,
+            reforge: row.reforge,
             obtainedAt: row.obtained_at.toISOString(),
         },
         seller: row.seller_name,
@@ -232,6 +233,7 @@ export async function createListing(sellerId: string, listing: NewListing): Prom
             listing.type === "auction" ? listing.startingBid : null,
             endsAt,
             fee,
+            taken.reforge,
         ]);
         if (!created) throw new Error("Listing insert returned nothing");
         return created.id;
@@ -246,14 +248,15 @@ async function returnToSeller(tx: TxQuery, row: ListingRow) {
         itemId: row.item_id,
         quantity: row.quantity_left,
         chargesLeft: row.charges_left,
+        reforge: row.reforge,
         obtainedAt: row.obtained_at,
     });
 }
 
-/** Gives a buyer what they bought, as a new copy (charges kept). */
+/** Gives a buyer what they bought, as a new copy (charges and reforge kept). */
 async function deliver(tx: TxQuery, buyerId: string, row: ListingRow, quantity: number) {
     await playerRepository.grantItems(tx, buyerId, [
-        { itemId: row.item_id, quantity, chargesLeft: row.charges_left ?? undefined },
+        { itemId: row.item_id, quantity, chargesLeft: row.charges_left ?? undefined, reforge: row.reforge },
     ]);
 }
 

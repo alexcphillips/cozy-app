@@ -19,8 +19,12 @@ A stat is any name. These are the ones the game reads today:
 | `critMultiplier` | combat | e.g. 1.5. |
 | `damageDealt` | combat | Fraction: 0.25 = 25% more damage. Never on status damage. Combat level gives 1% a level. |
 | `foodHealing` | combat | Fraction: 0.25 = food heals 25% more. |
+| `intelligence` | combat | Magic power. Nothing reads it by itself: scale a card off it with `{ stat: "intelligence" }`. |
+| `mending` | combat | Health healed at the start of each of your turns, never past max. |
+| `magicFind` | combat rewards | Rare drops only: a loot-list or chest-offer chance under 5% × (1 + magicFind / 100), so +1 = 1% likelier, never past 5%. Commoner drops are untouched. |
 | `eelChance` `baitSaveChance` `seaCreatureChance` | fishing | Added to `config/fishing.ts` `baseOdds`. |
 | `farmingFortune` | farming | Flat: each 100 adds a harvest's crops again (1000 = ×11); the leftover fraction is a chance of 1 more. Not seeds. |
+| `pestChance` `mutationChance` | farming | Multipliers on 1: percent -0.25 = pests 25% less likely to arrive (forced swarms ignore it); +0.25 = every mutation 25% likelier to sprout (Coax too). |
 | `coinDrops` | combat rewards | Global (mayor) modifiers only. |
 | `vendorPrices` | vendors | Global (mayor) modifiers only. |
 

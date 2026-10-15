@@ -53,6 +53,31 @@ export const DAMAGE_DEALT_STAT: StatId = "damageDealt";
  */
 export const FARMING_FORTUNE_STAT: StatId = "farmingFortune";
 
+/**
+ * How likely pests are to arrive on a farm, as a multiplier on 1: a percent
+ * -0.25 = 25% less likely. Swarms that force pests ignore it.
+ */
+export const PEST_CHANCE_STAT: StatId = "pestChance";
+
+/** How likely mutations are to sprout, as a multiplier on 1: a percent +0.25 = 25% more likely. */
+export const MUTATION_CHANCE_STAT: StatId = "mutationChance";
+
+/**
+ * Magic power. Nothing reads it by itself: a card or effect scales off it with
+ * `amount: { stat: "intelligence", multiplier: … }`.
+ */
+export const INTELLIGENCE_STAT: StatId = "intelligence";
+
+/** Health healed at the start of each of the bearer's turns in a fight, rounded. Never past max. */
+export const MENDING_STAT: StatId = "mending";
+
+/**
+ * Better loot: every chance on an enemy's loot list and chest offers is
+ * scaled by (1 + magic find / 100), so +1 = 1% more likely, but only rare
+ * ones: drops under 5% (`MAGIC_FIND_RARE_UNDER`), and never past that line.
+ */
+export const MAGIC_FIND_STAT: StatId = "magicFind";
+
 export type Stats = Record<StatId, number>;
 
 /**

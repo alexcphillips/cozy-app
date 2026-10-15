@@ -1,4 +1,4 @@
-import type { GeoChestTier, GeoFarmSoil, GeoFarmWeather, GeoFishingTier, GeoQualityTier } from "@cozy/shared/geo";
+import type { GeoChestTier, GeoFarmSoil, GeoFarmWeather, GeoFishingTier, GeoQualityTier, GeoWorldHabitat, GeoWorldWaterKind } from "@cozy/shared/geo";
 import type { Action, Amount, Condition, EffectDef, StatModifier } from "../engine/engine.types";
 
 /**
@@ -414,7 +414,15 @@ export type Enemy = {
     coins?: Range;
     /** Combat XP for the kill. */
     xp: number;
+    /**
+     * Where it spawns on the map besides `config/spawns.ts` `enemies`: near
+     * these kinds of place, by weight against the others living there. An
+     * entry for water with `waters` only spawns at those kinds of water.
+     */
+    habitats?: EnemyHabitat[];
 };
+
+export type EnemyHabitat = { near: GeoWorldHabitat; weight: number; waters?: GeoWorldWaterKind[] };
 
 /** Burning, Frozen, Well Fed… */
 export type Status = {
@@ -451,8 +459,12 @@ export type Vendor = {
     name: string;
     icon: string;
     description: string;
-    /** Coins each, unlimited stock. Never under what any vendor pays back. */
-    sells: { itemId: string; price: number; stock?: null }[];
+    /**
+     * Coins each, unlimited stock. Never under what any vendor pays back.
+     * `tab` sorts it into a named buy tab ("Weapons"); untabbed offers go
+     * under "Buy".
+     */
+    sells: { itemId: string; price: number; stock?: null; tab?: string }[];
     /** Buys items matching every rule given, paying their sellValue. {} = anything not Soulbound. */
     buys: {
         kinds?: ItemKind[];
@@ -460,6 +472,25 @@ export type Vendor = {
         skills?: string[];
         itemIds?: string[];
     };
+    /**
+     * Gives the vendor a Reforge tab: pay this many coins, by the item's
+     * rarity, for a random reforge from `data/reforges/` (never the one it has).
+     */
+    reforge?: { cost: Record<Rarity, number> };
+};
+
+/** Which gear a reforge can land on. Armour is the off hand, head, chest, hands and legs; never rings. */
+export type ReforgeTarget = "weapon" | "armour";
+
+/** A reforge: a named bonus a vendor rolls onto one copy of a weapon or armour, e.g. "Heavy". */
+export type Reforge = {
+    /** Must match the file name. */
+    id: string;
+    /** Shown before the item's name: "Heavy Iron Helm". */
+    name: string;
+    appliesTo: ReforgeTarget[];
+    /** Its stat changes on an item of each rarity. */
+    modifiers: Record<Rarity, StatModifier[]>;
 };
 
 export type MayorPerk = {
@@ -520,8 +551,17 @@ export type SpawnsConfig = {
     spawnGapSeconds: number;
     /** How long one spawn lasts. */
     lifetimeMinutes: { min: number; max: number };
-    /** Which enemies spawn, how often. Unlisted enemies never spawn on their own. */
+    /** Which enemies spawn anywhere, how often. Enemies with no `habitats` spawn only from here. */
     enemies: { enemyId: string; weight: number }[];
+    /**
+     * How hard each kind of place pulls new spawns toward the enemies living
+     * there (their `habitats`). Each new spawn picks where it's from by
+     * weight: `enemies` above has 1, and each kind of place nearby has its
+     * `weight` when the player is on it, fading to nothing at
+     * `influenceMetres`. A place within reach gets its spawns beside it;
+     * farther, they land on the player's side facing it.
+     */
+    habitats: Record<GeoWorldHabitat, { influenceMetres: number; weight: number }>;
 };
 
 export type FarmingConfig = {

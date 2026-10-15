@@ -1,8 +1,9 @@
 # Enemies
 
 What you fight in a combat Run: stats, moves, innate rules, and what it
-drops. To make an enemy spawn on the map, add it to
-[`config/spawns.ts`](../config/README.md#spawnsts) `enemies`.
+drops. To make an enemy spawn on the map, give it `habitats` (near mines,
+water, POIs…), or add it to
+[`config/spawns.ts`](../config/README.md#spawnsts) `enemies` to spawn anywhere.
 
 ## Fields
 
@@ -24,6 +25,22 @@ Model: `Enemy` in `#geo/models` (`content/models.ts`). Hover any field in the ed
 | `xp` | whole number ≥ 0 | yes | Combat XP for the kill. |
 | `chests` | see below | no | A chance of a chest selection in place of `loot`. |
 | `leavesAfterWinning` | `true` / `false` | no | Gone from the map once it has beaten you. |
+| `habitats` | list of `{ near, weight, waters? }` | no | Where it spawns: see below. |
+
+## Habitats
+
+Each new spawn near a kind of place may be one of the enemies living there.
+`near` is the kind of place: `water`, `mining`, `foraging`, `farming` (farmland
+and farming hubs) or `landmark` (POIs). `weight` is against the other enemies
+living there: 30 vs 10 = 75% / 25%. A water habitat's `waters` limits it to
+those kinds of water (`pond`, `lake`, `river`, `dock`, `ocean`).
+
+```ts
+habitats: [{ near: "mining", weight: 20 }, { near: "landmark", weight: 5 }],
+```
+
+How hard each kind of place pulls, and from how far, is in
+[`config/spawns.ts`](../config/README.md#spawnsts) `habitats`.
 
 ## Chests
 

@@ -9,7 +9,7 @@ import {
     type Stats,
 } from "../engine/engine.types";
 import type { Rng } from "../engine/rng";
-import { GAME_CONFIG, type GameContent } from "../content";
+import { GAME_CONFIG, reforgeModifiers, type GameContent } from "../content";
 import type { ChestLootPool } from "../content/content.types";
 
 /**
@@ -24,6 +24,8 @@ export type PlayerLoadout = {
     name: string;
     /** Item ids of what's equipped, any slot. */
     equipment: string[];
+    /** Reforges on the equipped copies, by item id. */
+    reforges?: { itemId: string; reforgeId: string }[];
     /** Item ids of the talismans in the bag, one per talisman. */
     talismans: string[];
     hand: CardInstance[];
@@ -56,6 +58,7 @@ export function playerCombatant(loadout: PlayerLoadout, content: GameContent): C
         effects.push(...(item.effects ?? []));
         if (item.kind === "equipment" && item.weapon) weaponTags = [item.weapon.type, item.weapon.style];
     }
+    for (const { itemId, reforgeId } of loadout.reforges ?? []) modifiers.push(...reforgeModifiers(content, itemId, reforgeId));
 
     return {
         id: PLAYER_COMBATANT_ID,
@@ -94,12 +97,24 @@ export function rollCoins(enemyId: string, rng: Rng, content: GameContent): numb
     return coins.min + Math.floor(rng.next() * (coins.max - coins.min + 1));
 }
 
-/** Rolls an enemy's loot table. Each entry is its own roll. */
-export function rollLoot(enemyId: string, rng: Rng, content: GameContent): Drop[] {
+/** PLACEHOLDER: magic find only helps drops rarer than this; common drops roll as written. */
+export const MAGIC_FIND_RARE_UNDER = 0.05;
+
+/**
+ * A rare drop's chance scaled by magic find (`MAGIC_FIND_STAT`): +1 = 1% more
+ * likely. Drops at MAGIC_FIND_RARE_UNDER or above are untouched.
+ */
+export function withMagicFind(chance: number, magicFind: number): number {
+    if (chance >= MAGIC_FIND_RARE_UNDER) return chance;
+    return Math.min(MAGIC_FIND_RARE_UNDER, chance * (1 + Math.max(0, magicFind) / 100));
+}
+
+/** Rolls an enemy's loot table. Each entry is its own roll; rare ones are helped by the winner's magic find. */
+export function rollLoot(enemyId: string, rng: Rng, content: GameContent, magicFind = 0): Drop[] {
     const enemy = content.enemies[enemyId];
     if (!enemy) return [];
     return enemy.loot
-        .filter((entry) => rng.chance(entry.chance))
+        .filter((entry) => rng.chance(withMagicFind(entry.chance, magicFind)))
         .map((entry) => ({ itemId: entry.itemId, quantity: entry.quantity }));
 }
 
@@ -111,11 +126,12 @@ export type RolledChest = { tier: GeoChestTier; name: string; cost: number; item
  * what's in each. Everything is rolled now, at the win, so reopening the app
  * can't reroll a chest. Null when it gives its loot list instead.
  */
-export function rollChests(enemyId: string, rng: Rng, content: GameContent): RolledChest[] | null {
+export function rollChests(enemyId: string, rng: Rng, content: GameContent, magicFind = 0): RolledChest[] | null {
     const reward = content.enemies[enemyId]?.chests;
     if (!reward || !rng.chance(reward.chance)) return null;
+    // Magic find helps the rare chest offers, not whether chests come at all.
     return reward.offers
-        .filter((offer) => rng.chance(offer.chance))
+        .filter((offer) => rng.chance(withMagicFind(offer.chance, magicFind)))
         .map((offer) => {
             const tier = content.chestTiers[offer.tier];
             return { tier: offer.tier, name: tier.name, cost: tier.cost, items: rollPools(offer.pools, rng) };

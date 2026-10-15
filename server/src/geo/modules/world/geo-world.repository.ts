@@ -6,11 +6,12 @@ import {
     advanceTravel,
     MAX_SPAWNS,
     randomPointNear,
-    rollEnemyId,
     rollLifetimeMs,
+    rollSpawn,
     spawnCountFor,
     spendTravel,
     SPAWN_RULES,
+    type NearPlaces,
     type Travel,
 } from "../../world";
 import {
@@ -68,6 +69,8 @@ export async function spawnsAround(
     playerId: string,
     here: GeoPoint,
     now: number,
+    /** The nearest place of each habitat, which pull their own enemies. */
+    near: NearPlaces,
     /** Dev only: top up to MAX_SPAWNS rather than this window's roll. */
     fill = false,
 ): Promise<GeoSpawn[]> {
@@ -114,10 +117,10 @@ export async function spawnsAround(
 
         const rng = createRng(randomSeed());
         for (let i = 0; i < missing; i++) {
-            const point = randomPointNear(here, rng);
+            const { enemyId, point } = rollSpawn(rng, here, near);
             const [row] = await tx<SpawnRow>(INSERT_SPAWN, [
                 playerId,
-                rollEnemyId(rng),
+                enemyId,
                 point.latitude,
                 point.longitude,
                 new Date(now + rollLifetimeMs(rng)),

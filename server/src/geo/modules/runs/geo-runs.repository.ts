@@ -13,7 +13,8 @@ import {
 import { CONTENT } from "../../content";
 import { withTransaction, type TxQuery } from "../../db/transaction";
 import { BattleRuleError, canWield, createBattle, eatFood, playCard, type BattleResult } from "../../engine/battle";
-import type { BattleState, CardInstance, LogEntry, LunchboxSlot } from "../../engine/engine.types";
+import { MAGIC_FIND_STAT, type BattleState, type CardInstance, type LogEntry, type LunchboxSlot } from "../../engine/engine.types";
+import { statOf } from "../../engine/stats";
 import { createRng, randomSeed } from "../../engine/rng";
 import * as chestsRepository from "../chests/geo-chests.repository";
 import * as fishingRepository from "../fishing/geo-fishing.repository";
@@ -82,9 +83,9 @@ async function loadLoadout(tx: TxQuery, playerId: string) {
     const packed = await playerRepository.findLunchbox(playerId, tx);
 
     const byId = new Map(inventory.map((row) => [row.id, row]));
-    const equipped = equipment
-        .map((slot) => byId.get(slot.inventory_id)?.item_id)
-        .filter((id): id is string => id !== undefined);
+    const worn = equipment.flatMap((slot) => byId.get(slot.inventory_id) ?? []);
+    const equipped = worn.map((row) => row.item_id);
+    const reforges = worn.flatMap((row) => (row.reforge ? [{ itemId: row.item_id, reforgeId: row.reforge }] : []));
     // Only the bag counts, and the bag holds one copy of each talisman.
     const talismans = bag.map((entry) => entry.item_id);
 
@@ -101,7 +102,7 @@ async function loadLoadout(tx: TxQuery, playerId: string) {
         .filter((entry) => CONTENT.foods[entry.itemId])
         .map((entry) => ({ slot: entry.slot, foodId: entry.itemId, quantity: entry.quantity }));
 
-    return { equipment: equipped, talismans, hand, lunchbox };
+    return { equipment: equipped, reforges, talismans, hand, lunchbox };
 }
 
 /** What a fight is against: a real spawn, or (dev only) an enemy by id. */
@@ -270,13 +271,15 @@ async function settle(
 
     if (status === "victory" && !rewards) {
         const lootRng = createRng((after.seed ^ LOOT_SEED_SALT) >>> 0);
+        const winner = after.combatants.find((c) => c.side === "player");
+        const magicFind = winner ? statOf(winner, MAGIC_FIND_STAT, CONTENT) : 0;
         // An enemy that gives chests this time gives them instead of its loot list.
         const chests: RolledChest[] = [];
         const items: Drop[] = [];
         for (const enemyId of row.enemy_ids) {
-            const won = rollChests(enemyId, lootRng, CONTENT);
+            const won = rollChests(enemyId, lootRng, CONTENT, magicFind);
             if (won) chests.push(...won);
-            else items.push(...rollLoot(enemyId, lootRng, CONTENT));
+            else items.push(...rollLoot(enemyId, lootRng, CONTENT, magicFind));
         }
         const rolled = row.enemy_ids.reduce((sum, id) => sum + rollCoins(id, lootRng, CONTENT), 0);
         // Global effects (e.g. Malphas's Grave Robber) scale coin drops.

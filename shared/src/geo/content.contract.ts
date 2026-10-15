@@ -62,6 +62,8 @@ export type GeoItemView = {
     slot?: GeoEquipKind;
     /** Equipment: names of the cards it makes available while worn. */
     unlocksCards?: string[];
+    /** Weapons and armour: which reforges it takes (`GeoReforgeView.appliesTo`). */
+    reforgeTarget?: GeoReforgeTarget;
     /** Consumables that are food: packable in the lunchbox and eaten in a Run. */
     food?: { tags: string[] };
     /** Consumables that are bait: packable in the bait slots and used in a fishing Run. */
@@ -102,9 +104,24 @@ export type GeoItemSource =
           name: string;
       };
 
-/** `GET /geo/content`: every item definition, for names and icons; every recipe; every item source. */
+export type GeoReforgeTarget = "weapon" | "armour";
+
+/**
+ * A reforge a vendor can roll onto one copy of a weapon or armour
+ * (`GeoInventoryEntry.reforge`). Its name goes before the item's.
+ */
+export type GeoReforgeView = {
+    id: string;
+    name: string;
+    appliesTo: GeoReforgeTarget[];
+    /** Its stat rows on an item of each rarity, e.g. Defence +2, Speed -1. */
+    stats: Record<GeoRarity, GeoItemStat[]>;
+};
+
+/** `GET /geo/content`: every item definition, for names and icons; every recipe; every item source; every reforge. */
 export type GeoContentResponse = {
     items: GeoItemView[];
     recipes: GeoRecipe[];
     sources: GeoItemSource[];
+    reforges: GeoReforgeView[];
 };

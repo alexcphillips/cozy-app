@@ -3,12 +3,12 @@ export const FIND_PLAYER = `
 `;
 
 export const FIND_INVENTORY = `
-  SELECT id, player_id, item_id, quantity, charges_left, obtained_at
+  SELECT id, player_id, item_id, quantity, charges_left, reforge, obtained_at
   FROM geo.inventory WHERE player_id = $1 ORDER BY obtained_at, id;
 `;
 
 export const FIND_INVENTORY_BY_IDS = `
-  SELECT id, player_id, item_id, quantity, charges_left, obtained_at
+  SELECT id, player_id, item_id, quantity, charges_left, reforge, obtained_at
   FROM geo.inventory WHERE player_id = $1 AND id = ANY($2::uuid[]);
 `;
 
@@ -169,9 +169,9 @@ export const INSERT_COIN_LEDGER = `
 `;
 
 export const INSERT_INVENTORY = `
-  INSERT INTO geo.inventory (player_id, item_id, quantity, charges_left)
-  VALUES ($1, $2, $3, $4)
-  RETURNING id, player_id, item_id, quantity, charges_left, obtained_at;
+  INSERT INTO geo.inventory (player_id, item_id, quantity, charges_left, reforge)
+  VALUES ($1, $2, $3, $4, $5)
+  RETURNING id, player_id, item_id, quantity, charges_left, reforge, obtained_at;
 `;
 
 /** Adds to an existing stack of the same item, if there is one. */
@@ -183,6 +183,11 @@ export const ADD_TO_STACK = `
     ORDER BY obtained_at LIMIT 1
   )
   RETURNING id;
+`;
+
+/** No row back means the copy is no longer the player's. */
+export const SET_REFORGE = `
+  UPDATE geo.inventory SET reforge = $3 WHERE player_id = $1 AND id = $2 RETURNING id;
 `;
 
 /** No row back means the card is no longer the player's. */
@@ -247,7 +252,7 @@ export const SPEND_COINS = `
 
 /** Locks one owned row, so two sales of it at once can't both take it. */
 export const LOCK_INVENTORY_ROW = `
-  SELECT id, player_id, item_id, quantity, charges_left, obtained_at
+  SELECT id, player_id, item_id, quantity, charges_left, reforge, obtained_at
   FROM geo.inventory WHERE player_id = $1 AND id = $2 FOR UPDATE;
 `;
 
@@ -261,8 +266,8 @@ export const TAKE_FROM_STACK = `
 
 /** Puts a copy back exactly as it was: same id, same obtained date. */
 export const RESTORE_INVENTORY_ROW = `
-  INSERT INTO geo.inventory (id, player_id, item_id, quantity, charges_left, obtained_at)
-  VALUES ($1, $2, $3, $4, $5, $6)
+  INSERT INTO geo.inventory (id, player_id, item_id, quantity, charges_left, obtained_at, reforge)
+  VALUES ($1, $2, $3, $4, $5, $6, $7)
   ON CONFLICT (id) DO NOTHING
   RETURNING id;
 `;
@@ -272,7 +277,7 @@ export const RESTORE_INVENTORY_ROW = `
  * or in a hand), oldest first.
  */
 export const LOCK_FREE_ROWS_OF_ITEM = `
-  SELECT i.id, i.player_id, i.item_id, i.quantity, i.charges_left, i.obtained_at
+  SELECT i.id, i.player_id, i.item_id, i.quantity, i.charges_left, i.reforge, i.obtained_at
   FROM geo.inventory i
   WHERE i.player_id = $1 AND i.item_id = $2
     AND NOT EXISTS (SELECT 1 FROM geo.equipment e WHERE e.player_id = $1 AND e.inventory_id = i.id)

@@ -22,7 +22,7 @@ field, its explanation on hover, and a red underline on a mistake (a typo'd
 field, a string where a number goes) as you type. The models are in
 `content/models.ts`, one per folder: `Card`, `Weapon`, `Armour`, `Ring`,
 `Talisman`, `Material`, `Food`, `Bait`, `MiscItem`, `Fish`, `Enemy`,
-`Status`, `Recipe`, `Vendor`, `Mayor`, plus a `…Config` for each file in
+`Status`, `Recipe`, `Vendor`, `Reforge`, `Mayor`, plus a `…Config` for each file in
 `config/`. Keep data files to plain values: no imports but the model, no
 logic.
 
@@ -73,6 +73,7 @@ One entry per file, named by its id: `data/weapons/broadsword.ts` has
 | `statuses/` | Burning, Frozen, Well Fed… | [statuses](statuses/README.md) |
 | `recipes/` | Crafting and cooking recipes | [recipes](recipes/README.md) |
 | `vendors/` | NPC shops | [vendors](vendors/README.md) |
+| `reforges/` | Reforges a vendor rolls onto weapons and armour | [reforges](reforges/README.md) |
 | `mayors/` | Mayors and their perks | [mayors](mayors/README.md) |
 | `config/` | Tuning numbers: player stats, spawns, fishing, starter kit… | [config](config/README.md) |
 

@@ -1,13 +1,16 @@
+import { randomInt } from "node:crypto";
 import type { Request, Response } from "express";
 import {
     GEO_VENDOR_MAX_QUANTITY,
+    type GeoRarity,
     type GeoVendor,
     type GeoVendorBuyRequest,
+    type GeoVendorReforgeRequest,
     type GeoVendorSellRequest,
     type GeoVendorsResponse,
 } from "@cozy/shared/geo";
 import { AppError } from "../../../http/AppError";
-import { CONTENT, sellValueOf, vendorBuys, type VendorDef } from "../../content";
+import { CONTENT, reforgesFor, sellValueOf, vendorBuys, type VendorDef } from "../../content";
 import { withTransaction } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
 import * as playerRepository from "../player/geo-player.repository";
@@ -25,6 +28,11 @@ function priceNow(itemId: string, listPrice: number, modifiers: StatModifier[]):
     return Math.max(floor, Math.ceil(applyModifiers(listPrice, modifiers, "vendorPrices")));
 }
 
+/** What a reroll costs now: the vendor's price for the rarity, scaled by global effects like any vendor price. */
+function reforgeCostNow(cost: Record<GeoRarity, number>, rarity: GeoRarity, modifiers: StatModifier[]): number {
+    return Math.max(1, Math.ceil(applyModifiers(cost[rarity], modifiers, "vendorPrices")));
+}
+
 function toVendorView(vendor: VendorDef, modifiers: StatModifier[]): GeoVendor {
     return {
         id: vendor.id,
@@ -35,10 +43,19 @@ function toVendorView(vendor: VendorDef, modifiers: StatModifier[]): GeoVendor {
             itemId: offer.itemId,
             price: priceNow(offer.itemId, offer.price, modifiers),
             stock: offer.stock,
+            ...(offer.tab && { tab: offer.tab }),
         })),
         buys: Object.values(CONTENT.items)
             .filter((item) => vendorBuys(vendor.buys, item))
             .map((item) => ({ itemId: item.id, price: sellValueOf(item) })),
+        ...(vendor.reforge && {
+            reforgeCost: Object.fromEntries(
+                Object.keys(vendor.reforge.cost).map((rarity) => [
+                    rarity,
+                    reforgeCostNow(vendor.reforge!.cost, rarity as GeoRarity, modifiers),
+                ]),
+            ) as Record<GeoRarity, number>,
+        }),
     };
 }
 
@@ -112,6 +129,35 @@ export async function sell(req: Request, res: Response) {
         }
         const reference = `vendor:${vendor.id}:${taken.item_id}x${units}`;
         await playerRepository.addCoins(tx, playerId, sellValueOf(item) * units, "vendor-sell", reference);
+    });
+
+    res.status(200).json(await playerRepository.findMe(playerId));
+}
+
+/**
+ * The player pays a vendor to reroll one weapon or armour copy's reforge: a
+ * random one that fits the item, never the one it has. Worn gear can be
+ * reforged in place. The copy is locked, so two rerolls can't cross.
+ */
+export async function reforge(req: Request, res: Response) {
+    const playerId = requirePlayerId(req);
+    const vendor = findVendor(req);
+    const { inventoryId } = (req.body ?? {}) as Partial<GeoVendorReforgeRequest>;
+    if (!vendor.reforge) throw AppError.badRequest(`The ${vendor.name} doesn't reforge`);
+    if (typeof inventoryId !== "string" || !inventoryId) throw AppError.badRequest("Missing inventoryId");
+    const costs = vendor.reforge.cost;
+
+    await withTransaction(async (tx) => {
+        const owned = await playerRepository.lockInventoryRow(tx, playerId, inventoryId);
+        if (!owned) throw AppError.notFound("You don't own that item");
+        const item = CONTENT.items[owned.item_id];
+        const choices = reforgesFor(CONTENT, item).filter((candidate) => candidate.id !== owned.reforge);
+        if (!item || choices.length === 0) throw AppError.badRequest("Only weapons and armour can be reforged");
+
+        const picked = choices[randomInt(choices.length)]!;
+        const cost = reforgeCostNow(costs, item.rarity, await globalModifiers(tx));
+        await playerRepository.spendCoins(tx, playerId, cost, "vendor-reforge", `vendor:${vendor.id}:reforge:${owned.id}`);
+        await playerRepository.setReforge(tx, playerId, owned.id, picked.id);
     });
 
     res.status(200).json(await playerRepository.findMe(playerId));

@@ -70,6 +70,8 @@ const STATEMENTS = [
         obtained_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );`,
     `CREATE INDEX IF NOT EXISTS inventory_player_idx ON geo.inventory (player_id);`,
+    // A weapon or armour copy's reforge (data/reforges/), rolled at a vendor.
+    `ALTER TABLE geo.inventory ADD COLUMN IF NOT EXISTS reforge VARCHAR(80);`,
 
     `CREATE TABLE IF NOT EXISTS geo.equipment (
         player_id UUID NOT NULL REFERENCES geo.players(id) ON DELETE CASCADE,
@@ -255,6 +257,8 @@ const STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS market_listings_seller_idx ON geo.market_listings (seller_id, created_at);`,
     `CREATE INDEX IF NOT EXISTS market_listings_ending_idx
         ON geo.market_listings (ends_at) WHERE status = 'active' AND type = 'auction';`,
+    // The listed copy's reforge, handed on with it.
+    `ALTER TABLE geo.market_listings ADD COLUMN IF NOT EXISTS reforge VARCHAR(80);`,
 
     // A bid's coins leave the bidder when it's placed ('held'), and go back
     // when outbid ('returned') or to the seller when it wins ('won').

@@ -1,7 +1,7 @@
 import { GEO_QUALITY_TIERS, type GeoChestTier, type GeoQualityTier } from "@cozy/shared/geo";
 import type { CardDef, FoodDef, StatusDef } from "../engine/engine.types";
 import type { GameData } from "./data.schema";
-import type { ChestTierDef, EnemyDef, GameContent, ItemDef, MayorDef, RecipeDef, VendorDef } from "./content.types";
+import type { ChestTierDef, EnemyDef, GameContent, ItemDef, MayorDef, RecipeDef, ReforgeDef, VendorDef } from "./content.types";
 import { structureItemId, type CropDef, type FarmEventDef, type MutationDef, type PestDef, type StructureDef } from "./farming";
 import { fishItemId, qualityFishItemId, type FishDef } from "./fishing";
 
@@ -165,6 +165,7 @@ export function buildContent(data: GameData): BuiltContent {
         farmEvents: byId<FarmEventDef>(data["farm-events"], "farm event"),
         enemies: byId<EnemyDef>(data.enemies, "enemy"),
         vendors: byId<VendorDef>(data.vendors, "vendor"),
+        reforges: byId<ReforgeDef>(data.reforges, "reforge"),
         mayors: byId<MayorDef>(data.mayors, "mayor"),
         recipes: byId(recipes, "recipe"),
         chestTiers: byId<ChestTierDef>(data.config["chest-tiers"].tiers, "chest tier") as Record<GeoChestTier, ChestTierDef>,

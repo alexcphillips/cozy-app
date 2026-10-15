@@ -53,6 +53,8 @@ export const GEO_API_PATHS = {
         buy: "/geo/vendors/:vendorId/buy",
         /** POST { inventoryId, quantity }: the player sells to the vendor. */
         sell: "/geo/vendors/:vendorId/sell",
+        /** POST { inventoryId }: pays the vendor to reroll a weapon or armour copy's reforge. */
+        reforge: "/geo/vendors/:vendorId/reforge",
     },
     crafting: {
         /** POST { quantity }: crafts a recipe that many times. */

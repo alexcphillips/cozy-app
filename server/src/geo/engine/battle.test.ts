@@ -285,6 +285,20 @@ describe("gear and talisman effects", () => {
     });
 });
 
+describe("mending", () => {
+    it("heals its bearer at the start of each of their turns, never past max", () => {
+        const mending = [{ stat: "mending", kind: "flat" as const, value: 5 }];
+        // The faster spider bites for 12 first; then the player's turn starts and mends 5.
+        const { state, log } = createBattle([player({ modifiers: mending }), spider()], 1, content());
+        assert.equal(healthOf(state, "player"), 93);
+        assert.ok(log.some((e) => e.type === "heal" && e.target === "player" && e.amount === 5));
+
+        const unhurt = createBattle([player({ modifiers: mending }), spider({ baseStats: { maxHealth: 40, attack: 12, speed: 1 } })], 1, content());
+        assert.equal(healthOf(unhurt.state, "player"), 100);
+        assert.ok(!unhurt.log.some((e) => e.type === "heal"));
+    });
+});
+
 describe("guard", () => {
     it("absorbs the next hit", () => {
         const start = createBattle([player({ baseStats: { maxHealth: 100, attack: 10, speed: 20 } }), spider()], 1, content());

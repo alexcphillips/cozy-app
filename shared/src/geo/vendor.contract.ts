@@ -1,3 +1,5 @@
+import type { GeoRarity } from "./content.contract";
+
 /**
  * NPC vendors. Each sells a fixed list and buys what its rule accepts, at the
  * item's sell value (`GeoItemView.sellValue`) — the same number that is the
@@ -10,6 +12,8 @@ export type GeoVendorOffer = {
     price: number;
     /** Units left; null is unlimited. */
     stock: number | null;
+    /** The buy tab it's listed under, e.g. "Weapons"; unset = "Buy". */
+    tab?: string;
 };
 
 /** One item a vendor will buy, and what it pays per unit. */
@@ -28,6 +32,11 @@ export type GeoVendor = {
     sells: GeoVendorOffer[];
     /** Every item this vendor buys from players. */
     buys: GeoVendorBuyOffer[];
+    /**
+     * Set when the vendor reforges: coins per reroll, by the item's rarity
+     * (mayor perks included). A reroll never lands on the reforge it has.
+     */
+    reforgeCost?: Record<GeoRarity, number>;
 };
 
 /** `GET /geo/vendors`. */
@@ -45,6 +54,11 @@ export type GeoVendorBuyRequest = {
 export type GeoVendorSellRequest = {
     inventoryId: string;
     quantity: number;
+};
+
+/** `POST /geo/vendors/:vendorId/reforge`. Replies with the player (`GeoMeResponse`); the copy keeps its id. */
+export type GeoVendorReforgeRequest = {
+    inventoryId: string;
 };
 
 /** Most units one buy or sell may move. */

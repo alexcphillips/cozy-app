@@ -33,6 +33,7 @@ import {
     FIND_SKILL_XP,
     INSERT_INVENTORY,
     SET_CHARGES,
+    SET_REFORGE,
     UNEQUIP_INVENTORY,
     UPSERT_EQUIPMENT,
     UPSERT_HAND,
@@ -104,6 +105,7 @@ export function toInventoryEntry(row: InventoryRow): GeoInventoryEntry {
         itemId: row.item_id,
         quantity: row.quantity,
         chargesLeft: row.charges_left,
+        reforge: row.reforge,
         obtainedAt: row.obtained_at.toISOString(),
     };
 }
@@ -345,16 +347,16 @@ export async function deleteSavedHand(tx: TxQuery, playerId: string, savedHandId
  * Adds items to a player's inventory. Stackable kinds (materials,
  * consumables, misc) join an existing stack; cards arrive with full charges
  * unless `chargesLeft` says otherwise, one row per copy; gear and talismans
- * one row each. Returns the new or updated row ids. Unknown item ids throw, so
- * a content typo can't silently drop loot.
+ * one row each, keeping `reforge` if given. Returns the new or updated row
+ * ids. Unknown item ids throw, so a content typo can't silently drop loot.
  */
 export async function grantItems(
     tx: TxQuery,
     playerId: string,
-    grants: { itemId: string; quantity: number; chargesLeft?: number }[],
+    grants: { itemId: string; quantity: number; chargesLeft?: number; reforge?: string | null }[],
 ): Promise<string[]> {
     const ids: string[] = [];
-    for (const { itemId, quantity, chargesLeft } of grants) {
+    for (const { itemId, quantity, chargesLeft, reforge } of grants) {
         const item = CONTENT.items[itemId];
         if (!item) throw new Error(`Unknown item "${itemId}"`);
 
@@ -364,14 +366,14 @@ export async function grantItems(
                 ids.push(stacked.id);
                 continue;
             }
-            const [row] = await tx<InventoryRow>(INSERT_INVENTORY, [playerId, itemId, quantity, null]);
+            const [row] = await tx<InventoryRow>(INSERT_INVENTORY, [playerId, itemId, quantity, null, null]);
             if (row) ids.push(row.id);
             continue;
         }
 
         const charges = item.kind === "card" ? (chargesLeft ?? item.maxCharges) : null;
         for (let i = 0; i < quantity; i++) {
-            const [row] = await tx<InventoryRow>(INSERT_INVENTORY, [playerId, itemId, 1, charges]);
+            const [row] = await tx<InventoryRow>(INSERT_INVENTORY, [playerId, itemId, 1, charges, reforge ?? null]);
             if (row) ids.push(row.id);
         }
     }
@@ -390,12 +392,25 @@ export type CoinReason =
     | "farm-order"
     | "farm-contest"
     | "vendor-sell"
+    | "vendor-reforge"
     | "market-fee"
     | "market-bid-hold"
     | "market-bid-return"
     | "market-buy"
     | "market-collect"
     | "admin-grant";
+
+/** Locks one owned row, or null if the player doesn't own it. */
+export async function lockInventoryRow(tx: TxQuery, playerId: string, inventoryId: string): Promise<InventoryRow | null> {
+    const [row] = await tx<InventoryRow>(LOCK_INVENTORY_ROW, [playerId, inventoryId]);
+    return row ?? null;
+}
+
+/** Sets one owned copy's reforge. */
+export async function setReforge(tx: TxQuery, playerId: string, inventoryId: string, reforgeId: string) {
+    const [row] = await tx<{ id: string }>(SET_REFORGE, [playerId, inventoryId, reforgeId]);
+    if (!row) throw AppError.notFound("You don't own that item");
+}
 
 /** Adds coins (or takes them, with a negative amount) and records why. */
 export async function addCoins(tx: TxQuery, playerId: string, amount: number, reason: CoinReason, reference: string) {
@@ -538,12 +553,20 @@ export async function takeFromInventory(
 export async function restoreItem(
     tx: TxQuery,
     playerId: string,
-    copy: { inventoryId: string | null; itemId: string; quantity: number; chargesLeft: number | null; obtainedAt: Date },
+    copy: {
+        inventoryId: string | null;
+        itemId: string;
+        quantity: number;
+        chargesLeft: number | null;
+        reforge: string | null;
+        obtainedAt: Date;
+    },
 ) {
     const item = CONTENT.items[copy.itemId];
     if (!item) throw new Error(`Unknown item "${copy.itemId}"`);
+    const grant = { itemId: copy.itemId, chargesLeft: copy.chargesLeft ?? undefined, reforge: copy.reforge };
     if (isStackable(item) || !copy.inventoryId) {
-        await grantItems(tx, playerId, [{ itemId: copy.itemId, quantity: copy.quantity, chargesLeft: copy.chargesLeft ?? undefined }]);
+        await grantItems(tx, playerId, [{ ...grant, quantity: copy.quantity }]);
         return;
     }
     const [restored] = await tx<{ id: string }>(RESTORE_INVENTORY_ROW, [
@@ -553,9 +576,8 @@ export async function restoreItem(
         1,
         copy.chargesLeft,
         copy.obtainedAt,
+        copy.reforge,
     ]);
     // The id was somehow taken: hand it back as a new copy rather than lose it.
-    if (!restored) {
-        await grantItems(tx, playerId, [{ itemId: copy.itemId, quantity: 1, chargesLeft: copy.chargesLeft ?? undefined }]);
-    }
+    if (!restored) await grantItems(tx, playerId, [{ ...grant, quantity: 1 }]);
 }

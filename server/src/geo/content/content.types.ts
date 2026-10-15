@@ -1,4 +1,4 @@
-import type { GeoChestTier, GeoQualityTier } from "@cozy/shared/geo";
+import type { GeoChestTier, GeoQualityTier, GeoWorldHabitat, GeoWorldWaterKind } from "@cozy/shared/geo";
 import type { CropDef, FarmEventDef, MutationDef, PestDef, StructureDef } from "./farming";
 import type { FishDef } from "./fishing";
 import type { Action, CardDef, EffectDef, EnemyMove, FoodDef, StatModifier, Stats, StatusDef } from "../engine/engine.types";
@@ -183,6 +183,8 @@ export type EnemyDef = {
     coins?: { min: number; max: number };
     /** Combat XP for the kill. */
     xp: number;
+    /** Kinds of place it spawns near, by weight; `waters` narrows a water one. */
+    habitats?: { near: GeoWorldHabitat; weight: number; waters?: GeoWorldWaterKind[] }[];
 };
 
 /** Something a vendor sells. */
@@ -192,6 +194,8 @@ export type VendorOffer = {
     price: number;
     /** Units left; null is unlimited. Only unlimited is built so far. */
     stock: null;
+    /** The buy tab it's under; unset = "Buy". */
+    tab?: string;
 };
 
 /**
@@ -213,6 +217,16 @@ export type VendorDef = {
     description: string;
     sells: VendorOffer[];
     buys: VendorBuyRule;
+    /** Coins per reforge by the item's rarity; unset = this vendor doesn't reforge. */
+    reforge?: { cost: Record<Rarity, number> };
+};
+
+/** A reforge (`data/reforges/`): a named bonus on one copy of a weapon or armour. */
+export type ReforgeDef = {
+    id: string;
+    name: string;
+    appliesTo: ("weapon" | "armour")[];
+    modifiers: Record<Rarity, StatModifier[]>;
 };
 
 /** So many of one item. */
@@ -265,6 +279,8 @@ export type GameContent = {
     farmEvents: Record<string, FarmEventDef>;
     enemies: Record<string, EnemyDef>;
     vendors: Record<string, VendorDef>;
+    /** Reforges a vendor can roll onto gear (`data/reforges/`). */
+    reforges: Record<string, ReforgeDef>;
     mayors: Record<string, MayorDef>;
     recipes: Record<string, RecipeDef>;
     chestTiers: Record<GeoChestTier, ChestTierDef>;

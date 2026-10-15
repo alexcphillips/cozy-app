@@ -1,5 +1,5 @@
 import { query } from "../../db";
-import { CONTENT, FIRST_MAYOR_ID } from "../content";
+import { CONTENT, FIRST_MAYOR_ID, reforgeModifiers } from "../content";
 import type { MayorDef } from "../content/content.types";
 import type { StatModifier } from "../engine/engine.types";
 import { applyModifiers } from "../engine/stats";
@@ -67,10 +67,13 @@ export async function ownModifiers(playerId: string, tx: TxQuery = query): Promi
     );
 
     const itemIds = [...worn.map((row) => row.item_id), ...new Set(bag.map((entry) => entry.item_id))];
-    return itemIds.flatMap((itemId) => {
-        const item = CONTENT.items[itemId];
-        return item && (item.kind === "equipment" || item.kind === "talisman") ? (item.modifiers ?? []) : [];
-    });
+    return [
+        ...itemIds.flatMap((itemId) => {
+            const item = CONTENT.items[itemId];
+            return item && (item.kind === "equipment" || item.kind === "talisman") ? (item.modifiers ?? []) : [];
+        }),
+        ...worn.flatMap((row) => reforgeModifiers(CONTENT, row.item_id, row.reforge)),
+    ];
 }
 
 /** Everything that changes a player's stats outside a fight: global effects, then their own. */

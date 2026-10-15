@@ -15,7 +15,7 @@ import type {
     StatusInstance,
     Who,
 } from "./engine.types";
-import { CORE_STATS, DAMAGE_DEALT_STAT, FOOD_HEALING_STAT } from "./engine.types";
+import { CORE_STATS, DAMAGE_DEALT_STAT, FOOD_HEALING_STAT, MENDING_STAT } from "./engine.types";
 import { createRng, type Rng } from "./rng";
 import { statOf } from "./stats";
 
@@ -209,6 +209,7 @@ function advance(ctx: Context): void {
         actor.guard = 0;
         emit(ctx, { type: "turnStart", actor: actor.id });
         if (state.outcome !== "ongoing") return;
+        mend(ctx, actor);
         if (!isAlive(actor)) {
             state.turnIndex += 1;
             continue;
@@ -228,6 +229,16 @@ function advance(ctx: Context): void {
         enemyTurn(ctx, actor);
         if (state.outcome === "ongoing") endTurn(ctx, actor);
     }
+}
+
+/** Mending heals its bearer a little at the start of each of their turns. */
+function mend(ctx: Context, actor: Combatant): void {
+    if (!isAlive(actor)) return;
+    const max = statOf(actor, CORE_STATS.maxHealth, ctx.content);
+    const healed = Math.min(max - actor.health, Math.round(statOf(actor, MENDING_STAT, ctx.content)));
+    if (healed <= 0) return;
+    actor.health += healed;
+    ctx.log.push({ type: "heal", target: actor.id, amount: healed });
 }
 
 /**

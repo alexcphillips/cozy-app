@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GEO_CHEST_TIERS, GEO_FARM_SOILS, GEO_FARM_WEATHERS, GEO_FISHING_TIERS, GEO_QUALITY_TIERS } from "@cozy/shared/geo";
+import { GEO_CHEST_TIERS, GEO_FARM_SOILS, GEO_FARM_WEATHERS, GEO_FISHING_TIERS, GEO_QUALITY_TIERS, GEO_WORLD_HABITAT_METRES, GEO_WORLD_HABITATS, GEO_WORLD_WATER_KINDS } from "@cozy/shared/geo";
 import type { Action, Amount, Condition, EffectDef, StatModifier } from "../engine/engine.types";
 import type * as M from "./models";
 
@@ -363,6 +363,15 @@ const EnemyFile = z.strictObject({
     leavesAfterWinning: z.boolean().optional(),
     coins: range(0).optional(),
     xp: z.int().min(0),
+    habitats: z
+        .array(
+            z.strictObject({
+                near: z.enum(GEO_WORLD_HABITATS),
+                weight: z.number().positive(),
+                waters: z.array(z.enum(GEO_WORLD_WATER_KINDS)).min(1).optional(),
+            }),
+        )
+        .optional(),
 });
 
 const StatusFile = z.strictObject({
@@ -393,6 +402,7 @@ const VendorFile = z.strictObject({
             itemId: ref,
             price: count,
             stock: z.null().default(null),
+            tab: z.string().min(1).optional(),
         }),
     ),
     buys: z
@@ -401,6 +411,14 @@ const VendorFile = z.strictObject({
             skills: z.array(z.string()).optional(),
             itemIds: z.array(ref).optional(),
         }),
+    reforge: z.strictObject({ cost: z.record(Rarity, count) }).optional(),
+});
+
+const ReforgeFile = z.strictObject({
+    id,
+    name: z.string().min(1),
+    appliesTo: z.array(z.enum(["weapon", "armour"])).min(1),
+    modifiers: z.record(Rarity, z.array(StatModifierSchema).min(1)),
 });
 
 const MayorFile = z.strictObject({
@@ -441,6 +459,7 @@ export const DATA_FOLDERS = {
     statuses: StatusFile,
     recipes: RecipeFile,
     vendors: VendorFile,
+    reforges: ReforgeFile,
     mayors: MayorFile,
 } as const;
 
@@ -547,6 +566,10 @@ const SpawnsConfig = z.strictObject({
     spawnGapSeconds: z.number().min(0),
     lifetimeMinutes: z.strictObject({ min: z.number().positive(), max: z.number().positive() }),
     enemies: z.array(z.strictObject({ enemyId: ref, weight: z.number().positive() })).min(1),
+    habitats: z.record(
+        z.enum(GEO_WORLD_HABITATS),
+        z.strictObject({ influenceMetres: z.number().positive().max(GEO_WORLD_HABITAT_METRES), weight: z.number().min(0) }),
+    ),
 });
 
 const StarterKitConfig = z.strictObject({
@@ -625,6 +648,7 @@ const folderModels: { [K in DataFolder]: Same<z.input<(typeof DATA_FOLDERS)[K]>,
     statuses: true,
     recipes: true,
     vendors: true,
+    reforges: true,
     mayors: true,
 };
 const configModels: { [K in ConfigFile]: Same<z.input<(typeof CONFIG_FILES)[K]>, ConfigModelOf[K]> } = {
@@ -662,6 +686,7 @@ export type ModelOf = {
     statuses: M.Status;
     recipes: M.Recipe;
     vendors: M.Vendor;
+    reforges: M.Reforge;
     mayors: M.Mayor;
 };
 

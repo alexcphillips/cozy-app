@@ -16,6 +16,8 @@ export type InventoryRow = {
     item_id: string;
     quantity: number;
     charges_left: number | null;
+    /** Weapons and armour: its reforge id (`data/reforges/`), if reforged. */
+    reforge: string | null;
     obtained_at: Date;
 };
 

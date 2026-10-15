@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
-import type { GeoContentResponse, GeoItemSource, GeoItemStat, GeoItemView, GeoRecipe } from "@cozy/shared/geo";
+import type { GeoContentResponse, GeoItemSource, GeoItemStat, GeoItemView, GeoRecipe, GeoReforgeView } from "@cozy/shared/geo";
 import type { StatId, StatModifier } from "../../engine/engine.types";
-import { CONTENT, sellValueOf, type ItemDef, type RecipeDef } from "../../content";
+import { CONTENT, reforgeTarget, sellValueOf, type ItemDef, type RecipeDef, type ReforgeDef } from "../../content";
 
 const STAT_LABELS: Partial<Record<StatId, string>> = {
     maxHealth: "Max Health",
@@ -10,6 +10,9 @@ const STAT_LABELS: Partial<Record<StatId, string>> = {
     speed: "Speed",
     critChance: "Crit Chance",
     critMultiplier: "Crit Damage",
+    intelligence: "Intelligence",
+    mending: "Mending",
+    magicFind: "Magic Find",
 };
 
 /** Fractions, shown as percentages even when flat (+0.05 → +5%). */
@@ -57,12 +60,15 @@ function toItemView(item: ItemDef): GeoItemView {
                 maxCharges: item.maxCharges,
                 ...(item.finesse && { finesse: item.finesse }),
             };
-        case "equipment":
+        case "equipment": {
+            const target = reforgeTarget(item);
             return {
                 ...base,
                 slot: item.slot,
                 unlocksCards: item.unlocksCards?.map((cardId) => CONTENT.cards[cardId]?.name ?? cardId),
+                ...(target && { reforgeTarget: target }),
             };
+        }
         case "material": {
             const crop = Object.values(CONTENT.crops).find((entry) => entry.seed === item.id);
             return { ...base, skill: item.skill, ...(crop && { seedOf: crop.id }) };
@@ -77,6 +83,13 @@ function toItemView(item: ItemDef): GeoItemView {
         case "misc":
             return base;
     }
+}
+
+function toReforgeView(reforge: ReforgeDef): GeoReforgeView {
+    const stats = Object.fromEntries(
+        Object.entries(reforge.modifiers).map(([rarity, modifiers]) => [rarity, modifiers.map(modifierRow)]),
+    ) as GeoReforgeView["stats"];
+    return { id: reforge.id, name: reforge.name, appliesTo: reforge.appliesTo, stats };
 }
 
 function toRecipeView(recipe: RecipeDef): GeoRecipe {
@@ -108,6 +121,7 @@ export async function getContent(_req: Request, res: Response) {
         items: Object.values(CONTENT.items).map(toItemView),
         recipes: Object.values(CONTENT.recipes).map(toRecipeView),
         sources: itemSources(),
+        reforges: Object.values(CONTENT.reforges).map(toReforgeView),
     };
     res.status(200).json(body);
 }

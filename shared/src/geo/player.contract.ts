@@ -10,6 +10,8 @@ export type GeoInventoryEntry = {
     quantity: number;
     /** Cards only; 0 = faded. */
     chargesLeft: number | null;
+    /** Weapons and armour: its reforge id (`GeoReforgeView`), or null. */
+    reforge: string | null;
     obtainedAt: string;
 };
 

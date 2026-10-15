@@ -10,6 +10,7 @@ export type ListingRow = {
     item_id: string;
     source_inventory_id: string | null;
     charges_left: number | null;
+    reforge: string | null;
     obtained_at: Date;
     quantity_listed: number;
     quantity_left: number;

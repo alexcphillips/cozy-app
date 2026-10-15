@@ -3,7 +3,7 @@ import { AppError } from "../../../http/AppError";
 import { CONTENT, FARMING } from "../../content";
 import { isFarmingCardId } from "../../content/farming";
 import { withTransaction, type TxQuery } from "../../db/transaction";
-import { FARMING_FORTUNE_STAT } from "../../engine/engine.types";
+import { FARMING_FORTUNE_STAT, MUTATION_CHANCE_STAT, PEST_CHANCE_STAT } from "../../engine/engine.types";
 import { randomSeed } from "../../engine/rng";
 import { applyModifiers } from "../../engine/stats";
 import {
@@ -52,9 +52,14 @@ async function farmingLevel(tx: TxQuery, playerId: string): Promise<number> {
     return (await playerRepository.findSkillLevels(tx, playerId)).farming ?? 1;
 }
 
-/** The player's Farming Fortune: their gear, talismans and global perks. */
-async function farmingFortune(tx: TxQuery, playerId: string): Promise<number> {
-    return applyModifiers(0, await playerModifiers(playerId, tx), FARMING_FORTUNE_STAT);
+/** The player's farming stats from their gear, talismans and global perks (the mayor's). */
+async function farmingStats(tx: TxQuery, playerId: string): Promise<{ fortune: number; pestChance: number; mutationChance: number }> {
+    const modifiers = await playerModifiers(playerId, tx);
+    return {
+        fortune: applyModifiers(0, modifiers, FARMING_FORTUNE_STAT),
+        pestChance: applyModifiers(1, modifiers, PEST_CHANCE_STAT),
+        mutationChance: applyModifiers(1, modifiers, MUTATION_CHANCE_STAT),
+    };
 }
 
 /** What an NPC pays for an item: sizes the Order Board's orders. */
@@ -90,6 +95,7 @@ async function loadFarm(tx: TxQuery, playerId: string, now: Date): Promise<Loade
         stored = upgradeFarm(raced.state);
     }
     const weather = await weatherFor(stored);
+    const { pestChance, mutationChance } = await farmingStats(tx, playerId);
     const played = catchUp(stored, {
         crops: CONTENT.crops,
         mutations: CONTENT.mutations,
@@ -104,6 +110,8 @@ async function loadFarm(tx: TxQuery, playerId: string, now: Date): Promise<Loade
         seedBag: [],
         held: {},
         farmingLevel: await farmingLevel(tx, playerId),
+        pestChance,
+        mutationChance,
         weather: weather.lookup,
     });
     if (played.gains.length > 0) await playerRepository.grantItems(tx, playerId, played.gains);
@@ -143,7 +151,7 @@ async function viewOf(tx: TxQuery, playerId: string, state: FarmState, weather: 
             contests: await findContests(tx, playerId, now),
             global: findGlobalEvent(now),
             farmingLevel: await farmingLevel(tx, playerId),
-            fortune: await farmingFortune(tx, playerId),
+            fortune: (await farmingStats(tx, playerId)).fortune,
         },
         report,
     );
@@ -185,7 +193,7 @@ export async function actFarm(playerId: string, action: GeoFarmAction): Promise<
                 sellValue,
                 held: heldItems(inventoryBefore),
                 farmingLevel: await farmingLevel(tx, playerId),
-                fortune: await farmingFortune(tx, playerId),
+                ...(await farmingStats(tx, playerId)),
                 config: FARMING,
                 now,
                 hand,

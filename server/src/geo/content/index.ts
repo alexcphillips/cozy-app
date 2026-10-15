@@ -217,6 +217,12 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
             }
         }
         for (const itemId of vendor.buys.itemIds ?? []) needItem(`Vendor "${vendor.id}" buys`, itemId);
+        if (vendor.reforge) {
+            for (const target of ["weapon", "armour"] as const) {
+                const count = Object.values(content.reforges).filter((reforge) => reforge.appliesTo.includes(target)).length;
+                if (count < 2) problems.push(`Vendor "${vendor.id}" reforges, but there are under 2 ${target} reforges to roll between`);
+            }
+        }
     }
 
     for (const recipe of Object.values(content.recipes)) {
@@ -243,6 +249,17 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
     for (const { enemyId } of spawns.enemies) {
         if (!content.enemies[enemyId]) problems.push(`config/spawns.ts spawns unknown enemy "${enemyId}"`);
     }
+    for (const enemy of Object.values(content.enemies)) {
+        const habitats = enemy.habitats ?? [];
+        if (new Set(habitats.map((habitat) => habitat.near)).size !== habitats.length) {
+            problems.push(`Enemy "${enemy.id}" lists a habitat twice`);
+        }
+        for (const habitat of habitats) {
+            if (habitat.waters && habitat.near !== "water") problems.push(`Enemy "${enemy.id}" gives waters to its ${habitat.near} habitat`);
+        }
+    }
+    // Farther, water creatures would land inland, facing water out of reach.
+    if (spawns.habitats.water.influenceMetres > spawns.reachMetres) problems.push("config/spawns.ts: water influenceMetres is past reachMetres");
     if (spawns.minSpawnMetres > spawns.reachMetres) problems.push("config/spawns.ts: minSpawnMetres is past reachMetres");
     if (spawns.lifetimeMinutes.min > spawns.lifetimeMinutes.max) problems.push("config/spawns.ts: lifetimeMinutes min is over max");
     if (fishing.tuning.zoneLow >= fishing.tuning.zoneHigh) problems.push("config/fishing.ts: zoneLow must be under zoneHigh");
@@ -315,4 +332,5 @@ export const ELECTION_RULES = elections;
 /** In office before any election has finished. */
 export const FIRST_MAYOR_ID = elections.firstMayor;
 
-export type { EnemyDef, GameContent, ItemDef, MayorDef, RecipeDef, VendorDef } from "./content.types";
+export { reforgeModifiers, reforgesFor, reforgeTarget } from "./reforges";
+export type { EnemyDef, GameContent, ItemDef, MayorDef, RecipeDef, ReforgeDef, VendorDef } from "./content.types";

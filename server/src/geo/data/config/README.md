@@ -42,7 +42,8 @@ Enemy spawns around each player.
 | `windowMinutes` | How long one roll of `countWeights` holds. |
 | `spawnGapSeconds` | At most one new spawn this often. |
 | `lifetimeMinutes` | `{ min, max }` a spawn lasts. |
-| `enemies` | `{ enemyId, weight }`: which enemies spawn, how often. An enemy not listed never spawns on its own. |
+| `enemies` | `{ enemyId, weight }`: which enemies spawn anywhere, how often. Enemies with no `habitats` spawn only from here. |
+| `habitats` | Per kind of place (`water`, `mining`, `foraging`, `farming`, `landmark`): `{ influenceMetres, weight }`. Each new spawn picks where it's from by weight: `enemies` has 1, and each kind of place nearby has its `weight` when the player is on it, fading to nothing at `influenceMetres` (at most 250). Who lives there is each enemy's [`habitats`](../enemies/README.md#habitats). A place within reach gets its spawns beside it; farther, they land on the player's side facing it. Keep `water` within `reachMetres`, so water creatures land on the shore. |
 
 ## fishing.ts
 

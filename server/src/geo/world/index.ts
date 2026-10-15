@@ -22,8 +22,11 @@ export {
     MAX_SPAWNS,
     randomPointNear,
     rollLifetimeMs,
+    rollSpawn,
     rollSpawnCount,
     SPAWN_RULES,
+    type NearPlace,
+    type NearPlaces,
     windowAt,
 } from "./spawns";
 

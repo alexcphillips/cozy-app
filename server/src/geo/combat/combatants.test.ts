@@ -5,7 +5,7 @@ import { CONTENT } from "../content";
 import type { GameContent } from "../content";
 import { DAMAGE_DEALT_STAT } from "../engine/engine.types";
 import { createRng } from "../engine/rng";
-import { playerCombatant, rollChests } from "./combatants";
+import { playerCombatant, rollChests, withMagicFind } from "./combatants";
 
 describe("player combatant", () => {
     it("counts a talisman once even if listed twice", () => {
@@ -18,6 +18,41 @@ describe("player combatant", () => {
     it("gets nothing from talismans left out of the bag", () => {
         const empty = playerCombatant({ name: "You", equipment: [], talismans: [], hand: [] }, CONTENT);
         assert.equal(empty.effects.length, 0);
+    });
+});
+
+describe("reforges", () => {
+    it("adds a worn copy's reforge, for the item's rarity", () => {
+        const plain = playerCombatant({ name: "You", equipment: ["broadsword"], talismans: [], hand: [] }, CONTENT);
+        const violent = playerCombatant(
+            { name: "You", equipment: ["broadsword"], reforges: [{ itemId: "broadsword", reforgeId: "violent" }], talismans: [], hand: [] },
+            CONTENT,
+        );
+        const extra = violent.modifiers.slice(plain.modifiers.length);
+        assert.deepEqual(extra, CONTENT.reforges.violent!.modifiers.common);
+    });
+
+    it("ignores a reforge that doesn't fit the item", () => {
+        const odd = playerCombatant(
+            { name: "You", equipment: ["broadsword"], reforges: [{ itemId: "broadsword", reforgeId: "heavy" }], talismans: [], hand: [] },
+            CONTENT,
+        );
+        const plain = playerCombatant({ name: "You", equipment: ["broadsword"], talismans: [], hand: [] }, CONTENT);
+        assert.deepEqual(odd.modifiers, plain.modifiers);
+    });
+});
+
+describe("magic find", () => {
+    it("makes a rare drop 1% likelier per point, never past the rare line", () => {
+        assert.equal(withMagicFind(0.01, 0), 0.01);
+        assert.equal(withMagicFind(0.02, 50), 0.03);
+        assert.equal(withMagicFind(0.04, 100), 0.05);
+        assert.equal(withMagicFind(0.01, -10), 0.01);
+    });
+
+    it("leaves commoner drops alone", () => {
+        assert.equal(withMagicFind(0.05, 100), 0.05);
+        assert.equal(withMagicFind(0.5, 100), 0.5);
     });
 });
 

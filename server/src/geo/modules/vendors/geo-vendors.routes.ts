@@ -10,3 +10,4 @@ export const geoVendorsRouter: Router = Router();
 geoVendorsRouter.get(GEO_API_PATHS.vendors.list, geoAuth, asyncHandler(vendorsController.listVendors));
 geoVendorsRouter.post(GEO_API_PATHS.vendors.buy, geoAuth, asyncHandler(vendorsController.buy));
 geoVendorsRouter.post(GEO_API_PATHS.vendors.sell, geoAuth, asyncHandler(vendorsController.sell));
+geoVendorsRouter.post(GEO_API_PATHS.vendors.reforge, geoAuth, asyncHandler(vendorsController.reforge));

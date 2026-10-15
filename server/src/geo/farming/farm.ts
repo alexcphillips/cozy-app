@@ -253,6 +253,10 @@ export type FarmContext = {
     farmingLevel: number;
     /** Farming Fortune from gear, talismans and global perks: more crops per harvest (`withFortune`). 0 when absent. */
     fortune?: number;
+    /** Multiplies the chance a pest arrives, from global perks and gear. 1 when absent. */
+    pestChance?: number;
+    /** Multiplies every mutation's chance to sprout, from global perks and gear. 1 when absent. */
+    mutationChance?: number;
     /** The farm's weather by period; seeded rolls when absent. */
     weather?: WeatherLookup;
 };
@@ -1097,7 +1101,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
                 // As things will stand on the coming turn: its weather and events.
                 const weather = nextWeather(state, ctx);
                 const holding = Object.values(ctx.mutations).filter((mutation) => recipeHolds(index, mutation, weather, [state.nextEvent ?? undefined, ctx.globalEvent?.id]));
-                const sprouted = holding.find((mutation) => rng.chance(mutation.chance * COAX_SHARE));
+                const sprouted = holding.find((mutation) => rng.chance(mutation.chance * COAX_SHARE * (ctx.mutationChance ?? 1)));
                 if (sprouted) {
                     tile.crop = { cropId: sprouted.id, stage: 0, ripeTurns: 0, held: false, rotten: false };
                     result.log.push(`Coaxed something out at ${tileName(index)}: ${sprouted.name}!`);
@@ -1558,7 +1562,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
                 const meteorBoost = meteor?.effect.kind === "meteor-shower" ? meteor.effect.mutationBoost : 1;
                 const wasteBoost = nearby.some((at) => state.tiles[at]!.waste) ? config.waste.mutationBoost : 1;
                 const boost =
-                    (pollinated ? config.pollinateBoost : 1) * (hived ? hiveBoost : 1) * ringBoost * meteorBoost * wasteBoost * (blessed("mutation") ? 2 : 1);
+                    (pollinated ? config.pollinateBoost : 1) * (hived ? hiveBoost : 1) * ringBoost * meteorBoost * wasteBoost * (blessed("mutation") ? 2 : 1) * (ctx.mutationChance ?? 1);
                 if (!rng.chance(Math.min(1, mutation.chance * boost))) continue;
                 tile.crop = { cropId: mutation.id, stage: 0, ripeTurns: 0, held: false, rotten: false };
                 result.log.push(`Something strange has sprouted at ${tileName(index)}: ${mutation.name}!`);
@@ -1586,7 +1590,7 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
             .filter((draw) => draw.tiles.length > 0);
         const liked = draws.reduce((sum, draw) => sum + draw.tiles.length, 0);
         if (liked === 0) return;
-        if (!forced && !rng.chance(Math.min(config.pests.maxChance, config.pests.chancePerCrop * liked * boost))) return;
+        if (!forced && !rng.chance(Math.min(config.pests.maxChance, config.pests.chancePerCrop * liked * boost * Math.max(0, ctx.pestChance ?? 1)))) return;
 
         // A Jukebox's tune makes its pest likelier to be the one that comes.
         const tuned = (def: PestDef) =>
