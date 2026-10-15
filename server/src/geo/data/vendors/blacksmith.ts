@@ -14,6 +14,8 @@ export default {
         { itemId: "iron-helm", price: 120, tab: "Armour" },
         { itemId: "iron-greaves", price: 250, tab: "Armour" },
         { itemId: "iron-breastplate", price: 350, tab: "Armour" },
+        { itemId: "card.slash", price: 40, tab: "Cards" },
+        { itemId: "card.double-slash", price: 40, tab: "Cards" },
     ],
     buys: { kinds: ["equipment"] },
     // Coins per reroll, by the item's rarity.
