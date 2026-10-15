@@ -1,9 +1,9 @@
 import type { Enemy } from "#geo/models";
 
 export default {
-    id: "moss-slime",
-    name: "Moss Slime",
-    sprite: "moss-slime",
+    id: "fungal-slime",
+    name: "Fungal Slime",
+    sprite: "fungal-slime",
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {
@@ -23,5 +23,5 @@ export default {
     loot: [{ itemId: "slime", chance: 1, quantity: 1 }],
     coins: { min: 1, max: 3 },
     xp: 40,
-    habitats: [{ near: "foraging", weight: 30 }],
+    habitats: [{ near: "farming", weight: 30 }, { near: "foraging", weight: 10 }],
 } satisfies Enemy;

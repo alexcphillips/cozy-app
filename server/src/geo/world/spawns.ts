@@ -1,6 +1,7 @@
 import { distanceMetres, GEO_WORLD_HABITATS, type GeoPoint, type GeoWorldHabitat, type GeoWorldWaterKind } from "@cozy/shared/geo";
 import { CONTENT, GAME_CONFIG } from "../content";
 import type { Rng } from "../engine/rng";
+import { APP_SPRITES } from "./app-sprites.generated";
 
 /**
  * Enemy spawns — per player, placed around them.
@@ -19,8 +20,16 @@ import type { Rng } from "../engine/rng";
  * ring shows this same reach. Walk away from one and it lingers a short
  * while (`outOfReachSeconds`), then despawns.
  */
+/**
+ * Whether the app has art for this enemy. Enemies without a sprite never
+ * spawn on the map (the app can't draw them); they start spawning once their
+ * png is added and geo-game's `npm run sprites` regenerates APP_SPRITES.
+ */
+const hasArt = (enemyId: string) => (APP_SPRITES as readonly string[]).includes(CONTENT.enemies[enemyId]?.sprite ?? "");
+
 export const SPAWN_RULES = {
     ...GAME_CONFIG.spawns,
+    enemies: GAME_CONFIG.spawns.enemies.filter(({ enemyId }) => hasArt(enemyId)),
     /** New spawns land at most this far from the player: within reach. */
     maxSpawnMetres: GAME_CONFIG.spawns.reachMetres,
 };
@@ -95,11 +104,11 @@ export type NearPlaces = Partial<Record<GeoWorldHabitat, NearPlace>>;
 
 type HabitatEntry = { enemyId: string; weight: number; waters?: GeoWorldWaterKind[] };
 
-/** Who lives near each kind of place, from the enemies' own `habitats`. */
+/** Who lives near each kind of place, from the enemies' own `habitats`. Only enemies with art. */
 export const HABITAT_ENEMIES = Object.fromEntries(
     GEO_WORLD_HABITATS.map((near) => [
         near,
-        Object.values(CONTENT.enemies).flatMap((enemy) =>
+        Object.values(CONTENT.enemies).filter((enemy) => hasArt(enemy.id)).flatMap((enemy) =>
             (enemy.habitats ?? []).filter((habitat) => habitat.near === near).map(({ weight, waters }) => ({ enemyId: enemy.id, weight, waters })),
         ),
     ]),

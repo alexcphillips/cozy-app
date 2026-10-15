@@ -1,9 +1,9 @@
 import type { Enemy } from "#geo/models";
 
 export default {
-    id: "ash-slime",
-    name: "Ash Slime",
-    sprite: "ash-slime",
+    id: "green-slime",
+    name: "Green Slime",
+    sprite: "green-slime",
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {
@@ -23,5 +23,4 @@ export default {
     loot: [{ itemId: "slime", chance: 1, quantity: 1 }],
     coins: { min: 1, max: 3 },
     xp: 40,
-    habitats: [{ near: "mining", weight: 30 }],
 } satisfies Enemy;

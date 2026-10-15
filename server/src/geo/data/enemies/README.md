@@ -4,6 +4,8 @@ What you fight in a combat Run: stats, moves, innate rules, and what it
 drops. To make an enemy spawn on the map, give it `habitats` (near mines,
 water, POIs…), or add it to
 [`config/spawns.ts`](../config/README.md#spawnsts) `enemies` to spawn anywhere.
+It only spawns once the app has its `sprite`: add `<sprite>.png` to geo-game's
+`src/features/spawns/assets/` and run `npm run sprites` there.
 
 ## Fields
 

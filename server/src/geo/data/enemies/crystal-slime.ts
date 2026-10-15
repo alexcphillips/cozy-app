@@ -23,5 +23,5 @@ export default {
     loot: [{ itemId: "slime", chance: 1, quantity: 1 }],
     coins: { min: 1, max: 3 },
     xp: 40,
-    habitats: [{ near: "mining", weight: 30 }],
+    habitats: [{ near: "mining", weight: 30 }, { near: "landmark", weight: 5 }],
 } satisfies Enemy;

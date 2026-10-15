@@ -23,4 +23,5 @@ export default {
     loot: [{ itemId: "slime", chance: 1, quantity: 1 }],
     coins: { min: 1, max: 3 },
     xp: 40,
+    habitats: [{ near: "water", weight: 20, waters: ["pond", "river", "lake"] }],
 } satisfies Enemy;

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { distanceMetres } from "@cozy/shared/geo";
 import { createRng } from "../engine/rng";
+import { CONTENT } from "../content";
+import { APP_SPRITES } from "./app-sprites.generated";
 import { HABITAT_ENEMIES, MAX_SPAWNS, randomPointNear, rollEnemyId, rollLifetimeMs, rollSpawn, rollSpawnCount, SPAWN_RULES } from "./spawns";
 
 const DALLAS = { latitude: 32.7894, longitude: -96.8016 };
@@ -119,6 +121,11 @@ describe("spawns", () => {
             assert.ok([...idsOf("mining")].some((id) => seen.has(id)), "a miner");
             assert.ok([...idsOf("landmark")].some((id) => seen.has(id)), "a landmark foe");
             assert.ok(SPAWN_RULES.enemies.some(({ enemyId }) => seen.has(enemyId)), "and the usual");
+        });
+
+        it("only spawn enemies the app has art for", () => {
+            const spawnable = [...SPAWN_RULES.enemies, ...Object.values(HABITAT_ENEMIES).flat()];
+            for (const { enemyId } of spawnable) assert.ok(APP_SPRITES.some((sprite) => sprite === CONTENT.enemies[enemyId]?.sprite), enemyId);
         });
 
         it("give every habitat someone to spawn", () => {
