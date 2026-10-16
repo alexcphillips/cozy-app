@@ -9,12 +9,12 @@ import { startSmokeServer, step } from "./smoke-kit";
 
 /**
  * End-to-end check of the farm against the local database: the starter
- * farming hand and Seed Bag, a farm made on first look, planting spending a
+ * farming hand and seeds, a farm made on first look, planting spending a
  * seed, Labor enforced, the farm taking turns on its own while away (and
  * waiting after a few), a harvest into the inventory with
  * its XP, a card charge spent, a pest swatted for its drop, a tile bought
  * with coins, a mutation turned in at the Research Lab, an order delivered,
- * a structure placed and picked up, a Shrine offering, and packing seeds.
+ * a structure placed and picked up, and a Shrine offering.
  * `npm run smoke:geo-farming`.
  */
 const { call, registerPlayer, stop } = await startSmokeServer();
@@ -29,14 +29,11 @@ try {
 
     const start = await me(token);
     assert.equal(start.hands.farming?.length, 5, "a starter farming hand");
-    assert.deepEqual(
-        start.seedBag.contents.map((slot) => [slot.itemId, slot.quantity]),
-        [
-            ["wheat-seeds", 12],
-            ["carrot-seeds", 6],
-        ],
-    );
-    step("starter kit: five farming cards in hand, wheat and carrot seeds in the Seed Bag");
+    const held = (inventory: GeoMeResponse["inventory"], itemId: string) =>
+        inventory.filter((entry) => entry.itemId === itemId).reduce((sum, entry) => sum + entry.quantity, 0);
+    assert.equal(held(start.inventory, "wheat-seeds"), 12);
+    assert.equal(held(start.inventory, "carrot-seeds"), 6);
+    step("starter kit: five farming cards in hand, wheat and carrot seeds in the inventory");
 
     let farm = (await call<GeoFarmView>("GET", GEO_API_PATHS.farm.root, token)).body;
     assert.equal(farm.tiles.filter((tile) => tile.owned).length, 9);
@@ -67,11 +64,11 @@ try {
         farm = (await call<GeoFarmView>("GET", GEO_API_PATHS.farm.root, token)).body;
     };
 
-    await act({ type: "plant", tile: MID, slot: 0 });
-    assert.equal(farm.seedBag.contents[0]!.quantity, 11);
+    await act({ type: "plant", tile: MID, itemId: "wheat-seeds" });
+    assert.equal(held((await me(token)).inventory, "wheat-seeds"), 11);
     assert.equal(farm.tiles[MID]!.crop?.cropId, "wheat");
-    await act({ type: "plant", tile: MID, slot: 0 }, 400);
-    await act({ type: "plant", tile: 0, slot: 0 }, 400);
+    await act({ type: "plant", tile: MID, itemId: "wheat-seeds" }, 400);
+    await act({ type: "plant", tile: 0, itemId: "wheat-seeds" }, 400);
     step("planting takes a seed; occupied and locked tiles are refused");
 
     await act({ type: "water", tile: MID });
@@ -97,7 +94,7 @@ try {
         // Ripe wheat left two turns can rot; clear it.
         if (farm.tiles[MID]!.crop?.rotten) await act({ type: "clear", tile: MID });
         // Placeholder weather can storm or frost the wheat away: plant again.
-        if (!farm.tiles[MID]!.crop) await act({ type: "plant", tile: MID, slot: 0 });
+        if (!farm.tiles[MID]!.crop) await act({ type: "plant", tile: MID, itemId: "wheat-seeds" });
         if (farm.tiles[MID]!.moisture === 0) await act({ type: "water", tile: MID });
         // Pests may come for the wheat: swat each before it acts.
         for (const tile of new Set(farm.pests.map((pest) => pest.tile))) if (farm.labor >= 2) await act({ type: "swat", tile });
@@ -207,14 +204,6 @@ try {
     assert.equal(farm.tiles[0]!.blueprint, "melon");
     step("blueprints plan any tile");
 
-    const unpacked = (await call<GeoMeResponse>("DELETE", GEO_API_PATHS.me.seedBagSlot.replace(":slot", "1"), token)).body;
-    assert.equal(unpacked.seedBag.contents.length, 1);
-    assert.ok(unpacked.inventory.some((entry) => entry.itemId === "carrot-seeds" && entry.quantity === 6));
-    const notSeeds = await call("PUT", GEO_API_PATHS.me.seedBagSlot.replace(":slot", "1"), token, { itemId: "wheat", quantity: 1 });
-    assert.equal(notSeeds.status, 400);
-    const repacked = (await call<GeoMeResponse>("PUT", GEO_API_PATHS.me.seedBagSlot.replace(":slot", "1"), token, { itemId: "carrot-seeds", quantity: 4 })).body;
-    assert.equal(repacked.seedBag.contents.find((slot) => slot.slot === 1)?.quantity, 4);
-    step("seeds unpack and repack; anything else is refused");
 } finally {
     await stop();
 }

@@ -112,41 +112,6 @@ export const DELETE_BAIT_SLOT = `
   DELETE FROM geo.bait WHERE player_id = $1 AND slot = $2;
 `;
 
-export const FIND_SEED_BAG_SLOTS = `
-  SELECT seed_bag_slots FROM geo.players WHERE id = $1;
-`;
-
-export const SET_SEED_BAG_SLOTS = `
-  UPDATE geo.players SET seed_bag_slots = $2 WHERE id = $1;
-`;
-
-export const FIND_SEED_BAG = `
-  SELECT slot, item_id, quantity FROM geo.seed_bag WHERE player_id = $1 ORDER BY slot;
-`;
-
-/** Puts a stack in a slot, replacing what was there. */
-export const UPSERT_SEED_BAG_SLOT = `
-  INSERT INTO geo.seed_bag (player_id, slot, item_id, quantity) VALUES ($1, $2, $3, $4)
-  ON CONFLICT (player_id, slot) DO UPDATE SET item_id = EXCLUDED.item_id, quantity = EXCLUDED.quantity;
-`;
-
-/** One seed planted: guarded on what the farm thought was there, like USE_BAIT. */
-export const USE_SEED = `
-  UPDATE geo.seed_bag SET quantity = quantity - 1
-  WHERE player_id = $1 AND slot = $2 AND item_id = $3 AND quantity = $4 AND quantity > 1
-  RETURNING slot;
-`;
-
-/** The last of a slot's seeds: same guard as USE_SEED, and the slot empties. */
-export const USE_LAST_SEED = `
-  DELETE FROM geo.seed_bag
-  WHERE player_id = $1 AND slot = $2 AND item_id = $3 AND quantity = $4 AND quantity = 1
-  RETURNING slot;
-`;
-
-export const DELETE_SEED_BAG_SLOT = `
-  DELETE FROM geo.seed_bag WHERE player_id = $1 AND slot = $2;
-`;
 
 export const FIND_SKILL_XP = `
   SELECT skill, xp FROM geo.skill_xp WHERE player_id = $1;

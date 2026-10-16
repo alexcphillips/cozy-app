@@ -31,8 +31,6 @@ export const GEO_API_PATHS = {
         eatLunchbox: "/geo/me/lunchbox/:slot/eat",
         /** PUT { itemId, quantity } packs bait into the slot; DELETE unpacks it. */
         baitSlot: "/geo/me/bait/:slot",
-        /** PUT { itemId, quantity } packs seeds into the slot; DELETE unpacks it. */
-        seedBagSlot: "/geo/me/seed-bag/:slot",
         /** PUT { position } sets camp (once every GEO_CAMP_MOVE_DAYS); DELETE forgets it. */
         camp: "/geo/me/camp",
         /** PUT { inventoryId }: the active pet (null puts it away). */

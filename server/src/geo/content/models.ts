@@ -277,7 +277,7 @@ export type Crop = {
     id: string;
     name: string;
     icon: string;
-    /** The seed item planted from the Seed Bag. */
+    /** The seed item, planted from the inventory. */
     seed: string;
     /** The item a harvest gives. */
     produce: string;
@@ -635,8 +635,6 @@ export type StarterKitConfig = {
     lunchbox: ItemAmount[];
     /** Packed into the bait slots, slot by slot. */
     bait: ItemAmount[];
-    /** Packed into the Seed Bag, slot by slot. */
-    seeds: ItemAmount[];
 };
 
 export type SpawnsConfig = {
@@ -694,8 +692,6 @@ export type FarmingConfig = {
     startSize: number;
     /** Coins for the nth extra tile: first + step × (n − 1). */
     unlockCost: { first: number; step: number };
-    /** Seed Bag slots a new player has. */
-    seedBagSlots: number;
     /** Every tile's fertility to start. */
     startFertility: number;
     /** An empty owned tile gains this much fertility per turn, up to `fallowCap`. */

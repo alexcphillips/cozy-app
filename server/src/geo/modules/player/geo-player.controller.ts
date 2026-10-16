@@ -2,8 +2,6 @@ import type { Request, Response } from "express";
 import {
     GEO_BAIT_MAX_SLOTS,
     GEO_BAIT_STACK_SIZE,
-    GEO_SEED_BAG_MAX_SLOTS,
-    GEO_SEED_BAG_STACK_SIZE,
     GEO_EQUIPMENT_SLOTS,
     GEO_HAND_SIZE,
     GEO_LUNCHBOX_MAX_SLOTS,
@@ -17,7 +15,6 @@ import {
     type GeoPoint,
     type GeoSetCampRequest,
     type GeoPackBaitRequest,
-    type GeoPackSeedsRequest,
     type GeoEquipRequest,
     type GeoPackLunchboxRequest,
     type GeoSaveHandRequest,
@@ -370,71 +367,6 @@ export async function unpackBait(req: Request, res: Response) {
     await withTransaction(async (tx) => {
         await playerRepository.lockPlayer(tx, playerId);
         await unpackBaitSlot(tx, playerId, slot);
-    });
-
-    res.status(200).json(await playerRepository.findMe(playerId));
-}
-
-/** The `:slot` param as a Seed Bag slot index, or a 400. */
-function parseSeedBagSlot(value: unknown): number {
-    const slot = Number(value);
-    if (!Number.isInteger(slot) || slot < 0 || slot >= GEO_SEED_BAG_MAX_SLOTS) {
-        throw AppError.badRequest("Unknown Seed Bag slot");
-    }
-    return slot;
-}
-
-/** Puts back whatever seeds are packed in `slot`. */
-async function unpackSeedBagSlot(tx: TxQuery, playerId: string, slot: number) {
-    const bag = await playerRepository.findSeedBag(playerId, tx);
-    const packed = bag.contents.find((entry) => entry.slot === slot);
-    if (!packed) return;
-    await playerRepository.grantItems(tx, playerId, [{ itemId: packed.itemId, quantity: packed.quantity }]);
-    await playerRepository.clearSeedBagSlot(tx, playerId, slot);
-}
-
-/**
- * Packs seeds into a Seed Bag slot, the same way as bait: whatever the slot
- * held goes back to the inventory, then `quantity` of the seed leaves it.
- * Only seeds a crop grows from go in.
- */
-export async function packSeeds(req: Request, res: Response) {
-    const playerId = requirePlayerId(req);
-    const slot = parseSeedBagSlot(req.params.slot);
-    const { itemId, quantity } = (req.body ?? {}) as Partial<GeoPackSeedsRequest>;
-    if (typeof itemId !== "string") throw AppError.badRequest("Missing itemId");
-    if (!Number.isInteger(quantity) || quantity! < 1 || quantity! > GEO_SEED_BAG_STACK_SIZE) {
-        throw AppError.badRequest(`A Seed Bag slot holds 1–${GEO_SEED_BAG_STACK_SIZE}`);
-    }
-    const item = CONTENT.items[itemId];
-    if (!item || !Object.values(CONTENT.crops).some((crop) => crop.seed === itemId)) {
-        throw AppError.badRequest("Only seeds go in the Seed Bag");
-    }
-
-    await withTransaction(async (tx) => {
-        await playerRepository.lockPlayer(tx, playerId);
-
-        const bag = await playerRepository.findSeedBag(playerId, tx);
-        if (slot >= bag.slots) throw AppError.badRequest("That Seed Bag slot is still locked");
-        const elsewhere = bag.contents.find((entry) => entry.itemId === itemId && entry.slot !== slot);
-        if (elsewhere) throw AppError.badRequest(`${item.name} are already in another slot`);
-
-        await unpackSeedBagSlot(tx, playerId, slot);
-        await playerRepository.takeItems(tx, playerId, itemId, quantity!);
-        await playerRepository.setSeedBagSlot(tx, playerId, slot, itemId, quantity!);
-    });
-
-    res.status(200).json(await playerRepository.findMe(playerId));
-}
-
-/** Empties a Seed Bag slot back into the inventory. */
-export async function unpackSeeds(req: Request, res: Response) {
-    const playerId = requirePlayerId(req);
-    const slot = parseSeedBagSlot(req.params.slot);
-
-    await withTransaction(async (tx) => {
-        await playerRepository.lockPlayer(tx, playerId);
-        await unpackSeedBagSlot(tx, playerId, slot);
     });
 
     res.status(200).json(await playerRepository.findMe(playerId));

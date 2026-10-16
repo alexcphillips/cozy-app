@@ -44,8 +44,8 @@ export async function act(req: Request, res: Response) {
         if (!isInt(body.tile)) throw AppError.badRequest("Missing tile");
         const tile = body.tile;
         if (type === "plant") {
-            if (!isInt(body.slot)) throw AppError.badRequest("Missing slot");
-            action = { type, tile, slot: body.slot };
+            if (typeof body.itemId !== "string") throw AppError.badRequest("Missing itemId");
+            action = { type, tile, itemId: body.itemId };
         } else if (type === "play") {
             if (typeof body.inventoryId !== "string") throw AppError.badRequest("Missing inventoryId");
             action = { type, tile, inventoryId: body.inventoryId };

@@ -73,11 +73,11 @@ const ctx: FarmContext = {
     config,
     now: NOW,
     hand,
-    seedBag: [
-        { slot: 0, itemId: "wheat-seeds", quantity: 5 },
-        { slot: 1, itemId: "melon-seeds", quantity: 5 },
-    ],
-    held: Object.fromEntries(Object.values(CONTENT.structures).map((structure) => [structure.itemId, 2])),
+    held: {
+        ...Object.fromEntries(Object.values(CONTENT.structures).map((structure) => [structure.itemId, 2])),
+        "wheat-seeds": 5,
+        "melon-seeds": 5,
+    },
     farmingLevel: 1,
 };
 const card = (cardId: string) => hand.find((entry) => entry.cardId === cardId)!.inventoryId;
@@ -96,7 +96,7 @@ function withPest(state: FarmState, pestId: string, tile: number): FarmState {
     return next;
 }
 
-const plant = (state: FarmState, tile: number, slot = 0) => stepFarm(state, { type: "plant", tile, slot }, ctx).state;
+const plant = (state: FarmState, tile: number, itemId = "wheat-seeds") => stepFarm(state, { type: "plant", tile, itemId }, ctx).state;
 
 /** `context` with every turn under this sky. */
 const under = (weather: GeoFarmWeather, context: FarmContext = ctx): FarmContext => ({ ...context, weather: () => weather });
@@ -169,10 +169,12 @@ describe("farm", () => {
         assert.equal(refill(99), config.laborPerTurn + config.laborLevels.length);
     });
 
-    it("plants from the Seed Bag for free and grows to ripe, then harvests", () => {
-        const planted = stepFarm(farm(), { type: "plant", tile: MID, slot: 0 }, ctx);
-        assert.deepEqual(planted.seedUsed, { slot: 0, itemId: "wheat-seeds", from: 5 });
+    it("plants from the inventory for free and grows to ripe, then harvests", () => {
+        const planted = stepFarm(farm(), { type: "plant", tile: MID, itemId: "wheat-seeds" }, ctx);
+        assert.deepEqual(planted.itemsUsed, [{ itemId: "wheat-seeds", quantity: 1 }]);
         assert.equal(planted.state.labor, config.laborPerTurn);
+        assert.throws(() => stepFarm(farm(), { type: "plant", tile: MID, itemId: "carrot-seeds" }, ctx), /none of those seeds/);
+        assert.throws(() => stepFarm(farm(), { type: "plant", tile: MID, itemId: "wheat" }, ctx), /aren't seeds/);
 
         const ripe = advanceWet(planted.state, CONTENT.crops.wheat!.stages);
         assert.throws(() => stepFarm(planted.state, { type: "harvest", tile: MID }, ctx), FarmRuleError);
@@ -206,7 +208,7 @@ describe("farm", () => {
     });
 
     it("doesn't grow a dry crop on a clear day", () => {
-        const dry = stepFarm(farm(), { type: "plant", tile: MID, slot: 0 }, ctx).state;
+        const dry = stepFarm(farm(), { type: "plant", tile: MID, itemId: "wheat-seeds" }, ctx).state;
         assert.equal(tickFarm(dry, under("clear")).state.tiles[MID]!.crop!.stage, 0);
         const wet = { ...dry, tiles: dry.tiles.map((tile, i) => (i === MID ? { ...tile, moisture: 1 } : tile)) };
         const grown = tickFarm(wet, under("clear")).state.tiles[MID]!;
@@ -215,7 +217,7 @@ describe("farm", () => {
     });
 
     it("pays more for waiting on a ripe crop, until it rots", () => {
-        const ripe = advanceWet(stepFarm(farm(), { type: "plant", tile: MID, slot: 0 }, ctx).state, CONTENT.crops.wheat!.stages);
+        const ripe = advanceWet(stepFarm(farm(), { type: "plant", tile: MID, itemId: "wheat-seeds" }, ctx).state, CONTENT.crops.wheat!.stages);
         const pushed = advanceWet(ripe, 2);
         assert.equal(pushed.tiles[MID]!.crop!.ripeTurns, 2);
         // rotChances[3] is 1 in this config: the fourth wait always rots.
@@ -225,7 +227,7 @@ describe("farm", () => {
     });
 
     it("Hold stops a ripe crop rotting or improving for one turn", () => {
-        let state = advanceWet(stepFarm(farm(), { type: "plant", tile: MID, slot: 0 }, ctx).state, CONTENT.crops.wheat!.stages);
+        let state = advanceWet(stepFarm(farm(), { type: "plant", tile: MID, itemId: "wheat-seeds" }, ctx).state, CONTENT.crops.wheat!.stages);
         state = { ...state, labor: 3 };
         state = stepFarm(state, { type: "play", inventoryId: card("farm.hold"), tile: MID }, ctx).state;
         state = advanceWet(state, 1);
@@ -247,7 +249,7 @@ describe("farm", () => {
     it("Scythe Sweep harvests every ripe crop in reach", () => {
         let state = farm();
         const row = Math.floor(MID / GEO_FARM_SIZE);
-        for (const tile of [MID - 1, MID, MID + 1]) state = stepFarm(state, { type: "plant", tile, slot: 0 }, ctx).state;
+        for (const tile of [MID - 1, MID, MID + 1]) state = stepFarm(state, { type: "plant", tile, itemId: "wheat-seeds" }, ctx).state;
         state = { ...advanceWet(state, CONTENT.crops.wheat!.stages), labor: 3 };
         const result = stepFarm(state, { type: "play", inventoryId: card("farm.scythe-sweep"), tile: MID }, ctx);
         assert.equal(result.state.tiles.filter((tile, i) => Math.floor(i / GEO_FARM_SIZE) === row && tile.crop).length, 0);
@@ -358,7 +360,7 @@ describe("farm", () => {
 
         it("arrive next to the crops they like, but not before fromTurn", () => {
             const eager = { ...ctx, config: { ...config, pests: { fromTurn: 2, chancePerCrop: 1, maxChance: 1, max: 4 } } };
-            let state = plant(farm(), MID, 1);
+            let state = plant(farm(), MID, "melon-seeds");
             const wet = (s: FarmState) => ({ ...s, tiles: s.tiles.map((tile) => (tile.owned ? { ...tile, moisture: 3 } : tile)) });
             state = tickFarm(wet(state), eager).state;
             assert.equal(state.pests.length, 0);
@@ -465,7 +467,7 @@ describe("farm", () => {
             const placed = stepFarm(farm(), { type: "place", tile: MID, itemId: "structure.pond" }, ctx);
             assert.equal(placed.state.tiles[MID]!.structure?.structureId, "pond");
             assert.deepEqual(placed.itemsUsed, [{ itemId: "structure.pond", quantity: 1 }]);
-            assert.throws(() => stepFarm(placed.state, { type: "plant", tile: MID, slot: 0 }, ctx), FarmRuleError);
+            assert.throws(() => stepFarm(placed.state, { type: "plant", tile: MID, itemId: "wheat-seeds" }, ctx), FarmRuleError);
             assert.throws(() => stepFarm(plant(farm(), MID), { type: "place", tile: MID, itemId: "structure.pond" }, ctx), FarmRuleError);
             assert.throws(() => stepFarm(farm(), { type: "place", tile: MID, itemId: "structure.pond" }, { ...ctx, held: {} }), FarmRuleError);
             const picked = stepFarm(placed.state, { type: "pickup", tile: MID }, ctx);
@@ -534,7 +536,7 @@ describe("farm", () => {
 
         it("a Jukebox's tune decides which pest comes", () => {
             const eager = { ...ctx, config: { ...config, pests: { fromTurn: 0, chancePerCrop: 1, maxChance: 1, max: 4 } } };
-            let state = { ...place(plant(plant(farm(), MID - 1), MID + 1, 1), "jukebox", MID), labor: 3 };
+            let state = { ...place(plant(plant(farm(), MID - 1), MID + 1, "melon-seeds"), "jukebox", MID), labor: 3 };
             state = stepFarm(state, { type: "tune", tile: MID, pestId: "earthworm" }, eager).state;
             const boosted = { ...eager, structures: { ...CONTENT.structures, jukebox: { ...CONTENT.structures.jukebox!, effect: { kind: "jukebox" as const, boost: 1e9 } } } };
             for (let seed = 1; seed <= 5; seed++) {
@@ -730,7 +732,7 @@ describe("farm", () => {
 
         it("waste blocks planting, is scrubbed by hand or card, and boosts mutations beside it", () => {
             let state = { ...wasteAt(farm(), [MID]), labor: 3 };
-            assert.throws(() => stepFarm(state, { type: "plant", tile: MID, slot: 0 }, ctx), FarmRuleError);
+            assert.throws(() => stepFarm(state, { type: "plant", tile: MID, itemId: "wheat-seeds" }, ctx), FarmRuleError);
             assert.equal(stepFarm(state, { type: "scrub", tile: MID }, ctx).state.tiles[MID]!.waste, false);
             assert.equal(stepFarm(state, { type: "play", inventoryId: card("farm.hazmat-scrub"), tile: MID }, ctx).state.labor, 2);
             // Emberwheat at 0.4 × waste 3 is certain beside waste, not without it.

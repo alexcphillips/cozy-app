@@ -65,22 +65,42 @@ function statAt(stat: PetStatDef, rarity: Rarity, level: number): StatModifier {
 
 const unlocked = (ability: PetDef["abilities"][number], rarity: Rarity) => rank(rarity) >= rank(ability.from);
 
+/** What the pet gives, by where it comes from: its stats, its unlocked abilities, its held item. */
+export type PetModifierSources = { stats: StatModifier[]; abilities: StatModifier[]; heldItem: StatModifier[] };
+
+const NO_PET_MODIFIERS: PetModifierSources = { stats: [], abilities: [], heldItem: [] };
+
+const nonZero = (modifiers: StatModifier[]) => modifiers.filter((modifier) => modifier.value !== 0);
+
+export function petModifierSources(pet: PetDef, rarity: Rarity, copy: PetCopy): PetModifierSources {
+    const { level } = petProgress(copy.xp, rarity);
+    return {
+        stats: nonZero(pet.stats.map((stat) => statAt(stat, rarity, level))),
+        abilities: nonZero(
+            pet.abilities
+                .filter((ability) => unlocked(ability, rarity))
+                .flatMap((ability) => ability.modifiers.map((stat) => statAt(stat, rarity, level))),
+        ),
+        heldItem: nonZero(heldItemOf(copy.heldItem)?.modifiers ?? []),
+    };
+}
+
 /** Every stat the pet gives at this rarity and level: its stats, its unlocked abilities, its held item. */
 export function petModifiers(pet: PetDef, rarity: Rarity, copy: PetCopy): StatModifier[] {
-    const { level } = petProgress(copy.xp, rarity);
-    return [
-        ...pet.stats.map((stat) => statAt(stat, rarity, level)),
-        ...pet.abilities
-            .filter((ability) => unlocked(ability, rarity))
-            .flatMap((ability) => ability.modifiers.map((stat) => statAt(stat, rarity, level))),
-        ...(heldItemOf(copy.heldItem)?.modifiers ?? []),
-    ].filter((modifier) => modifier.value !== 0);
+    const { stats, abilities, heldItem } = petModifierSources(pet, rarity, copy);
+    return [...stats, ...abilities, ...heldItem];
+}
+
+/** The active pet's modifiers by source, from its inventory row; none for anything that isn't a pet. */
+export function activePetModifierSources(row: { item_id: string; pet: PetCopy | null } | undefined): PetModifierSources {
+    const found = row ? petOf(row.item_id) : null;
+    return found && row ? petModifierSources(found.pet, found.item.rarity, row.pet ?? NEW_PET) : NO_PET_MODIFIERS;
 }
 
 /** The active pet's modifiers, from its inventory row; none for anything that isn't a pet. */
 export function activePetModifiers(row: { item_id: string; pet: PetCopy | null } | undefined): StatModifier[] {
-    const found = row ? petOf(row.item_id) : null;
-    return found && row ? petModifiers(found.pet, found.item.rarity, row.pet ?? NEW_PET) : [];
+    const { stats, abilities, heldItem } = activePetModifierSources(row);
+    return [...stats, ...abilities, ...heldItem];
 }
 
 /**

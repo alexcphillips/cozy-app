@@ -563,7 +563,6 @@ const FarmingConfig = z.strictObject({
     maxTurnsAway: count,
     startSize: count,
     unlockCost: z.strictObject({ first: z.int().min(0), step: z.int().min(0) }),
-    seedBagSlots: count,
     startFertility: z.int().min(0).max(10),
     fallowRecovery: z.int().min(0),
     fallowCap: z.int().min(0).max(10),
@@ -638,7 +637,6 @@ const StarterKitConfig = z.strictObject({
     handSkills: z.array(z.string()),
     lunchbox: z.array(ItemAmount),
     bait: z.array(ItemAmount),
-    seeds: z.array(ItemAmount),
 });
 
 const ElectionsConfig = z.strictObject({

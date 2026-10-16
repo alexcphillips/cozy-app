@@ -1,7 +1,6 @@
 import type { GeoPlayer } from "./auth.contract";
-import type { GeoEquipmentSlot, GeoRarity } from "./content.contract";
+import type { GeoEquipmentSlot, GeoItemStat, GeoRarity } from "./content.contract";
 import type { GeoPoint } from "./distance";
-import type { GeoSeedBag } from "./farming.contract";
 import type { GeoPetState, GeoPetUpgrade } from "./pet.contract";
 import type { GeoLunchboxSlot } from "./run.contract";
 
@@ -33,8 +32,6 @@ export type GeoMeResponse = {
     savedHands: GeoSavedHand[];
     lunchbox: GeoLunchbox;
     bait: GeoBait;
-    /** Seeds packed for farming. */
-    seedBag: GeoSeedBag;
     health: GeoHealth;
     /** null until the player sets one. */
     camp: GeoCamp | null;
@@ -44,6 +41,24 @@ export type GeoMeResponse = {
     petUpgrade: GeoPetUpgrade | null;
     /** Coins to take a held item off a pet, by the held item's rarity. */
     heldItemRemovalCost: Record<GeoRarity, number>;
+    /** Every stat the player has now, for the character's Stats tab. */
+    stats: GeoStatLine[];
+};
+
+export type GeoStatGroup = "combat" | "fishing" | "farming";
+
+/**
+ * One stat's total, summed the way the server's rules read it, and where it
+ * comes from: base first, then each source that changes it, e.g.
+ * Base +0, Equipment +10, Talismans +3, Pet +1.
+ */
+export type GeoStatLine = {
+    id: string;
+    group: GeoStatGroup;
+    label: string;
+    /** The total as shown: "12", "7%", "×0.75". */
+    value: string;
+    sources: GeoItemStat[];
 };
 
 /**

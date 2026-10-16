@@ -9,7 +9,6 @@ import {
     type GeoFarmView,
     type GeoFarmWeather,
     type GeoResearchLab,
-    type GeoSeedBag,
 } from "@cozy/shared/geo";
 import { CONTENT, FARMING } from "../../content";
 import { FARMING_CARDS, isFarmingCardId, type GrowsDef, type MutationRecipe } from "../../content/farming";
@@ -125,11 +124,10 @@ export type FarmReport = { log: string[]; gained: GeoFarmGain[]; xpGained: numbe
 
 const NO_REPORT: FarmReport = { log: [], gained: [], xpGained: 0 };
 
-/** The farm as the app sees it: every tile, the clock, the hand and the Seed Bag. */
+/** The farm as the app sees it: every tile, the clock and the hand. */
 /** Everything a farm view needs besides the farm itself, loaded by the repository. */
 export type FarmViewExtras = {
     hand: FarmHandCard[];
-    seedBag: GeoSeedBag;
     /** How many of each item the player holds, for the Research Lab and structures. */
     held: Record<string, number>;
     weather: WeatherLookup;
@@ -140,7 +138,7 @@ export type FarmViewExtras = {
     fortune: number;
 };
 
-export function toFarmView(state: FarmState, { hand, seedBag, held, weather, contests, global, farmingLevel, fortune }: FarmViewExtras, report: FarmReport = NO_REPORT): GeoFarmView {
+export function toFarmView(state: FarmState, { hand, held, weather, contests, global, farmingLevel, fortune }: FarmViewExtras, report: FarmReport = NO_REPORT): GeoFarmView {
     return {
         size: GEO_FARM_SIZE,
         tiles: state.tiles.map((tile, index) => {
@@ -202,7 +200,6 @@ export function toFarmView(state: FarmState, { hand, seedBag, held, weather, con
         hand: hand.flatMap((card) =>
             isFarmingCardId(card.cardId) ? [{ ...card, labor: FARMING_CARDS[card.cardId].labor, shape: FARMING_CARDS[card.cardId].shape }] : [],
         ),
-        seedBag,
         crops: cropViews(state),
         pests: state.pests.map((pest) => ({
             id: pest.id,

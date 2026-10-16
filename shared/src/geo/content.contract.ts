@@ -74,7 +74,7 @@ export type GeoItemView = {
     food?: { tags: string[] };
     /** Consumables that are bait: packable in the bait slots and used in a fishing Run. */
     bait?: boolean;
-    /** Seeds: the crop they grow into. Packable in the Seed Bag. */
+    /** Seeds: the crop they grow into. Planted straight from the inventory. */
     seedOf?: string;
     /** A quality catch's tier, e.g. a Silver Salmon. */
     quality?: GeoQualityTier;

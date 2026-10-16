@@ -36,7 +36,6 @@ const PROGRESS_TABLES = [
     "hands",
     "lunchbox",
     "bait",
-    "seed_bag",
     "farms",
     "talisman_bag",
     "active_pets",

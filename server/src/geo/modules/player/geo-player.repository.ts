@@ -4,7 +4,6 @@ import type {
     GeoPoint,
     GeoBait,
     GeoBaitSlot,
-    GeoSeedBag,
     GeoDeathCause,
     GeoEquipmentSlot,
     GeoInventoryEntry,
@@ -18,10 +17,11 @@ import { geoSkillLevel, type GeoPetUpgrade } from "@cozy/shared/geo";
 import { query } from "../../../db";
 import { AppError } from "../../../http/AppError";
 import { CONTENT, GAME_CONFIG } from "../../content";
-import { NEW_PET, petOf, petState, petXpFrom, type PetCopy } from "../../pets/pets";
+import { activePetModifierSources, NEW_PET, petOf, petState, petXpFrom, type PetCopy } from "../../pets/pets";
 import { isStackable } from "../../content/content.types";
 import type { TxQuery } from "../../db/transaction";
-import { playerMaxHealth } from "../../world/global-effects";
+import { globalModifiers, playerMaxHealth } from "../../world/global-effects";
+import { statSheet } from "../../world/stat-sheet";
 import { currentHealth, campMovableAt } from "./geo-camp.rules";
 import {
     ADD_COINS,
@@ -66,13 +66,6 @@ import {
     INSERT_SAVED_HAND,
     DELETE_INVENTORY_ROW,
     DELETE_BAIT_SLOT,
-    DELETE_SEED_BAG_SLOT,
-    FIND_SEED_BAG,
-    FIND_SEED_BAG_SLOTS,
-    SET_SEED_BAG_SLOTS,
-    UPSERT_SEED_BAG_SLOT,
-    USE_LAST_SEED,
-    USE_SEED,
     USE_BAIT,
     USE_LAST_BAIT,
     DELETE_LUNCHBOX_SLOT,
@@ -176,7 +169,7 @@ export async function findMe(playerId: string): Promise<GeoMeResponse | null> {
     const player = await findPlayer(playerId);
     if (!player) return null;
 
-    const [inventory, equipment, talismanBag, bagPages, hands, xp, savedHands, lunchbox, bait, seedBag, health, camp, activePet, petUpgrade] = await Promise.all([
+    const [inventory, equipment, talismanBag, bagPages, hands, xp, savedHands, lunchbox, bait, health, camp, activePet, petUpgrade, global] = await Promise.all([
         findInventory(playerId),
         findEquipment(playerId),
         findTalismanBag(playerId),
@@ -186,12 +179,15 @@ export async function findMe(playerId: string): Promise<GeoMeResponse | null> {
         query<SavedHandRow>(FIND_SAVED_HANDS, [playerId]),
         findLunchbox(playerId),
         findBait(playerId),
-        findSeedBag(playerId),
         findHealth(playerId),
         findCamp(playerId),
         findActivePet(playerId),
         findPetUpgrade(playerId),
+        globalModifiers(),
     ]);
+
+    const byId = new Map(inventory.map((row) => [row.id, row]));
+    const combatXp = xp.find((row) => row.skill === "combat")?.xp ?? 0;
 
     return {
         player,
@@ -208,12 +204,21 @@ export async function findMe(playerId: string): Promise<GeoMeResponse | null> {
         savedHands: savedHands.map(toSavedHand),
         lunchbox,
         bait,
-        seedBag,
         health,
         camp,
         activePet: activePet?.id ?? null,
         petUpgrade: petUpgrade && toPetUpgrade(petUpgrade),
         heldItemRemovalCost: GAME_CONFIG.pets.heldItemRemovalCost,
+        stats: statSheet({
+            worn: equipment.flatMap((slot) => {
+                const row = byId.get(slot.inventory_id);
+                return row ? [{ itemId: row.item_id, reforge: row.reforge }] : [];
+            }),
+            talismans: talismanBag.map((row) => row.item_id),
+            pet: activePetModifierSources(activePet ?? undefined),
+            combatLevel: geoSkillLevel(Number(combatXp)),
+            globalModifiers: global,
+        }),
     };
 }
 
@@ -393,42 +398,6 @@ export async function useBait(tx: TxQuery, playerId: string, used: { slot: numbe
 
 export async function clearBaitSlot(tx: TxQuery, playerId: string, slot: number) {
     await tx(DELETE_BAIT_SLOT, [playerId, slot]);
-}
-
-/** How many Seed Bag slots the player has unlocked, and what's packed in them. */
-export async function findSeedBag(playerId: string, tx: TxQuery = db): Promise<GeoSeedBag> {
-    // One after another: `tx` may be a transaction's single connection.
-    const [row] = await tx<{ seed_bag_slots: number }>(FIND_SEED_BAG_SLOTS, [playerId]);
-    const contents = await tx<BaitRow>(FIND_SEED_BAG, [playerId]);
-    return {
-        slots: row?.seed_bag_slots ?? 1,
-        contents: contents
-            .filter(isKnownItem)
-            .map((entry) => ({ slot: entry.slot, itemId: entry.item_id, quantity: entry.quantity })),
-    };
-}
-
-export async function setSeedBagSlots(tx: TxQuery, playerId: string, slots: number) {
-    await tx(SET_SEED_BAG_SLOTS, [playerId, slots]);
-}
-
-/** Puts a stack in a Seed Bag slot, replacing what was there. The caller moves the items. */
-export async function setSeedBagSlot(tx: TxQuery, playerId: string, slot: number, itemId: string, quantity: number) {
-    await tx(UPSERT_SEED_BAG_SLOT, [playerId, slot, itemId, quantity]);
-}
-
-/** Takes one seed from a slot to plant; throws unless it still holds exactly `from`, like useBait. */
-export async function useSeed(tx: TxQuery, playerId: string, used: { slot: number; itemId: string; from: number }) {
-    const { slot, itemId, from } = used;
-    const [row] =
-        from > 1
-            ? await tx<{ slot: number }>(USE_SEED, [playerId, slot, itemId, from])
-            : await tx<{ slot: number }>(USE_LAST_SEED, [playerId, slot, itemId, from]);
-    if (!row) throw AppError.badRequest("Those seeds are no longer packed");
-}
-
-export async function clearSeedBagSlot(tx: TxQuery, playerId: string, slot: number) {
-    await tx(DELETE_SEED_BAG_SLOT, [playerId, slot]);
 }
 
 function toSavedHand(row: SavedHandRow): GeoSavedHand {

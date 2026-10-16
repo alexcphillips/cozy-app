@@ -8,7 +8,6 @@ export default {
     maxTurnsAway: 2,
     startSize: 3,
     unlockCost: { first: 50, step: 25 },
-    seedBagSlots: 2,
     startFertility: 5,
     fallowRecovery: 1,
     fallowCap: 5,

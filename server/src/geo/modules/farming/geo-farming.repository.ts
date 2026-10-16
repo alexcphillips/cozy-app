@@ -97,9 +97,8 @@ async function loadFarm(tx: TxQuery, playerId: string, now: Date): Promise<Loade
         sellValue,
         config: FARMING,
         now,
-        // A turn plays no cards, seeds or held items.
+        // A turn plays no cards or held items.
         hand: [],
-        seedBag: [],
         held: {},
         farmingLevel: await farmingLevel(tx, playerId),
         pestChance,
@@ -137,7 +136,6 @@ async function viewOf(tx: TxQuery, playerId: string, state: FarmState, weather: 
         state,
         {
             hand: hand ?? (await loadHand(tx, playerId, inventory)),
-            seedBag: await playerRepository.findSeedBag(playerId, tx),
             held: heldItems(inventory),
             weather,
             contests: await findContests(tx, playerId, now),
@@ -161,7 +159,7 @@ export async function findFarm(playerId: string): Promise<GeoFarmView> {
 
 /**
  * One farm action, saved with what it costs and gives in one transaction:
- * a seed out of the bag, a card's charge, coins for a tile, the harvest and
+ * a seed planted, a card's charge, coins for a tile, the harvest and
  * its farming XP.
  */
 export async function actFarm(playerId: string, action: GeoFarmAction): Promise<GeoFarmView> {
@@ -171,7 +169,6 @@ export async function actFarm(playerId: string, action: GeoFarmAction): Promise<
         const { state, weather, away } = await loadFarm(tx, playerId, now);
         const inventoryBefore = await playerRepository.findInventory(playerId, tx);
         const hand = await loadHand(tx, playerId, inventoryBefore);
-        const seedBag = await playerRepository.findSeedBag(playerId, tx);
 
         let result;
         try {
@@ -189,7 +186,6 @@ export async function actFarm(playerId: string, action: GeoFarmAction): Promise<
                 config: FARMING,
                 now,
                 hand,
-                seedBag: seedBag.contents,
                 weather,
             });
         } catch (error) {
@@ -210,7 +206,6 @@ export async function actFarm(playerId: string, action: GeoFarmAction): Promise<
             await playerRepository.addCoins(tx, playerId, result.coinsGained, "farm-order", action.type === "deliver-order" ? action.orderId : "");
         }
         for (const used of result.itemsUsed) await playerRepository.takeItems(tx, playerId, used.itemId, used.quantity);
-        if (result.seedUsed) await playerRepository.useSeed(tx, playerId, result.seedUsed);
         if (result.cardPlayed) await playerRepository.setCharges(tx, playerId, result.cardPlayed.inventoryId, result.cardPlayed.chargesLeft);
         if (result.gains.length > 0) await playerRepository.grantItems(tx, playerId, result.gains);
         await playerRepository.addSkillXp(tx, playerId, "farming", result.xp);

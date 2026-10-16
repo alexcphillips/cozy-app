@@ -23,7 +23,6 @@ What a new account gets.
 | `handSkills` | Every starter card of these skills becomes that skill's first hand. |
 | `lunchbox` | Food packed into the lunchbox, slot by slot. |
 | `bait` | Bait packed into the bait slots, slot by slot. |
-| `seeds` | Seeds packed into the Seed Bag, slot by slot. No more than `farming.ts` `seedBagSlots`. |
 
 Changes apply to new accounts. To re-grant to everyone, run
 `npm run wipe:geo -- --yes`.
@@ -72,7 +71,6 @@ Enemy spawns around each player.
 | `maxTurnsAway` | Turns the farm takes while the player is away; past this it waits for them (nothing grows, nothing is lost). |
 | `startSize` | The odd-sized square a new farm owns in the middle of the 9×9. |
 | `unlockCost` | `{ first, step }`: coins for the nth extra tile are first + step × (n − 1). |
-| `seedBagSlots` | Seed Bag slots a new player has (most: 4). |
 | `startFertility`, `fallowRecovery`, `fallowCap` | Every tile's fertility to start; an empty tile gains `fallowRecovery` per turn up to `fallowCap`. |
 | `fertilityYield` | `{ low, high }`: harvest −1 at or below `low` fertility, +1 at or above `high`. |
 | `rotChances` | Harvest or push: rot chance on each turn a ripe crop waits. Each wait it survives adds +1 yield; the list's length caps that. |

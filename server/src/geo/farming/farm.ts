@@ -229,7 +229,6 @@ export function upgradeFarm(stored: StoredFarm): FarmState {
 }
 
 export type FarmHandCard = { inventoryId: string; itemId: string; cardId: string; chargesLeft: number };
-export type FarmSeedSlot = { slot: number; itemId: string; quantity: number };
 
 /** What a step needs besides the farm, loaded by the repository. */
 export type FarmContext = {
@@ -245,8 +244,7 @@ export type FarmContext = {
     config: FarmingConfig;
     now: Date;
     hand: FarmHandCard[];
-    seedBag: FarmSeedSlot[];
-    /** How many of each item the player holds (structures are placed from these). */
+    /** How many of each item the player holds (seeds are planted and structures placed from these). */
     held: Record<string, number>;
     /** The player's farming level: sets the Labor each turn refills to. */
     farmingLevel: number;
@@ -265,13 +263,11 @@ export type FarmStepResult = {
     log: string[];
     gains: GeoFarmGain[];
     xp: number;
-    /** One seed taken from this slot. */
-    seedUsed: { slot: number; itemId: string; from: number } | null;
     /** One charge spent from this card. */
     cardPlayed: { inventoryId: string; chargesLeft: number } | null;
     /** Coins the step costs. */
     coins: number;
-    /** Items the step takes from the inventory (a structure placed, an order delivered). */
+    /** Items the step takes from the inventory (a seed planted, a structure placed, an order delivered). */
     itemsUsed: GeoFarmGain[];
     /** Coins the step pays out (an order completed). */
     coinsGained: number;
@@ -597,7 +593,7 @@ type FarmTick = { type: "tick"; weather: GeoFarmWeather };
 export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx: FarmContext): FarmStepResult {
     const state: FarmState = structuredClone(prev);
     const rng = createRng(state.seed);
-    const result: FarmStepResult = { state, log: [], gains: [], xp: 0, seedUsed: null, cardPlayed: null, coins: 0, itemsUsed: [], coinsGained: 0, harvested: [] };
+    const result: FarmStepResult = { state, log: [], gains: [], xp: 0, cardPlayed: null, coins: 0, itemsUsed: [], coinsGained: 0, harvested: [] };
     const { config, crops } = ctx;
 
     const tileAt = (index: number) => {
@@ -734,12 +730,11 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
             const tile = noStructure(ownedTile(action.tile));
             if (tile.crop) throw new FarmRuleError("Something already grows there");
             if (tile.waste) throw new FarmRuleError("Nothing grows in nuclear waste. Scrub it first");
-            const packed = ctx.seedBag.find((entry) => entry.slot === action.slot);
-            if (!packed || packed.quantity <= 0) throw new FarmRuleError("That Seed Bag slot is empty");
-            const def = Object.values(crops).find((crop) => crop.seed === packed.itemId);
+            const def = Object.values(crops).find((crop) => crop.seed === action.itemId);
             if (!def) throw new FarmRuleError("Those aren't seeds that grow");
+            if ((ctx.held[action.itemId] ?? 0) < 1) throw new FarmRuleError("You have none of those seeds");
             tile.crop = { cropId: def.id, stage: 0, ripeTurns: 0, held: false, rotten: false };
-            result.seedUsed = { slot: packed.slot, itemId: packed.itemId, from: packed.quantity };
+            result.itemsUsed.push({ itemId: action.itemId, quantity: 1 });
             result.log.push(`Planted ${def.name} at ${tileName(action.tile)}.`);
             break;
         }

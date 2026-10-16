@@ -1,5 +1,5 @@
 import type { GeoSession } from "@cozy/shared/geo";
-import { CONTENT, FARMING } from "../../content";
+import { CONTENT } from "../../content";
 import { withTransaction, type TxQuery } from "../../db/transaction";
 import { GEO_TOKENS, hashRefreshToken, newRefreshToken, signAccessToken } from "../../lib/geo-tokens";
 import * as playerRepository from "../player/geo-player.repository";
@@ -76,11 +76,6 @@ export async function grantStarterKit(tx: TxQuery, playerId: string) {
     }
     for (const [slot, { itemId, quantity }] of STARTER_KIT.bait.entries()) {
         await playerRepository.setBaitSlot(tx, playerId, slot, itemId, quantity);
-    }
-    // The column's default is only a fallback: config/farming.ts decides.
-    await playerRepository.setSeedBagSlots(tx, playerId, FARMING.seedBagSlots);
-    for (const [slot, { itemId, quantity }] of STARTER_KIT.seeds.entries()) {
-        await playerRepository.setSeedBagSlot(tx, playerId, slot, itemId, quantity);
     }
 }
 

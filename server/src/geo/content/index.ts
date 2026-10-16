@@ -1,4 +1,4 @@
-import { GEO_CHEST_TIERS, GEO_FARM_SIZE, GEO_MAX_SKILL_LEVEL, GEO_SEED_BAG_MAX_SLOTS } from "@cozy/shared/geo";
+import { GEO_CHEST_TIERS, GEO_FARM_SIZE, GEO_MAX_SKILL_LEVEL } from "@cozy/shared/geo";
 import type { Action, EffectDef } from "../engine/engine.types";
 import { buildContent } from "./build";
 import type { GameContent, ItemDef, VendorBuyRule } from "./content.types";
@@ -271,7 +271,6 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
         problems.push(`config/farming.ts: startSize must be odd and at most ${GEO_FARM_SIZE}`);
     }
     if (farming.fertilityYield.low >= farming.fertilityYield.high) problems.push("config/farming.ts: fertilityYield low must be under high");
-    if (farming.seedBagSlots > GEO_SEED_BAG_MAX_SLOTS) problems.push(`config/farming.ts: seedBagSlots is past ${GEO_SEED_BAG_MAX_SLOTS}`);
     if (!content.mayors[elections.firstMayor]) problems.push(`config/elections.ts: first mayor "${elections.firstMayor}" doesn't exist`);
     // Each election leaves the mayor in office out, so the pool needs one spare.
     if (Object.keys(content.mayors).length <= elections.candidates) {
@@ -321,12 +320,6 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
     for (const { itemId } of kit.lunchbox) {
         if (!content.foods[itemId]) problems.push(`config/starter-kit.ts lunchbox has "${itemId}", which isn't food`);
     }
-    for (const { itemId } of kit.seeds) {
-        if (!Object.values(content.crops).some((crop) => crop.seed === itemId)) {
-            problems.push(`config/starter-kit.ts seeds has "${itemId}", which no crop grows from`);
-        }
-    }
-    if (kit.seeds.length > farming.seedBagSlots) problems.push("config/starter-kit.ts packs more seeds than a new Seed Bag has slots");
     for (const { itemId } of kit.bait) {
         const bait = item(itemId);
         if (bait?.kind !== "consumable" || !bait.bait) problems.push(`config/starter-kit.ts bait has "${itemId}", which isn't bait`);
