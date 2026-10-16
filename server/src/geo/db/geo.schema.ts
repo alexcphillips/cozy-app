@@ -531,6 +531,32 @@ const STATEMENTS = [
     );`,
     `CREATE UNIQUE INDEX IF NOT EXISTS seed_bag_one_slot_per_seed_idx ON geo.seed_bag (player_id, item_id);`,
 
+    // Dungeon lobbies (modules/dungeons). Starts at starts_at, or at
+    // started_at if the host starts it early; closed_at is set when the host
+    // leaves an open one. Nothing ticks: the phase is worked out on read.
+    `CREATE TABLE IF NOT EXISTS geo.dungeon_lobbies (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        dungeon_id VARCHAR(80) NOT NULL,
+        host_id UUID NOT NULL REFERENCES geo.players(id) ON DELETE CASCADE,
+        required_level SMALLINT NOT NULL CHECK (required_level >= 1),
+        max_players SMALLINT NOT NULL CHECK (max_players >= 1),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        starts_at TIMESTAMPTZ NOT NULL,
+        started_at TIMESTAMPTZ,
+        closed_at TIMESTAMPTZ
+    );`,
+    `CREATE INDEX IF NOT EXISTS dungeon_lobbies_starts_idx
+        ON geo.dungeon_lobbies (starts_at) WHERE closed_at IS NULL AND started_at IS NULL;`,
+    // Who's in each lobby. entered_at is set when they begin their Run.
+    `CREATE TABLE IF NOT EXISTS geo.dungeon_lobby_members (
+        lobby_id UUID NOT NULL REFERENCES geo.dungeon_lobbies(id) ON DELETE CASCADE,
+        player_id UUID NOT NULL REFERENCES geo.players(id) ON DELETE CASCADE,
+        joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        entered_at TIMESTAMPTZ,
+        PRIMARY KEY (lobby_id, player_id)
+    );`,
+    `CREATE INDEX IF NOT EXISTS dungeon_lobby_members_player_idx ON geo.dungeon_lobby_members (player_id);`,
+
     // chum-slick was renamed bloody-bait: carry over what players held, so a
     // packed slot of it doesn't sit there unknown (hidden, uncastable, full).
     `UPDATE geo.inventory SET item_id = 'bloody-bait' WHERE item_id = 'chum-slick';`,

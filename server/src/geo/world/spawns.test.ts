@@ -31,7 +31,7 @@ describe("spawns", () => {
         }
     });
 
-    it("number 1 to 5, mostly one or two, rarely five", () => {
+    it("number 1 to 5, mostly one to three, rarely five", () => {
         const rng = createRng(2);
         const tally = new Array(MAX_SPAWNS + 1).fill(0) as number[];
         const rolls = 10_000;
@@ -39,8 +39,8 @@ describe("spawns", () => {
 
         assert.equal(MAX_SPAWNS, 5);
         assert.equal(tally[0], 0);
-        assert.ok(tally[1]! + tally[2]! > rolls * 0.6, "one or two most of the time");
-        assert.ok(tally[5]! < rolls * 0.06, "five is rare");
+        assert.ok(tally[1]! + tally[2]! + tally[3]! > rolls * 0.65, "one to three most of the time");
+        assert.ok(tally[5]! < rolls * 0.15, "five is rare");
         assert.ok(tally[5]! > 0, "but possible");
     });
 

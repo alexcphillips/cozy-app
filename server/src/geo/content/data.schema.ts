@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GEO_CHEST_TIERS, GEO_FARM_SOILS, GEO_FARM_WEATHERS, GEO_FISHING_TIERS, GEO_QUALITY_TIERS, GEO_WORLD_HABITAT_METRES, GEO_WORLD_HABITATS, GEO_WORLD_WATER_KINDS } from "@cozy/shared/geo";
+import { GEO_CHEST_TIERS, GEO_FARM_SOILS, GEO_FARM_WEATHERS, GEO_FISHING_TIERS, GEO_MAX_SKILL_LEVEL, GEO_QUALITY_TIERS, GEO_WORLD_HABITAT_METRES, GEO_WORLD_HABITATS, GEO_WORLD_WATER_KINDS } from "@cozy/shared/geo";
 import type { Action, Amount, Condition, EffectDef, StatModifier } from "../engine/engine.types";
 import type * as M from "./models";
 
@@ -436,6 +436,16 @@ const MayorFile = z.strictObject({
     ),
 });
 
+const DungeonFile = z.strictObject({
+    id,
+    name: z.string().min(1),
+    description: z.string(),
+    boss: ref,
+    bossModifiers: z.array(StatModifierSchema).optional(),
+    minCombatLevel: z.int().min(1).max(GEO_MAX_SKILL_LEVEL),
+    maxPlayers: z.int().min(1).max(8),
+});
+
 /**
  * Each folder of `data/` and what its files hold: one entry per file, named
  * by its id. Subfolders are for you to sort things; they mean nothing.
@@ -462,6 +472,7 @@ export const DATA_FOLDERS = {
     vendors: VendorFile,
     reforges: ReforgeFile,
     mayors: MayorFile,
+    dungeons: DungeonFile,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -653,6 +664,7 @@ const folderModels: { [K in DataFolder]: Same<z.input<(typeof DATA_FOLDERS)[K]>,
     vendors: true,
     reforges: true,
     mayors: true,
+    dungeons: true,
 };
 const configModels: { [K in ConfigFile]: Same<z.input<(typeof CONFIG_FILES)[K]>, ConfigModelOf[K]> } = {
     fishing: true,
@@ -691,6 +703,7 @@ export type ModelOf = {
     vendors: M.Vendor;
     reforges: M.Reforge;
     mayors: M.Mayor;
+    dungeons: M.Dungeon;
 };
 
 /** Each config file's model. */

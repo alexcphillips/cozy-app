@@ -4,7 +4,7 @@ One file is one card: its rules, and the item players own and trade. The
 item's id is `card.<id>`, so `fireball.ts` makes the item `card.fireball`.
 Sort them into a folder per skill: `cards/combat/`, `cards/fishing/`…
 
-Cards are a fixed hand: players pick up to 6 per skill before a Run. Each
+Cards are a fixed hand: players pick up to 5 per skill before a Run. Each
 copy has its own charges, spent only when played. At 0 the card fades.
 
 ## Fields

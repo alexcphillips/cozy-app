@@ -121,4 +121,4 @@ export type GeoSaveHandRequest = {
 };
 
 /** How many cards a hand holds. Matches the app's HAND_SIZE. */
-export const GEO_HAND_SIZE = 6;
+export const GEO_HAND_SIZE = 5;

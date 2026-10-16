@@ -18,7 +18,7 @@ export const TRAVEL_RULES = {
     /** A leg over this long isn't a walk we saw; it doesn't count. */
     maxLegSeconds: 300,
     /** Walk this far for one spawn. */
-    metresPerSpawn: 100,
+    metresPerSpawn: 75,
     /** At most this many spawns banked, so a long walk can't be hoarded. */
     maxBankedSpawns: 3,
 } as const;

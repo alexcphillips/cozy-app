@@ -25,7 +25,7 @@ import { APP_SPRITES } from "./app-sprites.generated";
  * spawn on the map (the app can't draw them); they start spawning once their
  * png is added and geo-game's `npm run sprites` regenerates APP_SPRITES.
  */
-const hasArt = (enemyId: string) => (APP_SPRITES as readonly string[]).includes(CONTENT.enemies[enemyId]?.sprite ?? "");
+export const hasArt = (enemyId: string) => (APP_SPRITES as readonly string[]).includes(CONTENT.enemies[enemyId]?.sprite ?? "");
 
 export const SPAWN_RULES = {
     ...GAME_CONFIG.spawns,

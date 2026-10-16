@@ -75,6 +75,7 @@ One entry per file, named by its id: `data/weapons/broadsword.ts` has
 | `vendors/` | NPC shops | [vendors](vendors/README.md) |
 | `reforges/` | Reforges a vendor rolls onto weapons and armour | [reforges](reforges/README.md) |
 | `mayors/` | Mayors and their perks | [mayors](mayors/README.md) |
+| `dungeons/` | Raid-style bosses fought from lobbies | [dungeons](dungeons/README.md) |
 | `config/` | Tuning numbers: player stats, spawns, fishing, starter kit… | [config](config/README.md) |
 
 Rules (attacks, heals, procs, conditions) work the same everywhere they

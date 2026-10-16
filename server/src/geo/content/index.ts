@@ -246,6 +246,9 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
     if (Object.keys(content.mayors).length <= elections.candidates) {
         problems.push(`An election needs more than ${elections.candidates} mayors to pick ${elections.candidates} candidates`);
     }
+    for (const dungeon of Object.values(content.dungeons)) {
+        if (!content.enemies[dungeon.boss]) problems.push(`Dungeon "${dungeon.id}" has unknown boss "${dungeon.boss}"`);
+    }
     for (const { enemyId } of spawns.enemies) {
         if (!content.enemies[enemyId]) problems.push(`config/spawns.ts spawns unknown enemy "${enemyId}"`);
     }
@@ -341,4 +344,4 @@ export const ELECTION_RULES = elections;
 export const FIRST_MAYOR_ID = elections.firstMayor;
 
 export { reforgeModifiers, reforgesFor, reforgeTarget } from "./reforges";
-export type { EnemyDef, GameContent, ItemDef, MayorDef, RecipeDef, ReforgeDef, VendorDef } from "./content.types";
+export type { DungeonDef, EnemyDef, GameContent, ItemDef, MayorDef, RecipeDef, ReforgeDef, VendorDef } from "./content.types";

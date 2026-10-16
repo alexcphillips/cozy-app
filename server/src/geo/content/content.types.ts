@@ -261,6 +261,16 @@ export type MayorDef = {
     perks: MayorPerkDef[];
 };
 
+export type DungeonDef = {
+    id: string;
+    name: string;
+    description: string;
+    boss: string;
+    bossModifiers: StatModifier[];
+    minCombatLevel: number;
+    maxPlayers: number;
+};
+
 export type GameContent = {
     statuses: Record<string, StatusDef>;
     cards: Record<string, CardDef>;
@@ -284,6 +294,8 @@ export type GameContent = {
     /** Reforges a vendor can roll onto gear (`data/reforges/`). */
     reforges: Record<string, ReforgeDef>;
     mayors: Record<string, MayorDef>;
+    /** Raid-style dungeons (`data/dungeons/`). */
+    dungeons: Record<string, DungeonDef>;
     recipes: Record<string, RecipeDef>;
     chestTiers: Record<GeoChestTier, ChestTierDef>;
 };

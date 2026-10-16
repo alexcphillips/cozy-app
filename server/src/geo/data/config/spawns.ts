@@ -5,9 +5,10 @@ export default {
     minSpawnMetres: 10,
     outOfReachSeconds: 45,
     respawnAfterWinSeconds: 60,
-    countWeights: [40, 30, 17, 9, 4],
+    // ~2.7 at once on average (was ~2.1 with [40, 30, 17, 9, 4]).
+    countWeights: [22, 27, 23, 16, 12],
     windowMinutes: 15,
-    spawnGapSeconds: 180,
+    spawnGapSeconds: 140,
     lifetimeMinutes: { min: 4, max: 8 },
     // PLACEHOLDER. Front-loaded: tier 2 comes quickly (~25 kills), later
     // tiers take longer as levels do.

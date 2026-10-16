@@ -499,6 +499,26 @@ export type Reforge = {
     modifiers: Record<Rarity, StatModifier[]>;
 };
 
+/** A raid-style dungeon: a boss fought from a lobby (`modules/dungeons`). */
+export type Dungeon = {
+    /** Must match the file name. */
+    id: string;
+    name: string;
+    /** One or two sentences for the lobby menu. */
+    description: string;
+    /** The enemy fought: its stats, moves, loot and sprite. */
+    boss: string;
+    /**
+     * Makes the boss bigger than it is on the map, e.g.
+     * `{ stat: "maxHealth", kind: "percent", value: 2 }` for triple health.
+     */
+    bossModifiers?: StatModifier[];
+    /** The lowest combat level a lobby for it can ask for. */
+    minCombatLevel: number;
+    /** How many players a lobby holds, host included. */
+    maxPlayers: number;
+};
+
 export type MayorPerk = {
     id: string;
     name: string;

@@ -13,7 +13,14 @@ import {
 import { CONTENT } from "../../content";
 import { withTransaction, type TxQuery } from "../../db/transaction";
 import { BattleRuleError, canWield, createBattle, eatFood, playCard, type BattleResult } from "../../engine/battle";
-import { MAGIC_FIND_STAT, type BattleState, type CardInstance, type LogEntry, type LunchboxSlot } from "../../engine/engine.types";
+import {
+    MAGIC_FIND_STAT,
+    type BattleState,
+    type CardInstance,
+    type LogEntry,
+    type LunchboxSlot,
+    type StatModifier,
+} from "../../engine/engine.types";
 import { statOf } from "../../engine/stats";
 import { createRng, randomSeed } from "../../engine/rng";
 import * as chestsRepository from "../chests/geo-chests.repository";
@@ -105,8 +112,11 @@ async function loadLoadout(tx: TxQuery, playerId: string) {
     return { equipment: equipped, reforges, talismans, hand, lunchbox };
 }
 
-/** What a fight is against: a real spawn, or (dev only) an enemy by id. */
-export type RunTarget = { enemyId: string; spawnId: string | null };
+/**
+ * What a fight is against: a real spawn, a dungeon boss, or (dev only) an
+ * enemy by id. `enemyModifiers` make it stronger, e.g. a dungeon's boss.
+ */
+export type RunTarget = { enemyId: string; spawnId: string | null; enemyModifiers?: StatModifier[] };
 
 export async function startCombatRun(playerId: string, target: RunTarget): Promise<GeoRunResponse> {
     if (!CONTENT.enemies[target.enemyId]) throw AppError.badRequest("Unknown enemy");
@@ -155,7 +165,10 @@ export async function openCombatRun(tx: TxQuery, playerId: string, target: RunTa
     const { state, log } = createBattle(
         [
             you,
-            ...enemyIds.map((id, index) => enemyCombatant(id, index, CONTENT)),
+            ...enemyIds.map((id, index) => ({
+                ...enemyCombatant(id, index, CONTENT),
+                modifiers: target.enemyModifiers ?? [],
+            })),
         ],
         randomSeed(),
         CONTENT,

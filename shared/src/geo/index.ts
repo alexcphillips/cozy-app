@@ -8,6 +8,7 @@ export * from "./chest.contract";
 export * from "./content.contract";
 export * from "./crafting.contract";
 export * from "./distance";
+export * from "./dungeon.contract";
 export * from "./farming.contract";
 export * from "./fishing.contract";
 export * from "./friends.contract";

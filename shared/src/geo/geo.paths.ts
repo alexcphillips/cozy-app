@@ -130,6 +130,20 @@ export const GEO_API_PATHS = {
         turns: "/geo/runs/:runId/turns",
         flee: "/geo/runs/:runId/flee",
     },
+    dungeons: {
+        /** GET: dungeons, open lobbies, and the player's own lobby. */
+        root: "/geo/dungeons",
+        /** POST GeoCreateDungeonLobbyRequest: open a lobby and host it. */
+        lobbies: "/geo/dungeons/lobbies",
+        /** POST GeoJoinDungeonLobbyRequest. */
+        join: "/geo/dungeons/lobbies/:lobbyId/join",
+        /** POST: leave; the host leaving an open lobby closes it. */
+        leave: "/geo/dungeons/lobbies/:lobbyId/leave",
+        /** POST, host only: start before the countdown ends. */
+        start: "/geo/dungeons/lobbies/:lobbyId/start",
+        /** POST, once started: begin your Run against the boss (GeoRunResponse). */
+        enter: "/geo/dungeons/lobbies/:lobbyId/enter",
+    },
     fishing: {
         /** POST { tier }: open a fishing Run at a spot, or resume the open one. */
         start: "/geo/fishing",
