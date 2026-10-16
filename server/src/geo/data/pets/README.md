@@ -16,18 +16,18 @@ It keeps its XP, so its level can drop.
 
 Model: `Pet` in `#geo/models` (`content/models.ts`). Hover any field in the editor for the same help.
 
-| Field | Type | Required? | What it does |
-| --- | --- | --- | --- |
-| `id` | text | yes | Must match the file name. Items are `pet.<id>.<rarity>`. |
-| `name`, `description` | text | yes | Shown in the app. |
-| `icon` | Game Icons name | yes | For lists that don't draw the pet's art. |
-| `image` | text | yes | The app's art: `features/pets/assets/<image>.png` in geo-game (`npm run pet-icons`). |
-| `skill` | skill | yes | It gains full XP from this skill. |
-| `rarities` | list of rarities, lowest first | yes | The rarities it comes in; Kat raises it through these. |
-| `stats` | list of [pet stats](#pet-stats) | yes | Stats that grow with level. Can be empty. |
-| `abilities` | list of `{ id, name, from, description, modifiers? }` | yes | Named stat bonuses from rarity `from` up. `modifiers` are [pet stats](#pet-stats). |
-| `sellValue` | `{ rarity: coins }` | no | What an NPC pays, per rarity. Unset = the rarity placeholder. |
-| `upgrades` | `{ rarity: { coins, items?, hours } }` | no | Kat's price to raise it from each rarity. Unset = `config/pets.ts` `upgrades`. |
+| Field                 | Type                                                  | Required? | What it does                                                                         |
+| --------------------- | ----------------------------------------------------- | --------- | ------------------------------------------------------------------------------------ |
+| `id`                  | text                                                  | yes       | Must match the file name. Items are `pet.<id>.<rarity>`.                             |
+| `name`, `description` | text                                                  | yes       | Shown in the app.                                                                    |
+| `icon`                | Game Icons name                                       | yes       | For lists that don't draw the pet's art.                                             |
+| `image`               | text                                                  | yes       | The app's art: `features/pets/assets/<image>.png` in geo-game (`npm run pet-icons`). |
+| `skill`               | skill                                                 | yes       | It gains full XP from this skill.                                                    |
+| `rarities`            | list of rarities, lowest first                        | yes       | The rarities it comes in; Kat raises it through these.                               |
+| `stats`               | list of [pet stats](#pet-stats)                       | yes       | Stats that grow with level. Can be empty.                                            |
+| `abilities`           | list of `{ id, name, from, description, modifiers? }` | yes       | Named stat bonuses from rarity `from` up. `modifiers` are [pet stats](#pet-stats).   |
+| `sellValue`           | `{ rarity: coins }`                                   | no        | What an NPC pays, per rarity. Unset = the rarity placeholder.                        |
+| `upgrades`            | `{ rarity: { coins, items?, hours } }`                | no        | Kat's price to raise it from each rarity. Unset = `config/pets.ts` `upgrades`.       |
 
 ## Pet stats
 
@@ -45,7 +45,7 @@ export default {
     id: "tarantula",
     name: "Tarantula",
     icon: "spider-alt",
-    image: "tarantula-pet",
+    image: "tarantula",
     description: "Eight legs, eight eyes, and an opinion about all of it.",
     skill: "combat",
     rarities: ["common", "uncommon", "rare", "epic", "legendary"],
@@ -56,7 +56,13 @@ export default {
             name: "Venom Sacs",
             from: "rare",
             description: "Hit harder.",
-            modifiers: [{ stat: "attack", kind: "percent", perLevel: { rare: 0.001, epic: 0.0015, legendary: 0.002 } }],
+            modifiers: [
+                {
+                    stat: "attack",
+                    kind: "percent",
+                    perLevel: { rare: 0.001, epic: 0.0015, legendary: 0.002 },
+                },
+            ],
         },
     ],
 } satisfies Pet;
