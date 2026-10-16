@@ -87,8 +87,8 @@ Enemy spawns around each player.
 | `soil` | Soil types. `rich` rests to `richFallowCap` fertility at `richRecovery` a turn; `boggy` never dries below 1 water; plain crops on `cursed` yield `cursedYield` (negative). `amendments`: `{ itemId, soil }`, items that change a tile's soil for good. A Pond turns up `peatItem` `peatChance` a turn; the Shrine leaves `ashItem` when it doesn't bless. Rocky and Ancient soils wait for mining and archaeology. |
 | `shrine` | The Mysterious Shrine. An offering worth `value` coins (NPC sell value) grants a blessing with chance value ÷ (value + `halfValue`), so more is better but never certain. A failed roll is a curse `curseShare` of the time. `blessings`: `{ id, name, description, turns, weight, curse }`; ids are `growth`, `plenty`, `mutation` and (a curse) `pests`. |
 | `pollinateBoost` | Hand Pollinate multiplies a tile's mutation chances by this on the next turn. |
-| `weatherWeights` | Placeholder weather, rolled when a farm has no home region or the weather service is down: how often each of `clear`, `overcast`, `rain`, `heatwave`, `storm`, `frost` comes. |
-| `weather` | Real weather (Open-Meteo, per home region). A turn's 12 hours are a `storm` with any thunderstorm hour, else `frost` at or below `frostC` °C, else `heatwave` at or above `heatwaveC` °C, else `rain` with `rainMm` mm or more, else `overcast` with mean cloud `overcastCloud` % or more, else `clear`. `regionDegrees`: the home region's grid square. `homeCooldownDays`: how often it can move. `stormFlattenChance`: each open-field crop flattened in a storm. `frostKillsUpToStage`: growing open-field crops at this stage or below die in a frost. |
+| `weatherWeights` | How often each weather is rolled for a farm turn (seeded per farm): `clear`, `overcast`, `rain`, `heatwave`, `storm`, `frost` comes. |
+| `weather` | What the harsh weathers do. `stormFlattenChance`: each open-field crop flattened in a storm. `frostKillsUpToStage`: growing open-field crops at this stage or below die in a frost. |
 
 ## elections.ts
 
@@ -116,3 +116,18 @@ Enemy spawns around each player.
 | Field | What it does |
 | --- | --- |
 | `tiers` | `{ id, name, cost }` for `plain`, `gold`, `ruby`, `void`: shown name and coins to open (0 = free). The four ids are fixed in code. |
+
+## pets.ts
+
+Pets, after Hypixel SkyBlock's (see [pets](../pets/README.md)). PLACEHOLDER numbers.
+
+| Field | What it does |
+| --- | --- |
+| `maxLevel` | Pets stop levelling here. |
+| `xpCurve` | `{ base, rarityMultiplier }`: XP from level L to L + 1 is base × L × the rarity's multiplier. |
+| `otherSkillShare` | Share of other skills' XP the active pet gains (Hypixel: a third). |
+| `skillMultiplier` | Extra pet XP from a skill, e.g. `{ fishing: 1.5 }`. |
+| `upgrades` | Kat's price to raise a pet from each rarity, `{ coins, items?, hours }`, for pets without their own. |
+| `upgradeDiscountPerLevel` | Taken off Kat's coins and hours per pet level. |
+| `heldItemRemovalCost` | Coins to take a held item off a pet, by the held item's rarity. |
+

@@ -1,4 +1,4 @@
-const RUN_COLUMNS = `id, player_id, kind, status, enemy_ids, spawn_id, state, rewards, coins_lost`;
+const RUN_COLUMNS = `id, player_id, kind, status, enemy_ids, spawn_id, state, rewards, coins_lost, keeps_health`;
 
 export const FIND_ACTIVE_RUN = `
   SELECT ${RUN_COLUMNS} FROM geo.runs WHERE player_id = $1 AND status = 'active';
@@ -25,8 +25,8 @@ export const ABANDON_STALE_RUNS = `
 `;
 
 export const INSERT_RUN = `
-  INSERT INTO geo.runs (player_id, kind, enemy_ids, spawn_id, state)
-  VALUES ($1, $2, $3::text[], $4, $5::jsonb)
+  INSERT INTO geo.runs (player_id, kind, enemy_ids, spawn_id, state, keeps_health)
+  VALUES ($1, $2, $3::text[], $4, $5::jsonb, $6)
   RETURNING ${RUN_COLUMNS};
 `;
 

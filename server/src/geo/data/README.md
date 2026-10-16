@@ -20,7 +20,7 @@ export default {
 `satisfies Weapon` is what makes the editor help: autocomplete for every
 field, its explanation on hover, and a red underline on a mistake (a typo'd
 field, a string where a number goes) as you type. The models are in
-`content/models.ts`, one per folder: `Card`, `Weapon`, `Armour`, `Ring`,
+`content/models.ts`, one per folder: `Card`, `Weapon`, `Armour`, `Ring`, `Amulet`,
 `Talisman`, `Material`, `Food`, `Bait`, `MiscItem`, `Fish`, `Enemy`,
 `Status`, `Recipe`, `Vendor`, `Reforge`, `Mayor`, plus a `…Config` for each file in
 `config/`. Keep data files to plain values: no imports but the model, no
@@ -56,13 +56,16 @@ One entry per file, named by its id: `data/weapons/broadsword.ts` has
 | --- | --- | --- |
 | `cards/` | Cards: their rules and the item you own, in one file | [cards](cards/README.md) |
 | `weapons/` | Main-hand weapons | [weapons](weapons/README.md) |
-| `armour/` | Shields (off hand), head, chest, hands, legs | [armour](armour/README.md) |
+| `armour/` | Shields (off hand), head, shoulders, chest, hands, legs, feet, cloak, belt | [armour](armour/README.md) |
 | `rings/` | Rings | [rings](rings/README.md) |
+| `amulets/` | Amulets | [amulets](amulets/README.md) |
 | `talismans/` | Talismans for the Talisman Bag | [talismans](talismans/README.md) |
 | `materials/` | Crafting materials, by skill | [materials](materials/README.md) |
 | `food/` | Food for the lunchbox | [food](food/README.md) |
 | `bait/` | Fishing bait | [bait](bait/README.md) |
 | `misc/` | Keys, nets, lenses and anything else | [misc](misc/README.md) |
+| `pets/` | Pets: stats while active, levelled by skill XP | [pets](pets/README.md) |
+| `pet-items/` | Items a pet holds | [pet items](pet-items/README.md) |
 | `fish/` | Fish that bite in a fishing Run | [fish](fish/README.md) |
 | `crops/` | Crops that grow on the farm | [crops](crops/README.md) |
 | `pests/` | Pests that come for the farm's crops | [pests](pests/README.md) |
@@ -101,7 +104,7 @@ selling Reel sells `card.fish.reel`.
 
 ## Fields every item has
 
-Cards, weapons, armour, rings, talismans, materials, food, bait and misc all
+Cards, weapons, armour, rings, amulets, talismans, materials, food, bait and misc all
 start with these:
 
 | Field | Type | Required? | What it does |

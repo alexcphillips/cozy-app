@@ -111,6 +111,9 @@ try {
     // Fish are let go (leave and come back) to keep it quick.
     await grant(player.player.id, [{ itemId: "bloody-bait", quantity: 1000 }]);
     const baitPath = GEO_API_PATHS.me.baitSlot.replace(":slot", "0");
+    // Bait is restocked at camp.
+    const CAMP = { latitude: 51.507, longitude: -0.128 };
+    assert.equal((await call("PUT", GEO_API_PATHS.me.camp, token, { position: CAMP })).status, 200);
     run = (await call<GeoFishingRunView>("POST", GEO_API_PATHS.fishing.start, token, { tier: "open" })).body;
     let bites = 0;
     while (run.phase !== "creature") {
@@ -121,7 +124,7 @@ try {
         }
         if (run.phase === "ready" || run.phase === "over") {
             if (baitLeft(await me(token)) === 0 || run.baitItemId !== "bloody-bait") {
-                const packed = await call("PUT", baitPath, token, { itemId: "bloody-bait", quantity: 25 });
+                const packed = await call("PUT", baitPath, token, { itemId: "bloody-bait", quantity: 25, position: CAMP });
                 assert.equal(packed.status, 200, JSON.stringify(packed.body));
             }
             await act({ type: "cast" });

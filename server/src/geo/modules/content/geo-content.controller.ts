@@ -1,30 +1,8 @@
 import type { Request, Response } from "express";
 import type { GeoContentResponse, GeoItemSource, GeoItemStat, GeoItemView, GeoRecipe, GeoReforgeView } from "@cozy/shared/geo";
-import type { StatId, StatModifier } from "../../engine/engine.types";
 import { CONTENT, reforgeTarget, sellValueOf, type ItemDef, type RecipeDef, type ReforgeDef } from "../../content";
-
-const STAT_LABELS: Partial<Record<StatId, string>> = {
-    maxHealth: "Max Health",
-    attack: "Attack",
-    defence: "Defence",
-    speed: "Speed",
-    critChance: "Crit Chance",
-    critMultiplier: "Crit Damage",
-    intelligence: "Intelligence",
-    mending: "Mending",
-    magicFind: "Magic Find",
-};
-
-/** Fractions, shown as percentages even when flat (+0.05 → +5%). */
-const FRACTION_STATS = new Set<StatId>(["critChance", "critMultiplier"]);
-
-/** "Defence +6", "Attack +10%": the modifier as the app shows it. */
-function modifierRow(modifier: StatModifier): GeoItemStat {
-    const label = STAT_LABELS[modifier.stat] ?? modifier.stat;
-    const asPercent = modifier.kind === "percent" || FRACTION_STATS.has(modifier.stat);
-    const amount = asPercent ? `${Math.round(modifier.value * 100)}%` : `${modifier.value}`;
-    return { label, value: modifier.value < 0 ? amount : `+${amount}` };
-}
+import { modifierRow } from "../../content/stat-rows";
+import { petPreview } from "../../pets/pets";
 
 const capitalise = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
 
@@ -38,7 +16,8 @@ function ruleRows(item: ItemDef): GeoItemStat[] {
 }
 
 function toItemView(item: ItemDef): GeoItemView {
-    const modifiers = item.kind === "equipment" || item.kind === "talisman" ? (item.modifiers ?? []) : [];
+    const modifiers =
+        item.kind === "equipment" || item.kind === "talisman" || item.kind === "petItem" ? (item.modifiers ?? []) : [];
     const base = {
         id: item.id,
         kind: item.kind,
@@ -79,6 +58,21 @@ function toItemView(item: ItemDef): GeoItemView {
                 ...(item.food && { food: { tags: item.food.tags ?? [] } }),
                 ...(item.bait && { bait: true }),
             };
+        case "pet": {
+            const pet = CONTENT.pets[item.petId];
+            if (!pet) return base;
+            const preview = petPreview(pet, item.rarity);
+            return {
+                ...base,
+                stats: [...preview.stats, ...base.stats],
+                effects: [...preview.abilities, ...base.effects],
+                pet: { petId: pet.id, image: pet.image, skill: pet.skill },
+            };
+        }
+        case "petItem":
+            return item.xpBoost
+                ? { ...base, stats: [...base.stats, { label: "Pet XP", value: `×${item.xpBoost.multiplier}${item.xpBoost.skill ? ` (${item.xpBoost.skill})` : ""}` }] }
+                : base;
         case "talisman":
         case "misc":
             return base;

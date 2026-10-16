@@ -128,6 +128,33 @@ export function eatFood(previous: BattleState, content: EngineContent, eat: { sl
 }
 
 /**
+ * The player eats one food from a lunchbox slot between fights. The food
+ * resolves exactly as in a fight (its heals boosted by `foodHealing`, its
+ * damage, gear that reacts to `foodEaten`), but only the eater's health is
+ * kept: statuses, guard and the rest exist only in a fight. Eating can't
+ * kill: health stops at 1. Throws `BattleRuleError` for an empty slot.
+ */
+export function eatBetweenFights(
+    setup: CombatantSetup,
+    content: EngineContent,
+    eat: { slot: number },
+    seed: number,
+): { health: number; log: LogEntry[] } {
+    const eater: Combatant = { ...structuredClone(setup), health: 0, guard: 0, statuses: [] };
+    eater.health = setup.health ?? statOf(eater, CORE_STATS.maxHealth, content);
+    const state: BattleState = { seed, rngDraws: 0, round: 0, order: [eater.id], turnIndex: 0, combatants: [eater], outcome: "ongoing" };
+    const ctx = makeContext(state, content);
+
+    const packed = eater.lunchbox?.find((entry) => entry.slot === eat.slot);
+    if (!packed || packed.quantity <= 0) throw new BattleRuleError("That lunchbox slot is empty.");
+    const food = content.foods[packed.foodId];
+    if (!food) throw new BattleRuleError(`Unknown food ${packed.foodId}.`);
+    resolveFood(ctx, eater, food, packed);
+
+    return { health: Math.max(1, eater.health), log: ctx.log };
+}
+
+/**
  * The checks and running every player turn shares. `act` may throw a
  * `BattleRuleError`; it works on a copy, so a rejected turn changes nothing.
  */

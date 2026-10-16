@@ -13,7 +13,6 @@ import {
 } from "../content/farming";
 import type { FarmingConfig } from "../content/models";
 import { createRng, type Rng } from "../engine/rng";
-import { regionKey, toRegion, type WeatherLookup } from "./weather";
 
 /**
  * The farming rules: pure and seeded, like fishing and combat. Each step
@@ -22,8 +21,8 @@ import { regionKey, toRegion, type WeatherLookup } from "./weather";
  * charge, the harvest, coins for a tile).
  *
  * The farm runs on a real clock: every `turnHours` it takes a turn on its
- * own, with the weather of the hours just past (real, from the farm's home
- * region, via a `WeatherLookup`). Nothing runs in the background: when the
+ * own, with the weather of the hours just past (a seeded roll per period,
+ * via a `WeatherLookup`). Nothing runs in the background: when the
  * farm is next looked at, `catchUp` plays the turns that came due since. It
  * plays at most `maxTurnsAway` of them; past that the farm waits for the
  * player, so being away never loses more than that, and can't be saved up.
@@ -120,7 +119,7 @@ export type FarmPest = {
 
 /** Everything a farm keeps, in `geo.farms.state`. */
 export type FarmState = {
-    version: 12;
+    version: 13;
     /** Rolls for harvests and rot; replaced after every step so it never has to fast-forward. */
     seed: number;
     /** Fixed for the farm's life: the weather of turn n is the same whenever it's asked. */
@@ -132,8 +131,6 @@ export type FarmState = {
     labor: number;
     /** When the turn now coming started counting (ISO); it comes `turnHours` after, with that period's weather. */
     accruedAt: string;
-    /** The home region the weather comes from (a coarse grid square), and when it was set (ISO). */
-    home: { latitude: number; longitude: number; setAt: string } | null;
     /** Read the Sky: the long forecast shows until the next turn. */
     skyRead: boolean;
     /** Tiles bought so far, for the next one's price. */
@@ -166,7 +163,6 @@ type AddedLater =
     | "pests"
     | "nextPestId"
     | "lab"
-    | "home"
     | "nextEvent"
     | "activeEvent"
     | "orders"
@@ -177,6 +173,8 @@ type AddedLater =
 export type StoredFarm = Omit<FarmState, "version" | "tiles" | AddedLater> &
     Partial<Pick<FarmState, AddedLater>> & {
         version: number;
+        /** Before v13: the farm's home region, for its real weather. Dropped. */
+        home?: unknown;
         /** Before the real clock (v12): turns banked for the player to spend on Advance. Dropped. */
         turnsBanked?: number;
         turnWeather?: GeoFarmWeather[];
@@ -196,15 +194,17 @@ export type StoredFarm = Omit<FarmState, "version" | "tiles" | AddedLater> &
  * 3: before structures, 4: before real weather, 5: before events and
  * orders, 6: before the gamble structures, 7: before the Well, 8: before
  * soil, 9: before the second round of cards, 10: before the Pesthunter,
- * 11: before the real clock), brought up to date.
+ * 11: before the real clock, 12: before real weather was dropped), brought
+ * up to date.
  */
 export function upgradeFarm(stored: StoredFarm): FarmState {
-    if (stored.version === 12) return stored as FarmState;
-    // Banked turns are dropped: the clock plays the farm from here.
-    const { turnsBanked: _banked, turnWeather: _weather, ...rest } = stored;
+    if (stored.version === 13) return stored as FarmState;
+    // Banked turns and the home region are dropped: the clock plays the farm
+    // from here, on seeded weather.
+    const { turnsBanked: _banked, turnWeather: _weather, home: _home, ...rest } = stored;
     return {
         ...rest,
-        version: 12,
+        version: 13,
         pesthunterPoints: stored.pesthunterPoints ?? 0,
         oath: stored.oath ?? 0,
         rushOrder: stored.rushOrder ?? false,
@@ -212,7 +212,6 @@ export function upgradeFarm(stored: StoredFarm): FarmState {
         nextEvent: stored.nextEvent ?? null,
         activeEvent: stored.activeEvent ?? null,
         orders: stored.orders ?? null,
-        home: stored.home ?? null,
         tiles: stored.tiles.map((tile) => ({
             ...tile,
             trap: tile.trap ?? false,
@@ -330,14 +329,13 @@ export function newFarm(config: FarmingConfig, seed: number, weatherSeed: number
         };
     });
     return {
-        version: 12,
+        version: 13,
         seed,
         weatherSeed,
         tiles,
         turn: 0,
         labor: config.laborPerTurn,
         accruedAt: now.toISOString(),
-        home: null,
         skyRead: false,
         unlocked: 0,
         pests: [],
@@ -417,7 +415,10 @@ function rollWeather(weatherSeed: number, config: FarmingConfig, key: number): G
     return "clear";
 }
 
-/** Seeded weather by period: the lookup for a farm with no home region, or when the real weather can't answer. */
+/** Turns a period's start (ms) into its weather. */
+export type WeatherLookup = (periodStart: number) => GeoFarmWeather;
+
+/** Seeded weather by period: the same for a farm whenever it's asked. */
 export function seededLookup(weatherSeed: number, config: FarmingConfig): WeatherLookup {
     const period = config.turnHours * HOUR_MS;
     return (periodStart) => rollWeather(weatherSeed, config, 1_000_000 + Math.floor(periodStart / period));
@@ -485,13 +486,6 @@ export function refreshOrders(
         return { id: `${week}-${i}`, itemId: crop.produce, quantity, delivered: 0, reward, deposit: Math.round(reward * depositShare), status: "offered" };
     });
     return { ...state, orders: { week, list } };
-}
-
-/** When the home region can next move, or null when it can now. */
-export function homeMovableAt(state: FarmState, config: FarmingConfig, now: Date): Date | null {
-    if (!state.home) return null;
-    const at = new Date(new Date(state.home.setAt).getTime() + config.weather.homeCooldownDays * 24 * HOUR_MS);
-    return at > now ? at : null;
 }
 
 /** Coins the next tile costs, or null when every tile is owned. */
@@ -854,19 +848,6 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
             state.pesthunterPoints -= offer.price;
             gain(offer.itemId, 1);
             result.log.push(`Traded ${offer.price} Pesthunter points with the Pesthunter.`);
-            break;
-        }
-        case "home": {
-            const { latitude, longitude } = action;
-            if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
-                throw new FarmRuleError("That isn't a place on Earth");
-            }
-            const region = toRegion(latitude, longitude, config);
-            if (state.home && regionKey(state.home) === regionKey(region)) throw new FarmRuleError("Your weather already comes from around here");
-            const movable = homeMovableAt(state, config, ctx.now);
-            if (movable) throw new FarmRuleError(`Your weather can move again on ${movable.toISOString().slice(0, 10)}`);
-            state.home = { ...region, setAt: ctx.now.toISOString() };
-            result.log.push("Your farm's weather now comes from around here.");
             break;
         }
         case "amend": {

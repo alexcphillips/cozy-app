@@ -1,10 +1,9 @@
 import {
-    GEO_DUNGEON_ENTER_SECONDS,
-    GEO_DUNGEON_LOBBY_SECONDS,
+    GEO_DUNGEON_HOST_AWAY_SECONDS,
     type GeoDungeon,
     type GeoDungeonLobby,
     type GeoDungeonsResponse,
-    type GeoRunResponse,
+    type GeoStartDungeonLobbyResponse,
 } from "@cozy/shared/geo";
 import { AppError } from "../../../http/AppError";
 import { CONTENT, type DungeonDef } from "../../content";
@@ -12,8 +11,9 @@ import { withTransaction, type TxQuery } from "../../db/transaction";
 import { hasArt } from "../../world";
 import * as playerRepository from "../player/geo-player.repository";
 import * as runsRepository from "../runs/geo-runs.repository";
-import { lobbyPhase, requiredLevelProblem } from "./geo-dungeons.rules";
+import { isOpen, requiredLevelProblem } from "./geo-dungeons.rules";
 import {
+    CLOSE_ABANDONED_LOBBIES,
     CLOSE_LOBBY,
     DELETE_MEMBER,
     FIND_LOBBY,
@@ -23,7 +23,6 @@ import {
     INSERT_MEMBER,
     LIST_OPEN_LOBBIES,
     LOCK_LOBBY,
-    MARK_ENTERED,
     START_LOBBY,
 } from "./geo-dungeons.sql";
 import type { LobbyRow, MemberRow } from "./geo-dungeons.types";
@@ -45,14 +44,12 @@ function toDungeonView(dungeon: DungeonDef): GeoDungeon {
         description: dungeon.description,
         bossName: boss.name,
         bossSprite: boss.sprite,
-        minCombatLevel: dungeon.minCombatLevel,
+        requiredLevel: dungeon.requiredLevel,
         maxPlayers: dungeon.maxPlayers,
     };
 }
 
-function toLobbyView(row: LobbyRow, members?: { rows: MemberRow[]; viewerId: string }): GeoDungeonLobby | null {
-    const { phase, secondsLeft } = lobbyPhase(row);
-    if (phase !== "open" && phase !== "started") return null;
+function toLobbyView(row: LobbyRow, members?: { rows: MemberRow[]; viewerId: string }): GeoDungeonLobby {
     return {
         id: row.id,
         dungeonId: row.dungeon_id,
@@ -60,14 +57,11 @@ function toLobbyView(row: LobbyRow, members?: { rows: MemberRow[]; viewerId: str
         requiredLevel: row.required_level,
         playerCount: row.player_count,
         maxPlayers: row.max_players,
-        phase,
-        secondsLeft,
         ...(members && {
             members: members.rows.map((member) => ({
                 displayName: member.display_name,
                 isHost: member.player_id === row.host_id,
                 isYou: member.player_id === members.viewerId,
-                hasEntered: member.has_entered,
             })),
         }),
     };
@@ -77,56 +71,63 @@ async function combatLevelOf(tx: TxQuery, playerId: string): Promise<number> {
     return (await playerRepository.findSkillLevels(tx, playerId)).combat ?? 1;
 }
 
+/** Closes unstarted lobbies whose host walked off; run before reading lobbies. */
+async function closeAbandoned(tx: TxQuery) {
+    await tx(CLOSE_ABANDONED_LOBBIES, [GEO_DUNGEON_HOST_AWAY_SECONDS]);
+}
+
 async function findPlayerLobby(tx: TxQuery, playerId: string): Promise<LobbyRow | undefined> {
-    const [row] = await tx<LobbyRow>(FIND_PLAYER_LOBBY, [playerId, GEO_DUNGEON_ENTER_SECONDS]);
+    const [row] = await tx<LobbyRow>(FIND_PLAYER_LOBBY, [playerId]);
     return row;
 }
 
-/** Locks the lobby and reads it fresh; refuses one that's gone. */
-async function lockLobby(tx: TxQuery, lobbyId: string): Promise<LobbyRow> {
+/** Locks the lobby and reads it fresh; refuses one that's gone or has started. */
+async function lockOpenLobby(tx: TxQuery, lobbyId: string): Promise<LobbyRow> {
     const [locked] = await tx<{ id: string }>(LOCK_LOBBY, [lobbyId]);
     const [row] = locked ? await tx<LobbyRow>(FIND_LOBBY, [lobbyId]) : [];
-    if (!row) throw AppError.notFound("That lobby is gone");
+    if (!row || row.closed_at) throw AppError.notFound("That lobby is gone");
+    if (!isOpen(row)) throw AppError.badRequest("That lobby has already started");
     return row;
 }
 
 /**
- * What the dungeon menu shows: every dungeon on offer, the lobbies still
- * counting down, and the player's own lobby with who's in it.
+ * What the dungeon menu shows: every dungeon on offer, the lobbies waiting
+ * to start, and the player's own lobby with who's in it.
  */
 export async function listDungeons(tx: TxQuery, playerId: string): Promise<GeoDungeonsResponse> {
+    await closeAbandoned(tx);
     const dungeons = Object.values(CONTENT.dungeons).flatMap((dungeon) =>
         offeredDungeon(dungeon.id) ? [toDungeonView(dungeon)] : [],
     );
     const mine = await findPlayerLobby(tx, playerId);
     const open = await tx<LobbyRow>(LIST_OPEN_LOBBIES, [MAX_LISTED]);
     const lobbies = open.flatMap((row) =>
-        row.id !== mine?.id && offeredDungeon(row.dungeon_id) ? (toLobbyView(row) ?? []) : [],
+        row.id !== mine?.id && offeredDungeon(row.dungeon_id) ? [toLobbyView(row)] : [],
     );
     const myLobby = mine ? toLobbyView(mine, { rows: await tx<MemberRow>(FIND_MEMBERS, [mine.id]), viewerId: playerId }) : null;
     return { dungeons, lobbies, myLobby, combatLevel: await combatLevelOf(tx, playerId) };
 }
 
-/** One lobby at a time: a player must leave or enter theirs before another. */
+/** One lobby at a time: a player must leave theirs (or have it start) before another. */
 async function assertNotInLobby(tx: TxQuery, playerId: string) {
     if (await findPlayerLobby(tx, playerId)) throw AppError.badRequest("You're already in a lobby. Leave it first.");
 }
 
-/** Opens a lobby for a dungeon, hosted by the player, counting down from GEO_DUNGEON_LOBBY_SECONDS. */
+/** Opens a lobby for a dungeon, hosted by the player; it waits until they start it. */
 export async function createLobby(playerId: string, dungeonId: string, requiredLevel: unknown): Promise<GeoDungeonsResponse> {
     const dungeon = offeredDungeon(dungeonId);
     if (!dungeon) throw AppError.badRequest("Unknown dungeon");
     return withTransaction(async (tx) => {
         await playerRepository.lockPlayer(tx, playerId);
+        await closeAbandoned(tx);
         await assertNotInLobby(tx, playerId);
-        const problem = requiredLevelProblem(requiredLevel, dungeon.minCombatLevel, await combatLevelOf(tx, playerId));
+        const problem = requiredLevelProblem(requiredLevel, dungeon.requiredLevel, await combatLevelOf(tx, playerId));
         if (problem) throw AppError.badRequest(problem);
         const [lobby] = await tx<{ id: string }>(INSERT_LOBBY, [
             dungeon.id,
             playerId,
             requiredLevel,
             dungeon.maxPlayers,
-            GEO_DUNGEON_LOBBY_SECONDS,
         ]);
         await tx(INSERT_MEMBER, [lobby!.id, playerId]);
         return listDungeons(tx, playerId);
@@ -136,12 +137,12 @@ export async function createLobby(playerId: string, dungeonId: string, requiredL
 export async function joinLobby(playerId: string, lobbyId: string): Promise<GeoDungeonsResponse> {
     return withTransaction(async (tx) => {
         await playerRepository.lockPlayer(tx, playerId);
+        await closeAbandoned(tx);
         const current = await findPlayerLobby(tx, playerId);
         if (current?.id === lobbyId) return listDungeons(tx, playerId);
         if (current) throw AppError.badRequest("You're already in a lobby. Leave it first.");
 
-        const lobby = await lockLobby(tx, lobbyId);
-        if (lobbyPhase(lobby).phase !== "open") throw AppError.badRequest("That lobby has already started");
+        const lobby = await lockOpenLobby(tx, lobbyId);
         if (lobby.player_count >= lobby.max_players) throw AppError.badRequest("That lobby is full");
         if ((await combatLevelOf(tx, playerId)) < lobby.required_level) {
             throw AppError.badRequest(`That lobby needs combat level ${lobby.required_level}`);
@@ -151,54 +152,57 @@ export async function joinLobby(playerId: string, lobbyId: string): Promise<GeoD
     });
 }
 
-/**
- * Leaves the lobby. The host leaving one still counting down closes it for
- * everyone; once started, everyone's free to enter whether the host does or not.
- */
+/** Leaves the lobby. The host leaving closes it for everyone. */
 export async function leaveLobby(playerId: string, lobbyId: string): Promise<GeoDungeonsResponse> {
     return withTransaction(async (tx) => {
-        const lobby = await lockLobby(tx, lobbyId);
-        if (lobby.host_id === playerId && lobbyPhase(lobby).phase === "open") await tx(CLOSE_LOBBY, [lobbyId]);
+        const lobby = await lockOpenLobby(tx, lobbyId);
+        if (lobby.host_id === playerId) await tx(CLOSE_LOBBY, [lobbyId]);
         else await tx(DELETE_MEMBER, [lobbyId, playerId]);
         return listDungeons(tx, playerId);
     });
 }
 
-/** The host starts the lobby before its countdown ends. */
-export async function startLobby(playerId: string, lobbyId: string): Promise<GeoDungeonsResponse> {
-    return withTransaction(async (tx) => {
-        const lobby = await lockLobby(tx, lobbyId);
-        if (lobby.host_id !== playerId) throw AppError.forbidden("Only the host can start the lobby");
-        if (lobbyPhase(lobby).phase !== "open") throw AppError.badRequest("That lobby has already started");
-        await tx(START_LOBBY, [lobbyId]);
-        return listDungeons(tx, playerId);
-    });
-}
-
 /**
- * Begins the player's Run against the dungeon's boss. Solo for now: each
- * member who enters gets their own fight, with the boss made bigger by the
- * dungeon's `bossModifiers`. Only once per lobby.
+ * The host starts the lobby: everyone in it goes in at once, each into their
+ * own Run against the boss for now (made bigger by the dungeon's
+ * `bossModifiers`), and the lobby is done. Everyone fights at full health,
+ * and leaves with their own health as it was. A member who can't fight right now
+ * (already in a Run, an empty hand…) is left out rather than holding everyone
+ * back; the host can't be.
+ *
+ * Locks the lobby, then each member, as a join does them the other way round
+ * only for a lobby the joiner isn't in yet, so the two can't deadlock.
  */
-export async function enterLobby(playerId: string, lobbyId: string): Promise<GeoRunResponse> {
+export async function startLobby(playerId: string, lobbyId: string): Promise<GeoStartDungeonLobbyResponse> {
     return withTransaction(async (tx) => {
-        await playerRepository.lockPlayer(tx, playerId);
-        const lobby = await lockLobby(tx, lobbyId);
-        const me = (await tx<MemberRow>(FIND_MEMBERS, [lobbyId])).find((member) => member.player_id === playerId);
-        if (!me) throw AppError.badRequest("You're not in that lobby");
-        if (me.has_entered) throw AppError.badRequest("You've already entered this dungeon");
-        const { phase } = lobbyPhase(lobby);
-        if (phase === "open") throw AppError.badRequest("The lobby hasn't started yet");
-        if (phase !== "started") throw AppError.badRequest("That lobby is over");
+        const lobby = await lockOpenLobby(tx, lobbyId);
+        if (lobby.host_id !== playerId) throw AppError.forbidden("Only the host can start the lobby");
         const dungeon = CONTENT.dungeons[lobby.dungeon_id];
         if (!dungeon) throw AppError.badRequest("That dungeon no longer exists");
+        // Fought at full health; each player's own health is as it was after.
+        const target = { enemyId: dungeon.boss, spawnId: null, enemyModifiers: dungeon.bossModifiers, keepsHealth: true };
 
-        const opened = await runsRepository.openCombatRun(tx, playerId, {
-            enemyId: dungeon.boss,
-            spawnId: null,
-            enemyModifiers: dungeon.bossModifiers,
-        });
-        await tx(MARK_ENTERED, [lobbyId, playerId]);
-        return opened;
+        // The host first: if they can't fight, nothing starts.
+        await playerRepository.lockPlayer(tx, playerId);
+        const opened = await runsRepository.openCombatRun(tx, playerId, target);
+
+        const leftOut: string[] = [];
+        const members = (await tx<MemberRow>(FIND_MEMBERS, [lobbyId])).filter((member) => member.player_id !== playerId);
+        for (const member of members.sort((a, b) => a.player_id.localeCompare(b.player_id))) {
+            await playerRepository.lockPlayer(tx, member.player_id);
+            // A savepoint per member, so one who can't fight is undone alone.
+            await tx("SAVEPOINT dungeon_member");
+            try {
+                await runsRepository.openCombatRun(tx, member.player_id, target);
+                await tx("RELEASE SAVEPOINT dungeon_member");
+            } catch (error) {
+                if (!(error instanceof AppError)) throw error;
+                await tx("ROLLBACK TO SAVEPOINT dungeon_member");
+                await tx(DELETE_MEMBER, [lobbyId, member.player_id]);
+                leftOut.push(member.display_name);
+            }
+        }
+        await tx(START_LOBBY, [lobbyId]);
+        return { opened, leftOut };
     });
 }

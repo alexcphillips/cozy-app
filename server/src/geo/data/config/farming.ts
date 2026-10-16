@@ -60,12 +60,6 @@ export default {
     ],
     weatherWeights: { clear: 4, overcast: 3, rain: 3, heatwave: 1, storm: 0.5, frost: 0.5 },
     weather: {
-        heatwaveC: 28,
-        frostC: 0,
-        rainMm: 2,
-        overcastCloud: 75,
-        regionDegrees: 0.5,
-        homeCooldownDays: 7,
         stormFlattenChance: 0.1,
         frostKillsUpToStage: 1,
     },

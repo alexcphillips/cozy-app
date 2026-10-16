@@ -12,8 +12,18 @@ import {
 } from "../../combat/combatants";
 import { CONTENT } from "../../content";
 import { withTransaction, type TxQuery } from "../../db/transaction";
-import { BattleRuleError, canWield, createBattle, eatFood, playCard, type BattleResult } from "../../engine/battle";
 import {
+    BattleRuleError,
+    canWield,
+    createBattle,
+    eatBetweenFights,
+    eatFood,
+    playCard,
+    type BattleResult,
+    type CombatantSetup,
+} from "../../engine/battle";
+import {
+    CORE_STATS,
     MAGIC_FIND_STAT,
     type BattleState,
     type CardInstance,
@@ -27,7 +37,9 @@ import * as chestsRepository from "../chests/geo-chests.repository";
 import * as fishingRepository from "../fishing/geo-fishing.repository";
 import * as playerRepository from "../player/geo-player.repository";
 import * as worldRepository from "../world/geo-world.repository";
-import { applyModifiers, globalModifiers } from "../../world/global-effects";
+import { applyModifiers, globalModifiers, playerMaxHealth } from "../../world/global-effects";
+import { activePetModifiers } from "../../pets/pets";
+import { defeatHealth } from "../player/geo-camp.rules";
 import {
     ABANDON_STALE_RUNS,
     FIND_ACTIVE_RUN,
@@ -79,7 +91,7 @@ async function findLiveRun(tx: TxQuery, playerId: string): Promise<RunRow | unde
     return active;
 }
 
-/** The player's gear, talismans, combat hand and lunchbox, as the engine needs them. */
+/** The player's gear, talismans, active pet, combat hand and lunchbox, as the engine needs them. */
 async function loadLoadout(tx: TxQuery, playerId: string) {
     // One after another: a transaction is one connection, and pg can't run
     // two queries on a connection at once.
@@ -88,6 +100,7 @@ async function loadLoadout(tx: TxQuery, playerId: string) {
     const bag = await playerRepository.findTalismanBag(playerId, tx);
     const handIds = await playerRepository.findHand(playerId, "combat", tx);
     const packed = await playerRepository.findLunchbox(playerId, tx);
+    const pet = await playerRepository.findActivePet(playerId, tx);
 
     const byId = new Map(inventory.map((row) => [row.id, row]));
     const worn = equipment.flatMap((slot) => byId.get(slot.inventory_id) ?? []);
@@ -109,14 +122,50 @@ async function loadLoadout(tx: TxQuery, playerId: string) {
         .filter((entry) => CONTENT.foods[entry.itemId])
         .map((entry) => ({ slot: entry.slot, foodId: entry.itemId, quantity: entry.quantity }));
 
-    return { equipment: equipped, reforges, talismans, hand, lunchbox };
+    return { equipment: equipped, reforges, talismans, hand, lunchbox, petModifiers: activePetModifiers(pet ?? undefined) };
+}
+
+/**
+ * Eats one lunchbox food between fights, through the battle engine, and
+ * saves the health it leaves (statuses don't outlast it). The caller holds
+ * the player lock and has checked there's no Run in progress.
+ */
+export async function eatBetweenFightsFor(tx: TxQuery, playerId: string, slot: number): Promise<void> {
+    const player = await playerRepository.findPlayer(playerId, tx);
+    if (!player) throw AppError.notFound("Player not found");
+    const loadout = await loadLoadout(tx, playerId);
+    const packed = loadout.lunchbox.find((entry) => entry.slot === slot);
+    if (!packed) throw AppError.badRequest("That lunchbox slot is empty");
+
+    const combatLevel = (await playerRepository.findSkillLevels(tx, playerId)).combat ?? 1;
+    const you = playerCombatant({ name: player.displayName, ...loadout, combatLevel, globalModifiers: await globalModifiers(tx) }, CONTENT);
+    const health = await playerRepository.findHealth(playerId, tx);
+    you.health = health.current;
+
+    let result: { health: number };
+    try {
+        result = eatBetweenFights(you, CONTENT, { slot }, randomSeed());
+    } catch (error) {
+        if (error instanceof BattleRuleError) throw AppError.badRequest(error.message);
+        throw error;
+    }
+    await playerRepository.eatFromLunchbox(tx, playerId, { slot, itemId: packed.foodId, from: packed.quantity, to: packed.quantity - 1 });
+    await playerRepository.setHealth(tx, playerId, result.health, health.max);
 }
 
 /**
  * What a fight is against: a real spawn, a dungeon boss, or (dev only) an
  * enemy by id. `enemyModifiers` make it stronger, e.g. a dungeon's boss.
+ * `keepsHealth` fights at full health and leaves the player's own health as
+ * it was, whatever happens (a dungeon); otherwise the fight starts from the
+ * player's health and saves it every turn.
  */
-export type RunTarget = { enemyId: string; spawnId: string | null; enemyModifiers?: StatModifier[] };
+export type RunTarget = {
+    enemyId: string;
+    spawnId: string | null;
+    enemyModifiers?: StatModifier[];
+    keepsHealth?: boolean;
+};
 
 export async function startCombatRun(playerId: string, target: RunTarget): Promise<GeoRunResponse> {
     if (!CONTENT.enemies[target.enemyId]) throw AppError.badRequest("Unknown enemy");
@@ -152,10 +201,12 @@ export async function openCombatRun(tx: TxQuery, playerId: string, target: RunTa
     if (loadout.hand.length === 0) throw AppError.badRequest("Your combat hand is empty");
 
     const combatLevel = (await playerRepository.findSkillLevels(tx, playerId)).combat ?? 1;
-    const you = playerCombatant(
+    const you: CombatantSetup = playerCombatant(
         { name: player.displayName, ...loadout, combatLevel, globalModifiers: await globalModifiers(tx) },
         CONTENT,
     );
+    // Carried from the last fight, unless this one is fought at full.
+    if (!target.keepsHealth) you.health = (await playerRepository.findHealth(playerId, tx)).current;
     // Else the fight could only be fled.
     if (!loadout.hand.some((card) => canWield(CONTENT.cards[card.cardId]!, you.weaponTags))) {
         throw AppError.badRequest("None of the cards in your hand can be used with your weapon");
@@ -174,7 +225,7 @@ export async function openCombatRun(tx: TxQuery, playerId: string, target: RunTa
         CONTENT,
     );
 
-    const [inserted] = await tx<RunRow>(INSERT_RUN, [playerId, "combat", enemyIds, spawnId, state]);
+    const [inserted] = await tx<RunRow>(INSERT_RUN, [playerId, "combat", enemyIds, spawnId, state, target.keepsHealth ?? false]);
     if (!inserted) throw new Error("Run insert returned nothing");
     // A battle can, in principle, end before the player acts.
     return settle(tx, inserted, inserted.state, state, log);
@@ -221,12 +272,17 @@ export async function fleeRun(playerId: string, runId: string): Promise<GeoRunRe
 
 /**
  * The player dies outside a fight's own rules: every coin carried is lost,
- * as on a defeat, and a Run in progress ends as one.
+ * as on a defeat, and a Run in progress ends as one. Health drops to what a
+ * defeat leaves, unless the Run keeps it (a dungeon's).
  */
 export async function killPlayer(playerId: string, cause: GeoDeathCause): Promise<GeoDeathResponse> {
     return withTransaction(async (tx) => {
         const [active] = await tx<RunRow>(FIND_ACTIVE_RUN_FOR_UPDATE, [playerId]);
         const coinsLost = await playerRepository.loseAllCoins(tx, playerId, cause, active?.id ?? cause);
+        if (!active?.keeps_health) {
+            const max = await playerMaxHealth(playerId, tx);
+            await playerRepository.setHealth(tx, playerId, defeatHealth(max), max);
+        }
         if (active) {
             const state: BattleState = { ...active.state, outcome: "defeat" };
             await tx(UPDATE_RUN, [active.id, state, "defeat", null, String(coinsLost)]);
@@ -281,6 +337,15 @@ async function settle(
 
     const status: GeoRunStatus = after.outcome === "ongoing" ? "active" : after.outcome;
     let rewards: GeoRewards | null = row.rewards;
+
+    // Health carries out of the fight, saved every turn so closing the app
+    // mid-fight keeps the damage. A defeat leaves a tenth of max. A Run that
+    // keeps health (a dungeon's) never touches the player's.
+    const you = after.combatants.find((c) => c.side === "player");
+    if (you && !row.keeps_health) {
+        const max = statOf(you, CORE_STATS.maxHealth, CONTENT);
+        await playerRepository.setHealth(tx, playerId, status === "defeat" ? defeatHealth(max) : you.health, max);
+    }
 
     if (status === "victory" && !rewards) {
         const lootRng = createRng((after.seed ^ LOOT_SEED_SALT) >>> 0);

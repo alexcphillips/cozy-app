@@ -1,4 +1,7 @@
 import type {
+    GeoHealth,
+    GeoCamp,
+    GeoPoint,
     GeoBait,
     GeoBaitSlot,
     GeoSeedBag,
@@ -11,19 +14,34 @@ import type {
     GeoPlayer,
     GeoSavedHand,
 } from "@cozy/shared/geo";
-import { geoSkillLevel } from "@cozy/shared/geo";
+import { geoSkillLevel, type GeoPetUpgrade } from "@cozy/shared/geo";
 import { query } from "../../../db";
 import { AppError } from "../../../http/AppError";
-import { CONTENT } from "../../content";
+import { CONTENT, GAME_CONFIG } from "../../content";
+import { NEW_PET, petOf, petState, petXpFrom, type PetCopy } from "../../pets/pets";
 import { isStackable } from "../../content/content.types";
 import type { TxQuery } from "../../db/transaction";
+import { playerMaxHealth } from "../../world/global-effects";
+import { currentHealth, campMovableAt } from "./geo-camp.rules";
 import {
     ADD_COINS,
+    CLEAR_CAMP,
+    FIND_HEALTH_AND_CAMP,
+    SET_HEALTH,
+    SET_CAMP,
     EMPTY_COINS,
     INSERT_COIN_LEDGER,
     ADD_SKILL_XP,
     ADD_TO_STACK,
     CLEAR_SLOT,
+    CLEAR_ACTIVE_PET,
+    DELETE_PET_UPGRADE,
+    FIND_ACTIVE_PET,
+    FIND_PET_UPGRADE,
+    INSERT_PET_UPGRADE,
+    SET_ACTIVE_PET,
+    ADD_PET_XP,
+    SET_PET_HELD_ITEM,
     FIND_EQUIPMENT,
     FIND_HAND,
     FIND_HANDS,
@@ -77,9 +95,11 @@ import {
 import type {
     BaitRow,
     EquipmentRow,
+    HealthAndCampRow,
     HandRow,
     InventoryRow,
     LunchboxRow,
+    PetUpgradeRow,
     PlayerRow,
     SavedHandRow,
     SkillXpRow,
@@ -106,6 +126,7 @@ export function toInventoryEntry(row: InventoryRow): GeoInventoryEntry {
         quantity: row.quantity,
         chargesLeft: row.charges_left,
         reforge: row.reforge,
+        pet: petState(row.item_id, row.pet ?? NEW_PET),
         obtainedAt: row.obtained_at.toISOString(),
     };
 }
@@ -155,7 +176,7 @@ export async function findMe(playerId: string): Promise<GeoMeResponse | null> {
     const player = await findPlayer(playerId);
     if (!player) return null;
 
-    const [inventory, equipment, talismanBag, bagPages, hands, xp, savedHands, lunchbox, bait, seedBag] = await Promise.all([
+    const [inventory, equipment, talismanBag, bagPages, hands, xp, savedHands, lunchbox, bait, seedBag, health, camp, activePet, petUpgrade] = await Promise.all([
         findInventory(playerId),
         findEquipment(playerId),
         findTalismanBag(playerId),
@@ -166,6 +187,10 @@ export async function findMe(playerId: string): Promise<GeoMeResponse | null> {
         findLunchbox(playerId),
         findBait(playerId),
         findSeedBag(playerId),
+        findHealth(playerId),
+        findCamp(playerId),
+        findActivePet(playerId),
+        findPetUpgrade(playerId),
     ]);
 
     return {
@@ -184,7 +209,108 @@ export async function findMe(playerId: string): Promise<GeoMeResponse | null> {
         lunchbox,
         bait,
         seedBag,
+        health,
+        camp,
+        activePet: activePet?.id ?? null,
+        petUpgrade: petUpgrade && toPetUpgrade(petUpgrade),
+        heldItemRemovalCost: GAME_CONFIG.pets.heldItemRemovalCost,
     };
+}
+
+function toPetUpgrade(row: PetUpgradeRow): GeoPetUpgrade {
+    return {
+        inventoryId: row.inventory_id,
+        itemId: row.item_id,
+        toItemId: row.to_item_id,
+        readyAt: row.ready_at.toISOString(),
+    };
+}
+
+/** The active pet's inventory row, or null. */
+export async function findActivePet(playerId: string, tx: TxQuery = db): Promise<InventoryRow | null> {
+    const [row] = await tx<InventoryRow>(FIND_ACTIVE_PET, [playerId]);
+    return row ?? null;
+}
+
+/** null puts the active pet away. The caller checks the copy is the player's pet. */
+export async function setActivePet(tx: TxQuery, playerId: string, inventoryId: string | null) {
+    if (inventoryId) await tx(SET_ACTIVE_PET, [playerId, inventoryId]);
+    else await tx(CLEAR_ACTIVE_PET, [playerId]);
+}
+
+/** What a pet copy holds now: a pet item's id, or null. */
+export async function setPetHeldItem(tx: TxQuery, playerId: string, inventoryId: string, heldItem: string | null) {
+    const [row] = await tx<{ id: string }>(SET_PET_HELD_ITEM, [playerId, inventoryId, JSON.stringify(heldItem)]);
+    if (!row) throw AppError.notFound("You don't own that pet");
+}
+
+/** The pet left with Kat, or null. */
+export async function findPetUpgrade(playerId: string, tx: TxQuery = db): Promise<PetUpgradeRow | null> {
+    const [row] = await tx<PetUpgradeRow>(FIND_PET_UPGRADE, [playerId]);
+    return row ?? null;
+}
+
+/** Leaves a pet copy with Kat; the caller has already taken it out of the inventory. */
+export async function insertPetUpgrade(tx: TxQuery, playerId: string, taken: InventoryRow, toItemId: string, readyAt: Date) {
+    await tx(INSERT_PET_UPGRADE, [
+        playerId,
+        taken.id,
+        taken.item_id,
+        toItemId,
+        JSON.stringify(taken.pet ?? NEW_PET),
+        taken.obtained_at,
+        readyAt,
+    ]);
+}
+
+/** Takes the pet back from Kat (the row goes), or null if there was none. */
+export async function takePetUpgrade(tx: TxQuery, playerId: string): Promise<PetUpgradeRow | null> {
+    const [row] = await tx<PetUpgradeRow>(DELETE_PET_UPGRADE, [playerId]);
+    return row ?? null;
+}
+
+/** Health carried between fights, against max health from the player's gear now. */
+export async function findHealth(playerId: string, tx: TxQuery = db): Promise<GeoHealth> {
+    // One after another: `tx` may be a transaction's single connection.
+    const [row] = await tx<HealthAndCampRow>(FIND_HEALTH_AND_CAMP, [playerId]);
+    const max = await playerMaxHealth(playerId, tx);
+    return { current: currentHealth(row?.health ?? null, max), max };
+}
+
+/** Saves health between fights; at or above max it's stored as full. */
+export async function setHealth(tx: TxQuery, playerId: string, health: number, max: number) {
+    await tx(SET_HEALTH, [playerId, health >= max ? null : Math.max(1, Math.round(health))]);
+}
+
+/** Back to full, e.g. resting at camp. */
+export async function fillHealth(tx: TxQuery, playerId: string) {
+    await tx(SET_HEALTH, [playerId, null]);
+}
+
+/** The player's camp, or null if none is set (or it was forgotten). */
+export async function findCamp(playerId: string, tx: TxQuery = db): Promise<GeoCamp | null> {
+    const [row] = await tx<HealthAndCampRow>(FIND_HEALTH_AND_CAMP, [playerId]);
+    if (!row || row.camp_latitude === null || row.camp_longitude === null || !row.camp_set_at) return null;
+    return {
+        position: { latitude: row.camp_latitude, longitude: row.camp_longitude },
+        setAt: row.camp_set_at.toISOString(),
+        movableAt: campMovableAt(row.camp_set_at).toISOString(),
+    };
+}
+
+/** When camp was last set, even if it's since been forgotten. */
+export async function findCampSetAt(tx: TxQuery, playerId: string): Promise<Date | null> {
+    const [row] = await tx<HealthAndCampRow>(FIND_HEALTH_AND_CAMP, [playerId]);
+    return row?.camp_set_at ?? null;
+}
+
+/** `point` must already be rounded (roundCamp). */
+export async function setCamp(tx: TxQuery, playerId: string, point: GeoPoint) {
+    await tx(SET_CAMP, [playerId, point.latitude, point.longitude]);
+}
+
+export async function clearCamp(tx: TxQuery, playerId: string) {
+    await tx(CLEAR_CAMP, [playerId]);
 }
 
 /** How many slots the player has unlocked, and what's packed in them. */
@@ -353,10 +479,10 @@ export async function deleteSavedHand(tx: TxQuery, playerId: string, savedHandId
 export async function grantItems(
     tx: TxQuery,
     playerId: string,
-    grants: { itemId: string; quantity: number; chargesLeft?: number; reforge?: string | null }[],
+    grants: { itemId: string; quantity: number; chargesLeft?: number; reforge?: string | null; pet?: PetCopy | null }[],
 ): Promise<string[]> {
     const ids: string[] = [];
-    for (const { itemId, quantity, chargesLeft, reforge } of grants) {
+    for (const { itemId, quantity, chargesLeft, reforge, pet } of grants) {
         const item = CONTENT.items[itemId];
         if (!item) throw new Error(`Unknown item "${itemId}"`);
 
@@ -366,14 +492,16 @@ export async function grantItems(
                 ids.push(stacked.id);
                 continue;
             }
-            const [row] = await tx<InventoryRow>(INSERT_INVENTORY, [playerId, itemId, quantity, null, null]);
+            const [row] = await tx<InventoryRow>(INSERT_INVENTORY, [playerId, itemId, quantity, null, null, null]);
             if (row) ids.push(row.id);
             continue;
         }
 
         const charges = item.kind === "card" ? (chargesLeft ?? item.maxCharges) : null;
+        // A new pet starts at level 1 with nothing held.
+        const copy = item.kind === "pet" ? JSON.stringify(pet ?? NEW_PET) : null;
         for (let i = 0; i < quantity; i++) {
-            const [row] = await tx<InventoryRow>(INSERT_INVENTORY, [playerId, itemId, 1, charges, reforge ?? null]);
+            const [row] = await tx<InventoryRow>(INSERT_INVENTORY, [playerId, itemId, 1, charges, reforge ?? null, copy]);
             if (row) ids.push(row.id);
         }
     }
@@ -393,6 +521,8 @@ export type CoinReason =
     | "farm-contest"
     | "vendor-sell"
     | "vendor-reforge"
+    | "pet-upgrade"
+    | "pet-item-removal"
     | "market-fee"
     | "market-bid-hold"
     | "market-bid-return"
@@ -469,8 +599,16 @@ export async function findSkillLevels(tx: TxQuery, playerId: string): Promise<Re
     return Object.fromEntries(rows.map((row) => [row.skill, geoSkillLevel(Number(row.xp))]));
 }
 
+/** Adds skill XP, and the active pet's share of it (pets/pets.ts petXpFrom). */
 export async function addSkillXp(tx: TxQuery, playerId: string, skill: string, amount: number) {
-    if (amount > 0) await tx(ADD_SKILL_XP, [playerId, skill, amount]);
+    if (amount <= 0) return;
+    await tx(ADD_SKILL_XP, [playerId, skill, amount]);
+
+    const active = await findActivePet(playerId, tx);
+    const found = active ? petOf(active.item_id) : null;
+    if (!active || !found) return;
+    const gained = petXpFrom(found.pet, skill, amount, active.pet?.heldItem ?? null);
+    if (gained > 0) await tx(ADD_PET_XP, [playerId, active.id, gained]);
 }
 
 /**
@@ -486,12 +624,13 @@ export async function spendCoins(tx: TxQuery, playerId: string, amount: number, 
 }
 
 /**
- * Refuses if the row is worn, in the Talisman Bag or in a hand: selling or
+ * Refuses if the row is worn, in the Talisman Bag, in a hand or the active pet: selling or
  * listing it would pull it out of the player's build without them noticing.
  */
 export async function assertNotInUse(tx: TxQuery, playerId: string, inventoryId: string, name: string) {
-    const [uses] = await tx<{ equipped: boolean; bagged: boolean; in_hand: boolean }>(FIND_USES, [playerId, inventoryId]);
+    const [uses] = await tx<{ equipped: boolean; bagged: boolean; in_hand: boolean; active_pet: boolean }>(FIND_USES, [playerId, inventoryId]);
     if (uses?.equipped) throw AppError.badRequest(`Unequip ${name} first`);
+    if (uses?.active_pet) throw AppError.badRequest(`Put ${name} away first`);
     if (uses?.bagged) throw AppError.badRequest(`Take ${name} out of the Talisman Bag first`);
     if (uses?.in_hand) throw AppError.badRequest(`Take ${name} out of your hand first`);
 }
@@ -559,12 +698,13 @@ export async function restoreItem(
         quantity: number;
         chargesLeft: number | null;
         reforge: string | null;
+        pet?: PetCopy | null;
         obtainedAt: Date;
     },
 ) {
     const item = CONTENT.items[copy.itemId];
     if (!item) throw new Error(`Unknown item "${copy.itemId}"`);
-    const grant = { itemId: copy.itemId, chargesLeft: copy.chargesLeft ?? undefined, reforge: copy.reforge };
+    const grant = { itemId: copy.itemId, chargesLeft: copy.chargesLeft ?? undefined, reforge: copy.reforge, pet: copy.pet };
     if (isStackable(item) || !copy.inventoryId) {
         await grantItems(tx, playerId, [{ ...grant, quantity: copy.quantity }]);
         return;
@@ -577,6 +717,7 @@ export async function restoreItem(
         copy.chargesLeft,
         copy.obtainedAt,
         copy.reforge,
+        item.kind === "pet" ? JSON.stringify(copy.pet ?? NEW_PET) : null,
     ]);
     // The id was somehow taken: hand it back as a new copy rather than lose it.
     if (!restored) await grantItems(tx, playerId, [{ ...grant, quantity: 1 }]);

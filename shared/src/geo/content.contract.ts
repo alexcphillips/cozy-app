@@ -3,9 +3,9 @@ import type { GeoQualityTier } from "./fishing.contract";
 
 export type GeoRarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
-export type GeoEquipKind = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "ring";
+export type GeoEquipKind = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring";
 
-/** Equipment slot ids on the character screen; rings take any of four. */
+/** Equipment slot ids on the character screen; rings take either of two. */
 export type GeoEquipmentSlot =
     | "mainHand"
     | "offHand"
@@ -13,10 +13,13 @@ export type GeoEquipmentSlot =
     | "chest"
     | "hands"
     | "legs"
+    | "feet"
+    | "shoulders"
+    | "cloak"
+    | "belt"
+    | "amulet"
     | "ring1"
-    | "ring2"
-    | "ring3"
-    | "ring4";
+    | "ring2";
 
 export const GEO_EQUIPMENT_SLOTS: readonly GeoEquipmentSlot[] = [
     "mainHand",
@@ -25,10 +28,13 @@ export const GEO_EQUIPMENT_SLOTS: readonly GeoEquipmentSlot[] = [
     "chest",
     "hands",
     "legs",
+    "feet",
+    "shoulders",
+    "cloak",
+    "belt",
+    "amulet",
     "ring1",
     "ring2",
-    "ring3",
-    "ring4",
 ];
 
 /** Which kind of item each slot takes. */
@@ -36,7 +42,7 @@ export function geoSlotKind(slot: GeoEquipmentSlot): GeoEquipKind {
     return slot.startsWith("ring") ? "ring" : (slot as GeoEquipKind);
 }
 
-export type GeoItemKind = "card" | "equipment" | "talisman" | "material" | "consumable" | "misc";
+export type GeoItemKind = "card" | "equipment" | "talisman" | "material" | "consumable" | "misc" | "pet" | "petItem";
 
 /** A label/value row on the item detail page, e.g. Defence · +6. */
 export type GeoItemStat = { label: string; value: string };
@@ -76,6 +82,8 @@ export type GeoItemView = {
     soulbound?: boolean;
     /** Fishing cards: whether playing it raises or lowers a catch's quality odds. */
     finesse?: "raises" | "lowers";
+    /** Pets: which pet, its art (`features/pets/assets/<image>.png` in the app), and the skill it levels fastest from. */
+    pet?: { petId: string; image: string; skill: string };
     /**
      * What an NPC pays for one, in coins: the lowest Market price per unit,
      * and the base of the Market's fees (`market.contract`).

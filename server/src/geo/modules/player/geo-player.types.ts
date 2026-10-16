@@ -1,4 +1,5 @@
 import type { GeoRole } from "@cozy/shared/geo";
+import type { PetCopy } from "../../pets/pets";
 
 /** Rows as pg returns them, snake_case. */
 
@@ -18,6 +19,8 @@ export type InventoryRow = {
     charges_left: number | null;
     /** Weapons and armour: its reforge id (`data/reforges/`), if reforged. */
     reforge: string | null;
+    /** Pets: the copy's XP and held item; null for anything else. */
+    pet: PetCopy | null;
     obtained_at: Date;
 };
 
@@ -56,4 +59,21 @@ export type BaitRow = LunchboxRow;
 export type SkillXpRow = {
     skill: string;
     xp: string; // BIGINT
+};
+
+export type HealthAndCampRow = {
+    health: number | null;
+    camp_latitude: number | null;
+    camp_longitude: number | null;
+    camp_set_at: Date | null;
+};
+
+/** A pet left with Kat (geo.pet_upgrades). */
+export type PetUpgradeRow = {
+    inventory_id: string;
+    item_id: string;
+    to_item_id: string;
+    pet: PetCopy;
+    obtained_at: Date;
+    ready_at: Date;
 };

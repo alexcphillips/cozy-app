@@ -1,3 +1,5 @@
+import type { GeoPetState } from "./pet.contract";
+
 /**
  * Market listing rules shared by the server (which enforces them) and the
  * app (which shows them before you list). Every fee is a coin sink: it leaves
@@ -91,6 +93,8 @@ export type GeoListingItem = {
     chargesLeft: number | null;
     /** Weapons and armour: the copy's reforge id, or null. It goes to the buyer with the item. */
     reforge: string | null;
+    /** Pets: its level and held item, which go to the buyer with it; null for anything else. */
+    pet: GeoPetState | null;
     obtainedAt: string;
 };
 

@@ -17,6 +17,7 @@ import { query } from "../../../db";
 import { AppError } from "../../../http/AppError";
 import { CONTENT, sellValueOf } from "../../content";
 import { isStackable } from "../../content/content.types";
+import { NEW_PET, petState } from "../../pets/pets";
 import { withTransaction, type TxQuery } from "../../db/transaction";
 import * as playerRepository from "../player/geo-player.repository";
 import * as runsRepository from "../runs/geo-runs.repository";
@@ -67,6 +68,7 @@ function toListingView(row: ListingRow, viewerId: string): GeoMarketListing {
             quantity: row.status === "active" ? row.quantity_left : row.quantity_listed,
             chargesLeft: row.charges_left,
             reforge: row.reforge,
+            pet: petState(row.item_id, row.pet ?? NEW_PET),
             obtainedAt: row.obtained_at.toISOString(),
         },
         seller: row.seller_name,
@@ -234,6 +236,7 @@ export async function createListing(sellerId: string, listing: NewListing): Prom
             endsAt,
             fee,
             taken.reforge,
+            taken.pet && JSON.stringify(taken.pet),
         ]);
         if (!created) throw new Error("Listing insert returned nothing");
         return created.id;
@@ -249,14 +252,15 @@ async function returnToSeller(tx: TxQuery, row: ListingRow) {
         quantity: row.quantity_left,
         chargesLeft: row.charges_left,
         reforge: row.reforge,
+        pet: row.pet,
         obtainedAt: row.obtained_at,
     });
 }
 
-/** Gives a buyer what they bought, as a new copy (charges and reforge kept). */
+/** Gives a buyer what they bought, as a new copy (charges, reforge and a pet's XP kept). */
 async function deliver(tx: TxQuery, buyerId: string, row: ListingRow, quantity: number) {
     await playerRepository.grantItems(tx, buyerId, [
-        { itemId: row.item_id, quantity, chargesLeft: row.charges_left ?? undefined, reforge: row.reforge },
+        { itemId: row.item_id, quantity, chargesLeft: row.charges_left ?? undefined, reforge: row.reforge, pet: row.pet },
     ]);
 }
 

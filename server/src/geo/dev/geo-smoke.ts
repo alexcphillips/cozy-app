@@ -144,18 +144,35 @@ try {
         body.inventory.filter((entry) => entry.itemId === itemId).reduce((sum, entry) => sum + entry.quantity, 0);
     await withTransaction((tx) => grantItems(tx, playerId, [{ itemId: "grilled-trout", quantity: 4 }]));
 
+    // Camp: packing (restocking) only happens there.
+    const CAMP = { latitude: 51.5071, longitude: -0.1279 };
+    const AWAY = { latitude: 51.52, longitude: -0.1279 };
+    const campless = await call<{ error: string }>("PUT", lunchboxPath(0), accessToken, { itemId: "grilled-trout", quantity: 1, position: CAMP });
+    assert.equal(campless.status, 400);
+    step(`packing with no camp set is refused: "${campless.body.error}"`);
+    const camped = await call<GeoMeResponse>("PUT", GEO_API_PATHS.me.camp, accessToken, { position: CAMP });
+    assert.equal(camped.status, 200, JSON.stringify(camped.body));
+    assert.deepEqual(camped.body.camp?.position, { latitude: 51.507, longitude: -0.128 }, "stored rounded");
+    step("camp set, stored rounded to 3 decimals");
+    const campMoved = await call<{ error: string }>("PUT", GEO_API_PATHS.me.camp, accessToken, { position: AWAY });
+    assert.equal(campMoved.status, 400);
+    step(`moving camp again within the week is refused: "${campMoved.body.error}"`);
+    const away = await call<{ error: string }>("PUT", lunchboxPath(0), accessToken, { itemId: "grilled-trout", quantity: 1, position: AWAY });
+    assert.equal(away.status, 400);
+    step(`packing away from camp is refused: "${away.body.error}"`);
+
     for (const [why, slot, body] of [
-        ["a non-food", 0, { itemId: "bronze-dagger", quantity: 1 }],
-        ["a locked slot", 1, { itemId: "grilled-trout", quantity: 1 }],
-        ["more than a slot holds", 0, { itemId: "grilled-trout", quantity: GEO_LUNCHBOX_STACK_SIZE + 1 }],
-        ["more than you have", 0, { itemId: "grilled-trout", quantity: 5 }],
+        ["a non-food", 0, { itemId: "bronze-dagger", quantity: 1, position: CAMP }],
+        ["a locked slot", 1, { itemId: "grilled-trout", quantity: 1, position: CAMP }],
+        ["more than a slot holds", 0, { itemId: "grilled-trout", quantity: GEO_LUNCHBOX_STACK_SIZE + 1, position: CAMP }],
+        ["more than you have", 0, { itemId: "grilled-trout", quantity: 5, position: CAMP }],
     ] as const) {
         const refused = await call<{ error: string }>("PUT", lunchboxPath(slot), accessToken, body);
         assert.equal(refused.status, 400, why);
         step(`packing ${why} is refused: "${refused.body.error}"`);
     }
 
-    const packed = await call<GeoMeResponse>("PUT", lunchboxPath(0), accessToken, { itemId: "grilled-trout", quantity: 3 });
+    const packed = await call<GeoMeResponse>("PUT", lunchboxPath(0), accessToken, { itemId: "grilled-trout", quantity: 3, position: CAMP });
     assert.equal(packed.status, 200, JSON.stringify(packed.body));
     assert.deepEqual(packed.body.lunchbox.contents, [{ slot: 0, itemId: "grilled-trout", quantity: 3 }]);
     assert.equal(amountOf(packed.body, "grilled-trout"), 1);
@@ -163,10 +180,10 @@ try {
     step("packing 3 trout leaves 1 in the inventory, and the bread it replaced comes back");
 
     await pool.query(`UPDATE geo.players SET lunchbox_slots = 2 WHERE id = $1`, [playerId]);
-    const twice = await call<{ error: string }>("PUT", lunchboxPath(1), accessToken, { itemId: "grilled-trout", quantity: 1 });
+    const twice = await call<{ error: string }>("PUT", lunchboxPath(1), accessToken, { itemId: "grilled-trout", quantity: 1, position: CAMP });
     assert.equal(twice.status, 400);
     step(`with a second slot, the same food can't go in both: "${twice.body.error}"`);
-    const second = await call<GeoMeResponse>("PUT", lunchboxPath(1), accessToken, { itemId: "bread", quantity: 2 });
+    const second = await call<GeoMeResponse>("PUT", lunchboxPath(1), accessToken, { itemId: "bread", quantity: 2, position: CAMP });
     assert.equal(second.status, 200, JSON.stringify(second.body));
     assert.equal(amountOf(second.body, "bread"), 3);
     step("2 bread go in the second slot");
@@ -279,6 +296,22 @@ try {
         step(`rewards saved: ${run.rewards.items.map((i) => i.itemId).join(", ")}, ${run.rewards.coins} coins, 40 combat XP; Double Slash charges ${doubleSlashAfter?.chargesLeft}/60`);
     }
 
+    // Health carries out of a fight and into the next.
+    {
+        const you = run.combatants.find((c) => c.side === "player")!;
+        const carried = (await call<GeoMeResponse>("GET", GEO_API_PATHS.me.root, accessToken)).body.health;
+        assert.equal(carried.current, Math.min(you.health, carried.max));
+        // The enemy may strike before the first decision, so: no more than that.
+        await pool.query(`UPDATE geo.players SET health = 37 WHERE id = $1`, [playerId]);
+        const next = await call<GeoRunResponse>("POST", GEO_API_PATHS.runs.start, accessToken, { kind: "combat", enemyId: "spider" });
+        assert.equal(next.status, 201, JSON.stringify(next.body));
+        const startedAt = next.body.run.combatants.find((c) => c.side === "player")!.health;
+        assert.ok(startedAt <= 37, `started at ${startedAt}`);
+        await call("POST", GEO_API_PATHS.runs.flee.replace(":runId", next.body.run.id), accessToken);
+        assert.equal((await call<GeoMeResponse>("GET", GEO_API_PATHS.me.root, accessToken)).body.health.current, startedAt);
+        step(`the fight left ${carried.current}/${carried.max} health; one started at 37 began at ${startedAt} and fleeing kept it`);
+    }
+
     // Defeat costs every coin. Rig a fight to lose: 1 health against a
     // spider that can't die, with coins in the purse first.
     {
@@ -308,6 +341,28 @@ try {
         );
         assert.ok(ledger.some((row) => row.reason === "run-defeat" && Number(row.delta) === -before));
         step(`defeat took all ${before} coins, and the ledger says so`);
+
+        // Health carries out of the fight: a defeat leaves a tenth of max.
+        // Packed food heals between fights, anywhere; only resting at camp fills it.
+        const beatenMe = (await call<GeoMeResponse>("GET", GEO_API_PATHS.me.root, accessToken)).body;
+        const beaten = beatenMe.health;
+        assert.equal(beaten.current, Math.ceil(beaten.max / 10));
+        step(`defeat left ${beaten.current}/${beaten.max} health`);
+        const trout = beatenMe.lunchbox.contents.find((entry) => entry.slot === 0)!;
+        const eatPath = GEO_API_PATHS.me.eatLunchbox.replace(":slot", "0");
+        const snack = await call<GeoMeResponse>("POST", eatPath, accessToken);
+        assert.equal(snack.status, 200, JSON.stringify(snack.body));
+        assert.ok(snack.body.health.current > beaten.current, "the food healed");
+        assert.equal(snack.body.lunchbox.contents.find((entry) => entry.slot === 0)?.quantity ?? 0, trout.quantity - 1);
+        const emptySlot = await call<{ error: string }>("POST", GEO_API_PATHS.me.eatLunchbox.replace(":slot", "3"), accessToken);
+        assert.equal(emptySlot.status, 400);
+        step(`eating packed trout between fights healed to ${snack.body.health.current}; an empty slot is refused`);
+        const restAway = await call<{ error: string }>("POST", GEO_API_PATHS.me.rest, accessToken, { position: AWAY });
+        assert.equal(restAway.status, 400);
+        const rested = await call<GeoMeResponse>("POST", GEO_API_PATHS.me.rest, accessToken, { position: CAMP });
+        assert.equal(rested.status, 200, JSON.stringify(rested.body));
+        assert.equal(rested.body.health.current, rested.body.health.max);
+        step(`resting away is refused ("${restAway.body.error}"); at camp it fills health`);
     }
 
     // The admin kill: all coins go, and a Run in progress ends as a defeat.
@@ -342,15 +397,15 @@ try {
     const baitPath = (slot: number) => GEO_API_PATHS.me.baitSlot.replace(":slot", String(slot));
     await withTransaction((tx) => grantItems(tx, playerId, [{ itemId: "worm-bait", quantity: 30 }]));
     for (const [why, slot, body] of [
-        ["food", 0, { itemId: "bread", quantity: 1 }],
-        ["a locked slot", 1, { itemId: "worm-bait", quantity: 1 }],
-        ["more than a slot holds", 0, { itemId: "worm-bait", quantity: GEO_BAIT_STACK_SIZE + 1 }],
+        ["food", 0, { itemId: "bread", quantity: 1, position: CAMP }],
+        ["a locked slot", 1, { itemId: "worm-bait", quantity: 1, position: CAMP }],
+        ["more than a slot holds", 0, { itemId: "worm-bait", quantity: GEO_BAIT_STACK_SIZE + 1, position: CAMP }],
     ] as const) {
         const refused = await call<{ error: string }>("PUT", baitPath(slot), accessToken, body);
         assert.equal(refused.status, 400, why);
         step(`packing ${why} as bait is refused: "${refused.body.error}"`);
     }
-    const baited = await call<GeoMeResponse>("PUT", baitPath(0), accessToken, { itemId: "worm-bait", quantity: GEO_BAIT_STACK_SIZE });
+    const baited = await call<GeoMeResponse>("PUT", baitPath(0), accessToken, { itemId: "worm-bait", quantity: GEO_BAIT_STACK_SIZE, position: CAMP });
     assert.equal(baited.status, 200, JSON.stringify(baited.body));
     assert.deepEqual(baited.body.bait, { slots: 1, contents: [{ slot: 0, itemId: "worm-bait", quantity: GEO_BAIT_STACK_SIZE }] });
     // The starter worms were packed already: packing over them puts them back first.

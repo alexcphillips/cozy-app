@@ -11,6 +11,6 @@ export default {
         { stat: "attack", kind: "percent", value: 0.75 },
         { stat: "defence", kind: "flat", value: 4 },
     ],
-    minCombatLevel: 12,
+    requiredLevel: 12,
     maxPlayers: 4,
 } satisfies Dungeon;

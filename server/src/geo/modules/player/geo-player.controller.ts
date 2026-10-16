@@ -11,7 +11,12 @@ import {
     GEO_TALISMAN_BAG_FULL,
     GEO_TALISMAN_BAG_PAGE_SIZE,
     geoSlotKind,
+    isValidPoint,
+    GEO_CAMP_MOVE_DAYS,
     type GeoEquipmentSlot,
+    type GeoPoint,
+    type GeoRestRequest,
+    type GeoSetCampRequest,
     type GeoPackBaitRequest,
     type GeoPackSeedsRequest,
     type GeoEquipRequest,
@@ -24,6 +29,7 @@ import { CONTENT } from "../../content";
 import { withTransaction, type TxQuery } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
 import * as runsRepository from "../runs/geo-runs.repository";
+import { campMovableAt, isAtCamp, roundCamp } from "./geo-camp.rules";
 import * as playerRepository from "./geo-player.repository";
 
 export async function getMe(req: Request, res: Response) {
@@ -217,15 +223,35 @@ async function unpackSlot(tx: TxQuery, playerId: string, slot: number) {
     await playerRepository.clearLunchboxSlot(tx, playerId, slot);
 }
 
+/** The request's `position`, or a 400. The phone's word, like a spawn fight's. */
+function parsePosition(body: unknown): GeoPoint {
+    const { position } = (body ?? {}) as Partial<{ position: unknown }>;
+    if (!isValidPoint(position)) throw AppError.badRequest("position is required");
+    return position;
+}
+
+/**
+ * Refuses unless the player is at camp: restocking happens there and
+ * nowhere else. Game admins skip it, as they do a dungeon's POI check.
+ */
+async function assertAtCamp(req: Request, tx: TxQuery, playerId: string, position: GeoPoint, doing: string) {
+    if (req.geoRole === "admin") return;
+    const camp = await playerRepository.findCamp(playerId, tx);
+    if (!camp) throw AppError.badRequest(`Set a camp first: you can only ${doing} there`);
+    if (!isAtCamp(position, camp.position)) throw AppError.badRequest(`You can only ${doing} at camp`);
+}
+
 /**
  * Packs food into a lunchbox slot: whatever the slot held goes back to the
  * inventory, then `quantity` of the food leaves it. One food per slot, and
- * no food in two slots. Not mid-Run: the fight eats from its own copy.
+ * no food in two slots. At camp only, and not mid-Run: the fight eats from
+ * its own copy.
  */
 export async function packLunchbox(req: Request, res: Response) {
     const playerId = requirePlayerId(req);
     const slot = parseLunchboxSlot(req.params.slot);
     const { itemId, quantity } = (req.body ?? {}) as Partial<GeoPackLunchboxRequest>;
+    const position = parsePosition(req.body);
     if (typeof itemId !== "string") throw AppError.badRequest("Missing itemId");
     if (!Number.isInteger(quantity) || quantity! < 1 || quantity! > GEO_LUNCHBOX_STACK_SIZE) {
         throw AppError.badRequest(`A lunchbox slot holds 1–${GEO_LUNCHBOX_STACK_SIZE}`);
@@ -236,6 +262,7 @@ export async function packLunchbox(req: Request, res: Response) {
     await withTransaction(async (tx) => {
         await playerRepository.lockPlayer(tx, playerId);
         await runsRepository.assertNotInRun(tx, playerId, "You can't repack your lunchbox mid-Run");
+        await assertAtCamp(req, tx, playerId, position, "pack your lunchbox");
 
         const lunchbox = await playerRepository.findLunchbox(playerId, tx);
         if (slot >= lunchbox.slots) throw AppError.badRequest("That lunchbox slot is still locked");
@@ -264,6 +291,25 @@ export async function unpackLunchbox(req: Request, res: Response) {
     res.status(200).json(await playerRepository.findMe(playerId));
 }
 
+/**
+ * Eats one food from a lunchbox slot between fights. Works anywhere (only
+ * packing is camp-only), so the lunchbox is all the food a player has while
+ * away. Only its effect on health counts (heals, or harm that stops at 1);
+ * buffs and statuses only work in a fight. Not mid-Run: the fight eats as a turn.
+ */
+export async function eatLunchbox(req: Request, res: Response) {
+    const playerId = requirePlayerId(req);
+    const slot = parseLunchboxSlot(req.params.slot);
+
+    await withTransaction(async (tx) => {
+        await playerRepository.lockPlayer(tx, playerId);
+        await runsRepository.assertNotInRun(tx, playerId, "Eat as your turn in the fight");
+        await runsRepository.eatBetweenFightsFor(tx, playerId, slot);
+    });
+
+    res.status(200).json(await playerRepository.findMe(playerId));
+}
+
 /** The `:slot` param as a bait slot index, or a 400. */
 function parseBaitSlot(value: unknown): number {
     const slot = Number(value);
@@ -285,13 +331,14 @@ async function unpackBaitSlot(tx: TxQuery, playerId: string, slot: number) {
 /**
  * Packs bait into a bait slot, the same way as the lunchbox: whatever the
  * slot held goes back to the inventory, then `quantity` of the bait leaves
- * it. One bait per slot, and no bait in two slots. No combat Run uses bait,
- * so there's no mid-Run lock until fishing Runs exist.
+ * it. One bait per slot, and no bait in two slots. At camp only. No combat
+ * Run uses bait, so there's no mid-Run lock until fishing Runs exist.
  */
 export async function packBait(req: Request, res: Response) {
     const playerId = requirePlayerId(req);
     const slot = parseBaitSlot(req.params.slot);
     const { itemId, quantity } = (req.body ?? {}) as Partial<GeoPackBaitRequest>;
+    const position = parsePosition(req.body);
     if (typeof itemId !== "string") throw AppError.badRequest("Missing itemId");
     if (!Number.isInteger(quantity) || quantity! < 1 || quantity! > GEO_BAIT_STACK_SIZE) {
         throw AppError.badRequest(`A bait slot holds 1–${GEO_BAIT_STACK_SIZE}`);
@@ -301,6 +348,7 @@ export async function packBait(req: Request, res: Response) {
 
     await withTransaction(async (tx) => {
         await playerRepository.lockPlayer(tx, playerId);
+        await assertAtCamp(req, tx, playerId, position, "pack bait");
 
         const bait = await playerRepository.findBait(playerId, tx);
         if (slot >= bait.slots) throw AppError.badRequest("That bait slot is still locked");
@@ -388,6 +436,48 @@ export async function unpackSeeds(req: Request, res: Response) {
     await withTransaction(async (tx) => {
         await playerRepository.lockPlayer(tx, playerId);
         await unpackSeedBagSlot(tx, playerId, slot);
+    });
+
+    res.status(200).json(await playerRepository.findMe(playerId));
+}
+
+/**
+ * Sets camp to (about) where the player stands: rounded before it's stored,
+ * so the exact point is never kept. Once every GEO_CAMP_MOVE_DAYS.
+ */
+export async function setCamp(req: Request, res: Response) {
+    const playerId = requirePlayerId(req);
+    const position = parsePosition(req.body as Partial<GeoSetCampRequest>);
+
+    await withTransaction(async (tx) => {
+        await playerRepository.lockPlayer(tx, playerId);
+        const movableAt = campMovableAt(await playerRepository.findCampSetAt(tx, playerId));
+        if (movableAt.getTime() > Date.now() && req.geoRole !== "admin") {
+            throw AppError.badRequest(`Camp can be moved once every ${GEO_CAMP_MOVE_DAYS} days`);
+        }
+        await playerRepository.setCamp(tx, playerId, roundCamp(position));
+    });
+
+    res.status(200).json(await playerRepository.findMe(playerId));
+}
+
+/** Forgets camp. Setting a new one still waits out the week since the last. */
+export async function clearCamp(req: Request, res: Response) {
+    const playerId = requirePlayerId(req);
+    await withTransaction((tx) => playerRepository.clearCamp(tx, playerId));
+    res.status(200).json(await playerRepository.findMe(playerId));
+}
+
+/** Rests at camp: health back to full. Not mid-Run. */
+export async function rest(req: Request, res: Response) {
+    const playerId = requirePlayerId(req);
+    const position = parsePosition(req.body as Partial<GeoRestRequest>);
+
+    await withTransaction(async (tx) => {
+        await playerRepository.lockPlayer(tx, playerId);
+        await runsRepository.assertNotInRun(tx, playerId, "You can't rest mid-Run");
+        await assertAtCamp(req, tx, playerId, position, "rest");
+        await playerRepository.fillHealth(tx, playerId);
     });
 
     res.status(200).json(await playerRepository.findMe(playerId));

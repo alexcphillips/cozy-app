@@ -31,6 +31,8 @@ export type PlayerLoadout = {
     hand: CardInstance[];
     /** Food packed for the Run. */
     lunchbox?: LunchboxSlot[];
+    /** The active pet's stats (`pets/pets.ts`). Pets never fight; they only add these. */
+    petModifiers?: StatModifier[];
     /** Global effects in force, e.g. the mayor's perks. Stat modifiers only. */
     globalModifiers?: StatModifier[];
     /** 1–50: each level adds GEO_COMBAT_DAMAGE_PER_LEVEL to all damage dealt. */
@@ -43,7 +45,7 @@ export type PlayerLoadout = {
  * can't break an old save.
  */
 export function playerCombatant(loadout: PlayerLoadout, content: GameContent): CombatantSetup {
-    const modifiers: StatModifier[] = [...(loadout.globalModifiers ?? [])];
+    const modifiers: StatModifier[] = [...(loadout.globalModifiers ?? []), ...(loadout.petModifiers ?? [])];
     if (loadout.combatLevel) {
         modifiers.push({ stat: DAMAGE_DEALT_STAT, kind: "flat", value: loadout.combatLevel * GEO_COMBAT_DAMAGE_PER_LEVEL });
     }

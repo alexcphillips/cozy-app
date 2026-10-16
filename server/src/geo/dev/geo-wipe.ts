@@ -39,6 +39,8 @@ const PROGRESS_TABLES = [
     "seed_bag",
     "farms",
     "talisman_bag",
+    "active_pets",
+    "pet_upgrades",
     "equipment",
     "inventory",
     "skill_xp",
@@ -63,7 +65,7 @@ async function main() {
 
     await withTransaction(async (tx) => {
         await tx(`TRUNCATE ${PROGRESS_TABLES.map((table) => `geo.${table}`).join(", ")}`);
-        await tx(`UPDATE geo.players SET coins = 0, talisman_bag_pages = 1, lunchbox_slots = 1, bait_slots = 1`);
+        await tx(`UPDATE geo.players SET coins = 0, talisman_bag_pages = 1, lunchbox_slots = 1, bait_slots = 1, health = NULL`);
         for (const { id } of players) await grantStarterKit(tx, id);
     });
     console.log(`\nWiped. ${players.length} accounts start fresh with the starter kit.`);

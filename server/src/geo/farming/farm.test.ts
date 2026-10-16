@@ -376,7 +376,6 @@ describe("farm", () => {
                 pests: _pests,
                 nextPestId: _next,
                 lab: _lab,
-                home: _home,
                 nextEvent: _nextEvent,
                 activeEvent: _activeEvent,
                 orders: _orders,
@@ -393,9 +392,10 @@ describe("farm", () => {
                         tile,
                 ),
             };
-            const upgraded = upgradeFarm({ ...v1, turnsBanked: 3, turnWeather: ["rain"] });
-            assert.equal(upgraded.version, 12);
+            const upgraded = upgradeFarm({ ...v1, turnsBanked: 3, turnWeather: ["rain"], home: { latitude: 51.5, longitude: 0, setAt: NOW.toISOString() } });
+            assert.equal(upgraded.version, 13);
             assert.ok(!("turnsBanked" in upgraded) && !("turnWeather" in upgraded), "banked turns are dropped");
+            assert.ok(!("home" in upgraded), "the home region is dropped");
             assert.equal(upgraded.pesthunterPoints, 0);
             assert.equal(upgraded.oath, 0);
             assert.deepEqual(upgraded.blessings, []);
@@ -403,7 +403,6 @@ describe("farm", () => {
             assert.equal(upgraded.tiles[MID]!.soil, "normal");
             assert.equal(upgraded.nextEvent, null);
             assert.equal(upgraded.orders, null);
-            assert.equal(upgraded.home, null);
             assert.equal(upgraded.tiles[MID]!.structure, null);
             assert.deepEqual(upgraded.pests, []);
             assert.deepEqual(upgraded.lab, []);
@@ -580,15 +579,6 @@ describe("farm", () => {
             const state = stepFarm(growing("wheat", 1), { type: "place", tile: MID + 1, itemId: "structure.greenhouse" }, ctx).state;
             const after = tickFarm(state, under("frost")).state;
             assert.equal(after.tiles[MID]!.crop!.stage, 2, "grew as on a clear day");
-        });
-
-        it("sets the home region to a coarse square, then only after the cooldown", () => {
-            const set = stepFarm(farm(), { type: "home", latitude: 51.5072, longitude: -0.1276 }, ctx).state;
-            assert.deepEqual({ latitude: set.home!.latitude, longitude: set.home!.longitude }, { latitude: 51.5, longitude: 0 });
-            assert.throws(() => stepFarm(set, { type: "home", latitude: 51.6, longitude: 0.1 }, ctx), FarmRuleError);
-            assert.throws(() => stepFarm(set, { type: "home", latitude: 40.7, longitude: -74 }, ctx), FarmRuleError);
-            const later = { ...ctx, now: new Date(NOW.getTime() + (config.weather.homeCooldownDays + 1) * 24 * HOUR) };
-            assert.equal(stepFarm(set, { type: "home", latitude: 40.7, longitude: -74 }, later).state.home!.latitude, 40.5);
         });
     });
 

@@ -27,10 +27,20 @@ export const GEO_API_PATHS = {
         loadSavedHand: "/geo/me/saved-hands/:savedHandId/load",
         /** PUT { itemId, quantity } packs food into the slot; DELETE unpacks it. */
         lunchboxSlot: "/geo/me/lunchbox/:slot",
+        /** POST: eats one food from the slot between fights, for its healing. Anywhere. */
+        eatLunchbox: "/geo/me/lunchbox/:slot/eat",
         /** PUT { itemId, quantity } packs bait into the slot; DELETE unpacks it. */
         baitSlot: "/geo/me/bait/:slot",
         /** PUT { itemId, quantity } packs seeds into the slot; DELETE unpacks it. */
         seedBagSlot: "/geo/me/seed-bag/:slot",
+        /** PUT { position } sets camp (once a week); DELETE forgets it. */
+        camp: "/geo/me/camp",
+        /** POST { position }: refills health, at camp only. */
+        rest: "/geo/me/camp/rest",
+        /** PUT { inventoryId }: the active pet (null puts it away). */
+        activePet: "/geo/me/pet",
+        /** PUT { inventoryId } gives the pet a held item; DELETE takes it off, for coins. */
+        petItem: "/geo/me/pets/:inventoryId/item",
     },
     /** Dev servers only: testing tools. Production answers 404. */
     dev: {
@@ -55,6 +65,10 @@ export const GEO_API_PATHS = {
         sell: "/geo/vendors/:vendorId/sell",
         /** POST { inventoryId }: pays the vendor to reroll a weapon or armour copy's reforge. */
         reforge: "/geo/vendors/:vendorId/reforge",
+        /** POST { inventoryId }: leaves a pet with Kat to raise its rarity. */
+        petUpgrade: "/geo/vendors/:vendorId/pet-upgrade",
+        /** POST: takes the pet back from Kat, once it's ready. */
+        collectPetUpgrade: "/geo/vendors/:vendorId/pet-upgrade/collect",
     },
     crafting: {
         /** POST { quantity }: crafts a recipe that many times. */
@@ -139,10 +153,8 @@ export const GEO_API_PATHS = {
         join: "/geo/dungeons/lobbies/:lobbyId/join",
         /** POST: leave; the host leaving an open lobby closes it. */
         leave: "/geo/dungeons/lobbies/:lobbyId/leave",
-        /** POST, host only: start before the countdown ends. */
+        /** POST, host only: take everyone in (GeoStartDungeonLobbyResponse). */
         start: "/geo/dungeons/lobbies/:lobbyId/start",
-        /** POST, once started: begin your Run against the boss (GeoRunResponse). */
-        enter: "/geo/dungeons/lobbies/:lobbyId/enter",
     },
     fishing: {
         /** POST { tier }: open a fishing Run at a spot, or resume the open one. */

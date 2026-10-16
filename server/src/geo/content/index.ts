@@ -169,6 +169,31 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
             }
         }
     }
+    const rarityOrder = ["common", "uncommon", "rare", "epic", "legendary"];
+    for (const pet of Object.values(content.pets)) {
+        const where = `Pet "${pet.id}"`;
+        const top = rarityOrder.indexOf(pet.rarities[pet.rarities.length - 1]!);
+        const perRarityKeys = [...pet.stats, ...pet.abilities.flatMap((ability) => ability.modifiers)].flatMap((stat) =>
+            typeof stat.perLevel === "number" ? [] : Object.keys(stat.perLevel),
+        );
+        for (const rarity of perRarityKeys) {
+            if (!pet.rarities.includes(rarity as (typeof pet.rarities)[number])) problems.push(`${where} sets a stat for "${rarity}", which it doesn't come in`);
+        }
+        if (new Set(pet.abilities.map((ability) => ability.id)).size !== pet.abilities.length) problems.push(`${where} lists an ability id twice`);
+        for (const ability of pet.abilities) {
+            if (rarityOrder.indexOf(ability.from) > top) problems.push(`${where} ability "${ability.id}" is from ${ability.from}, past its highest rarity`);
+        }
+        // Kat needs a price for every step up.
+        for (const rarity of pet.rarities.slice(0, -1)) {
+            const price = pet.upgrades?.[rarity] ?? config.pets.upgrades[rarity];
+            if (!price) problems.push(`${where} has no Kat price from ${rarity} (its file or config/pets.ts upgrades)`);
+            for (const { itemId } of price?.items ?? []) needItem(`${where} upgrade from ${rarity}`, itemId);
+        }
+    }
+    for (const price of Object.values(config.pets.upgrades)) {
+        for (const { itemId } of price?.items ?? []) needItem("config/pets.ts upgrades", itemId);
+    }
+
     for (const food of Object.values(content.foods)) needStatuses(`Food "${food.id}"`, food.actions, food.effects);
     for (const status of Object.values(content.statuses)) needStatuses(`Status "${status.id}"`, [], status.effects);
 

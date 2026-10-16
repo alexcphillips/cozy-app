@@ -1,7 +1,7 @@
 import { GEO_QUALITY_TIERS, type GeoChestTier, type GeoQualityTier } from "@cozy/shared/geo";
 import type { CardDef, FoodDef, StatusDef } from "../engine/engine.types";
 import type { GameData } from "./data.schema";
-import type { ChestTierDef, DungeonDef, EnemyDef, GameContent, ItemDef, MayorDef, RecipeDef, ReforgeDef, VendorDef } from "./content.types";
+import type { ChestTierDef, DungeonDef, EnemyDef, GameContent, ItemDef, MayorDef, PetDef, Rarity, RecipeDef, ReforgeDef, VendorDef } from "./content.types";
 import { structureItemId, type CropDef, type FarmEventDef, type MutationDef, type PestDef, type StructureDef } from "./farming";
 import { fishItemId, qualityFishItemId, type FishDef } from "./fishing";
 
@@ -19,6 +19,9 @@ function itemBase(entry: Pick<ItemDef, "id" | "name" | "icon" | "rarity" | "desc
 }
 
 export const compactId = (itemId: string) => `compact-${itemId}`;
+
+/** The item for one pet at one rarity, e.g. `pet.tarantula.rare`. */
+export const petItemId = (petId: string, rarity: Rarity) => `pet.${petId}.${rarity}`;
 
 const TIER_LABELS: Record<GeoQualityTier, string> = { bronze: "Bronze", silver: "Silver", gold: "Gold", ruby: "Ruby" };
 
@@ -53,7 +56,7 @@ export function buildContent(data: GameData): BuiltContent {
     for (const card of data.cards) {
         items.push({ ...itemBase(card), id: `card.${card.id}`, kind: "card", cardId: card.id, maxCharges: card.maxCharges, finesse: card.finesse });
     }
-    const gear = (entry: GameData["weapons"][number] | GameData["armour"][number] | GameData["rings"][number]) => ({
+    const gear = (entry: GameData["weapons"][number] | GameData["armour"][number] | GameData["rings"][number] | GameData["amulets"][number]) => ({
         modifiers: entry.modifiers,
         effects: entry.effects,
         unlocksCards: entry.unlocksCards,
@@ -63,6 +66,7 @@ export function buildContent(data: GameData): BuiltContent {
     }
     for (const armour of data.armour) items.push({ ...itemBase(armour), kind: "equipment", slot: armour.slot, ...gear(armour) });
     for (const ring of data.rings) items.push({ ...itemBase(ring), kind: "equipment", slot: "ring", ...gear(ring) });
+    for (const amulet of data.amulets) items.push({ ...itemBase(amulet), kind: "equipment", slot: "amulet", ...gear(amulet) });
     for (const talisman of data.talismans) {
         items.push({ ...itemBase(talisman), kind: "talisman", modifiers: talisman.modifiers, effects: talisman.effects });
     }
@@ -108,6 +112,25 @@ export function buildContent(data: GameData): BuiltContent {
         items.push({ ...itemBase(bait), kind: "consumable", stackSize: bait.stackSize, bait: { scent: bait.scent } });
     }
     for (const misc of data.misc) items.push({ ...itemBase(misc), kind: misc.kind, stackSize: misc.stackSize });
+
+    const pets: PetDef[] = data.pets;
+    for (const pet of pets) {
+        for (const rarity of pet.rarities) {
+            items.push({
+                id: petItemId(pet.id, rarity),
+                kind: "pet",
+                petId: pet.id,
+                name: pet.name,
+                icon: pet.icon,
+                rarity,
+                description: pet.description,
+                sellValue: pet.sellValue?.[rarity],
+            });
+        }
+    }
+    for (const held of data["pet-items"]) {
+        items.push({ ...itemBase(held), kind: "petItem", stackSize: held.stackSize, modifiers: held.modifiers, xpBoost: held.xpBoost });
+    }
     const structures: StructureDef[] = data.structures.map((entry) => ({
         id: entry.id,
         name: entry.name,
@@ -154,6 +177,7 @@ export function buildContent(data: GameData): BuiltContent {
         cards: byId(cards, "card"),
         foods: byId(foods, "food"),
         items: byId(items, "item"),
+        pets: byId(pets, "pet"),
         fish: byId(fish, "fish"),
         crops: byId<CropDef>(data.crops, "crop"),
         pests: byId<PestDef>(

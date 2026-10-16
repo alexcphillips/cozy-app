@@ -1,9 +1,10 @@
 import { query } from "../../db";
-import { CONTENT, FIRST_MAYOR_ID, reforgeModifiers } from "../content";
+import { CONTENT, FIRST_MAYOR_ID, GAME_CONFIG, reforgeModifiers } from "../content";
 import type { MayorDef } from "../content/content.types";
-import type { StatModifier } from "../engine/engine.types";
+import { CORE_STATS, type StatModifier } from "../engine/engine.types";
 import { applyModifiers } from "../engine/stats";
 import type { TxQuery } from "../db/transaction";
+import { activePetModifiers } from "../pets/pets";
 import * as playerRepository from "../modules/player/geo-player.repository";
 
 export { applyModifiers };
@@ -55,11 +56,12 @@ export async function globalModifiers(tx: TxQuery = query): Promise<StatModifier
     return mayor.perks.flatMap((perk) => perk.modifiers);
 }
 
-/** Modifiers from a player's own gear and the talismans in their bag. */
+/** Modifiers from a player's own gear, the talismans in their bag, and their active pet. */
 export async function ownModifiers(playerId: string, tx: TxQuery = query): Promise<StatModifier[]> {
     // One after another: a transaction is one connection.
     const equipment = await playerRepository.findEquipment(playerId, tx);
     const bag = await playerRepository.findTalismanBag(playerId, tx);
+    const pet = await playerRepository.findActivePet(playerId, tx);
     const worn = await playerRepository.findInventoryByIds(
         playerId,
         equipment.map((slot) => slot.inventory_id),
@@ -73,10 +75,17 @@ export async function ownModifiers(playerId: string, tx: TxQuery = query): Promi
             return item && (item.kind === "equipment" || item.kind === "talisman") ? (item.modifiers ?? []) : [];
         }),
         ...worn.flatMap((row) => reforgeModifiers(CONTENT, row.item_id, row.reforge)),
+        ...activePetModifiers(pet ?? undefined),
     ];
 }
 
 /** Everything that changes a player's stats outside a fight: global effects, then their own. */
 export async function playerModifiers(playerId: string, tx: TxQuery = query): Promise<StatModifier[]> {
     return [...(await globalModifiers(tx)), ...(await ownModifiers(playerId, tx))];
+}
+
+/** The player's max health from their gear right now, as a fight would start them. */
+export async function playerMaxHealth(playerId: string, tx: TxQuery = query): Promise<number> {
+    const base = GAME_CONFIG.player.baseStats[CORE_STATS.maxHealth] ?? 0;
+    return Math.round(applyModifiers(base, await playerModifiers(playerId, tx), CORE_STATS.maxHealth));
 }

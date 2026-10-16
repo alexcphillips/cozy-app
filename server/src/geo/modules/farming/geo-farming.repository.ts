@@ -18,12 +18,12 @@ import {
     type FarmHandCard,
     type FarmState,
     type StoredFarm,
+    type WeatherLookup,
 } from "../../farming/farm";
-import { realLookup, regionWeather } from "../../farming/weather";
 import { playerModifiers } from "../../world/global-effects";
 import * as playerRepository from "../player/geo-player.repository";
 import { findContests, findGlobalEvent, recordHarvests } from "./geo-farming.contests";
-import { toFarmView, type FarmReport, type FarmWeather } from "./geo-farming.view";
+import { toFarmView, type FarmReport } from "./geo-farming.view";
 import { FIND_FARM_FOR_UPDATE, INSERT_FARM, UPDATE_FARM } from "./geo-farming.sql";
 
 type InventoryRows = Awaited<ReturnType<typeof playerRepository.findInventory>>;
@@ -65,15 +65,7 @@ async function farmingStats(tx: TxQuery, playerId: string): Promise<{ fortune: n
 /** What an NPC pays for an item: sizes the Order Board's orders. */
 const sellValue = (itemId: string) => CONTENT.items[itemId]?.sellValue ?? 1;
 
-/** Where a farm's weather comes from: its home region's real weather, else seeded rolls. */
-async function weatherFor(state: FarmState): Promise<FarmWeather> {
-    const seeded = seededLookup(state.weatherSeed, FARMING);
-    if (!state.home) return { lookup: seeded, source: "placeholder" };
-    const hours = await regionWeather(state.home);
-    return hours ? { lookup: realLookup(hours, FARMING, seeded), source: "real" } : { lookup: seeded, source: "placeholder" };
-}
-
-type LoadedFarm = { state: FarmState; weather: FarmWeather; away: FarmReport };
+type LoadedFarm = { state: FarmState; weather: WeatherLookup; away: FarmReport };
 
 /**
  * The player's farm, locked for this transaction, and its weather. Made on
@@ -87,14 +79,14 @@ async function loadFarm(tx: TxQuery, playerId: string, now: Date): Promise<Loade
         const fresh = newFarm(FARMING, randomSeed(), randomSeed(), now);
         const [inserted] = await tx<{ state: FarmState }>(INSERT_FARM, [playerId, fresh]);
         if (inserted) {
-            return { state: refreshOrders(fresh, FARMING, CONTENT.crops, sellValue, now), weather: await weatherFor(fresh), away: NO_AWAY };
+            return { state: refreshOrders(fresh, FARMING, CONTENT.crops, sellValue, now), weather: seededLookup(fresh.weatherSeed, FARMING), away: NO_AWAY };
         }
         // Made by a request racing this one: read theirs.
         const [raced] = await tx<{ state: StoredFarm }>(FIND_FARM_FOR_UPDATE, [playerId]);
         if (!raced) throw new Error("Farm insert raced and vanished");
         stored = upgradeFarm(raced.state);
     }
-    const weather = await weatherFor(stored);
+    const weather = seededLookup(stored.weatherSeed, FARMING);
     const { pestChance, mutationChance } = await farmingStats(tx, playerId);
     const played = catchUp(stored, {
         crops: CONTENT.crops,
@@ -112,7 +104,7 @@ async function loadFarm(tx: TxQuery, playerId: string, now: Date): Promise<Loade
         farmingLevel: await farmingLevel(tx, playerId),
         pestChance,
         mutationChance,
-        weather: weather.lookup,
+        weather,
     });
     if (played.gains.length > 0) await playerRepository.grantItems(tx, playerId, played.gains);
     if (played.xp > 0) await playerRepository.addSkillXp(tx, playerId, "farming", played.xp);
@@ -138,7 +130,7 @@ function afterAway(away: FarmReport, report: FarmReport): FarmReport {
 }
 
 /** The farm as the app sees it, with what it needs loaded fresh. `hand` overrides the stored one (a charge just spent). */
-async function viewOf(tx: TxQuery, playerId: string, state: FarmState, weather: FarmWeather, report?: FarmReport, hand?: FarmHandCard[]): Promise<GeoFarmView> {
+async function viewOf(tx: TxQuery, playerId: string, state: FarmState, weather: WeatherLookup, report?: FarmReport, hand?: FarmHandCard[]): Promise<GeoFarmView> {
     const now = new Date();
     const inventory = await playerRepository.findInventory(playerId, tx);
     return toFarmView(
@@ -198,7 +190,7 @@ export async function actFarm(playerId: string, action: GeoFarmAction): Promise<
                 now,
                 hand,
                 seedBag: seedBag.contents,
-                weather: weather.lookup,
+                weather,
             });
         } catch (error) {
             if (error instanceof FarmRuleError) throw AppError.badRequest(error.message);
@@ -232,9 +224,7 @@ export async function actFarm(playerId: string, action: GeoFarmAction): Promise<
                   ? [{ ...card, chargesLeft: result.cardPlayed.chargesLeft }]
                   : [],
         );
-        // A new home region brings its own weather for the forecast.
-        const weatherAfter = action.type === "home" ? await weatherFor(result.state) : weather;
-        return viewOf(tx, playerId, result.state, weatherAfter, afterAway(away, { log: result.log, gained: result.gains, xpGained: result.xp }), handAfter);
+        return viewOf(tx, playerId, result.state, weather, afterAway(away, { log: result.log, gained: result.gains, xpGained: result.xp }), handAfter);
     });
 }
 

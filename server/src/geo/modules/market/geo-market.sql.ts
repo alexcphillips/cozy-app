@@ -1,7 +1,7 @@
 /** Every listing column, plus the seller's and leading bidder's names. */
 const LISTING_SELECT = `
   SELECT l.id, l.seller_id, s.display_name AS seller_name, l.type, l.status, l.item_id,
-         l.source_inventory_id, l.charges_left, l.reforge, l.obtained_at, l.quantity_listed, l.quantity_left,
+         l.source_inventory_id, l.charges_left, l.reforge, l.pet, l.obtained_at, l.quantity_listed, l.quantity_left,
          l.unit_price, l.starting_bid, l.current_bid, l.leading_bidder_id,
          b.display_name AS leading_bidder_name, l.bid_count, l.ends_at, l.fee_paid,
          l.proceeds, l.proceeds_collected, l.created_at
@@ -49,8 +49,8 @@ export const LOCK_SELLER = `SELECT id FROM geo.players WHERE id = $1 FOR UPDATE;
 export const INSERT_LISTING = `
   INSERT INTO geo.market_listings
     (seller_id, type, item_id, source_inventory_id, charges_left, obtained_at,
-     quantity_listed, quantity_left, unit_price, starting_bid, ends_at, fee_paid, reforge)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8, $9, $10, $11, $12)
+     quantity_listed, quantity_left, unit_price, starting_bid, ends_at, fee_paid, reforge, pet)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8, $9, $10, $11, $12, $13)
   RETURNING id;
 `;
 

@@ -13,10 +13,8 @@ import {
 } from "@cozy/shared/geo";
 import { CONTENT, FARMING } from "../../content";
 import { FARMING_CARDS, isFarmingCardId, type GrowsDef, type MutationRecipe } from "../../content/farming";
-import type { WeatherLookup } from "../../farming/weather";
 import {
     forecast,
-    homeMovableAt,
     isRipe,
     isUnlockable,
     laborFor,
@@ -28,6 +26,7 @@ import {
     weekEndsAt,
     type FarmHandCard,
     type FarmState,
+    type WeatherLookup,
 } from "../../farming/farm";
 
 const where = (index: number) => {
@@ -120,8 +119,6 @@ function eventView(eventId: string | null, offers: GeoFarmEventView["offers"]): 
     return { id: event.id, name: event.name, icon: event.icon, description: event.description, offers };
 }
 
-/** Where the farm's weather comes from, for the forecast. */
-export type FarmWeather = { lookup: WeatherLookup; source: "real" | "placeholder" };
 
 /** What the last action did, for the reply. */
 export type FarmReport = { log: string[]; gained: GeoFarmGain[]; xpGained: number };
@@ -135,7 +132,7 @@ export type FarmViewExtras = {
     seedBag: GeoSeedBag;
     /** How many of each item the player holds, for the Research Lab and structures. */
     held: Record<string, number>;
-    weather: FarmWeather;
+    weather: WeatherLookup;
     contests: GeoFarmContests;
     global: GeoGlobalFarmEvent | null;
     farmingLevel: number;
@@ -185,7 +182,7 @@ export function toFarmView(state: FarmState, { hand, seedBag, held, weather, con
         fortune,
         nextTurnAt: nextTurnAt(state, FARMING).toISOString(),
         maxTurnsAway: FARMING.maxTurnsAway,
-        forecast: forecast(state, FARMING, weather.lookup),
+        forecast: forecast(state, FARMING, weather),
         events: {
             next: eventView(state.nextEvent, []),
             active: state.activeEvent ? eventView(state.activeEvent.eventId, state.activeEvent.offers) : null,
@@ -200,12 +197,6 @@ export function toFarmView(state: FarmState, { hand, seedBag, held, weather, con
         orders: {
             orders: state.orders?.list ?? [],
             endsAt: weekEndsAt(state.orders?.week ?? 0).toISOString(),
-        },
-        weather: {
-            source: weather.source,
-            home: state.home ? { latitude: state.home.latitude, longitude: state.home.longitude } : null,
-            canMoveAt: homeMovableAt(state, FARMING, new Date())?.toISOString() ?? null,
-            regionDegrees: FARMING.weather.regionDegrees,
         },
         unlockCost: unlockCost(state, FARMING),
         hand: hand.flatMap((card) =>

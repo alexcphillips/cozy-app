@@ -81,7 +81,7 @@ export async function startFishing(playerId: string, tier: GeoFishingTier): Prom
             throw AppError.badRequest("Your fishing hand is empty. The Angler sells fishing cards.");
         }
         const state = newFishingState(tier, hand, randomSeed());
-        const [row] = await tx<FishingRunRow>(INSERT_RUN, [playerId, "fishing", [], null, state]);
+        const [row] = await tx<FishingRunRow>(INSERT_RUN, [playerId, "fishing", [], null, state, false]);
         if (!row) throw new Error("Run insert returned nothing");
         return toFishingView(row.id, state, setup);
     });

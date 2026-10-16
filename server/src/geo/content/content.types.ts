@@ -6,7 +6,7 @@ import type { Action, CardDef, EffectDef, EnemyMove, FoodDef, StatModifier, Stat
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
 /** Equipment slot kinds, matching the app's character screen. */
-export type EquipKind = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "ring";
+export type EquipKind = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring";
 
 /**
  * A weapon's type (dagger) and style (melee), from `data/config/weapons.ts`.
@@ -107,12 +107,50 @@ export type ItemDef =
           /** Keys, Rift Lenses: anything that isn't gear, a card or a material. */
           kind: "misc";
           stackSize: number;
+      })
+    | (ItemBase & {
+          /** One pet at one rarity (`pet.<petId>.<rarity>`); each copy carries its XP and held item. */
+          kind: "pet";
+          petId: string;
+      })
+    | (ItemBase & {
+          /** Held by a pet (`data/pet-items/`), adding stats or XP. */
+          kind: "petItem";
+          stackSize: number;
+          modifiers?: StatModifier[];
+          xpBoost?: { multiplier: number; skill?: string };
       });
 
 /** Kinds that pile into one inventory row rather than one row per copy. */
 export function isStackable(item: ItemDef): item is Extract<ItemDef, { stackSize: number }> {
     return "stackSize" in item;
 }
+
+/** A pet stat that grows with level: `perLevel` × level (`data/pets/`). */
+export type PetStatDef = {
+    stat: string;
+    kind: "flat" | "percent";
+    perLevel: number | Partial<Record<Rarity, number>>;
+};
+
+export type PetUpgradeDef = { coins: number; items: ItemAmount[]; hours: number };
+
+/** A pet (`data/pets/`): one item per rarity, stats only, never fights. */
+export type PetDef = {
+    id: string;
+    name: string;
+    icon: string;
+    /** The app's pet art name. */
+    image: string;
+    description: string;
+    skill: string;
+    /** Lowest first. */
+    rarities: Rarity[];
+    stats: PetStatDef[];
+    abilities: { id: string; name: string; from: Rarity; description: string; modifiers: PetStatDef[] }[];
+    sellValue?: Partial<Record<Rarity, number>>;
+    upgrades?: Partial<Record<Rarity, PetUpgradeDef>>;
+};
 
 export type LootEntry = {
     itemId: string;
@@ -221,6 +259,8 @@ export type VendorDef = {
     buys: VendorBuyRule;
     /** Coins per reforge by the item's rarity; unset = this vendor doesn't reforge. */
     reforge?: { cost: Record<Rarity, number> };
+    /** Raises pets' rarity (Kat). */
+    petUpgrades?: boolean;
 };
 
 /** A reforge (`data/reforges/`): a named bonus on one copy of a weapon or armour. */
@@ -267,7 +307,7 @@ export type DungeonDef = {
     description: string;
     boss: string;
     bossModifiers: StatModifier[];
-    minCombatLevel: number;
+    requiredLevel: number;
     maxPlayers: number;
 };
 
@@ -277,6 +317,8 @@ export type GameContent = {
     /** Built from the items that are food, keyed by item id. */
     foods: Record<string, FoodDef>;
     items: Record<string, ItemDef>;
+    /** Pets (`data/pets/`); each also makes a `pet.<id>.<rarity>` item per rarity. */
+    pets: Record<string, PetDef>;
     /** Fish that can bite in a fishing Run (`data/fish/`). */
     fish: Record<string, FishDef>;
     /** Crops that grow on the farm (`data/crops/`). */

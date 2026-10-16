@@ -3,12 +3,12 @@ export const FIND_PLAYER = `
 `;
 
 export const FIND_INVENTORY = `
-  SELECT id, player_id, item_id, quantity, charges_left, reforge, obtained_at
+  SELECT id, player_id, item_id, quantity, charges_left, reforge, pet, obtained_at
   FROM geo.inventory WHERE player_id = $1 ORDER BY obtained_at, id;
 `;
 
 export const FIND_INVENTORY_BY_IDS = `
-  SELECT id, player_id, item_id, quantity, charges_left, reforge, obtained_at
+  SELECT id, player_id, item_id, quantity, charges_left, reforge, pet, obtained_at
   FROM geo.inventory WHERE player_id = $1 AND id = ANY($2::uuid[]);
 `;
 
@@ -169,9 +169,9 @@ export const INSERT_COIN_LEDGER = `
 `;
 
 export const INSERT_INVENTORY = `
-  INSERT INTO geo.inventory (player_id, item_id, quantity, charges_left, reforge)
-  VALUES ($1, $2, $3, $4, $5)
-  RETURNING id, player_id, item_id, quantity, charges_left, reforge, obtained_at;
+  INSERT INTO geo.inventory (player_id, item_id, quantity, charges_left, reforge, pet)
+  VALUES ($1, $2, $3, $4, $5, $6)
+  RETURNING id, player_id, item_id, quantity, charges_left, reforge, pet, obtained_at;
 `;
 
 /** Adds to an existing stack of the same item, if there is one. */
@@ -252,7 +252,7 @@ export const SPEND_COINS = `
 
 /** Locks one owned row, so two sales of it at once can't both take it. */
 export const LOCK_INVENTORY_ROW = `
-  SELECT id, player_id, item_id, quantity, charges_left, reforge, obtained_at
+  SELECT id, player_id, item_id, quantity, charges_left, reforge, pet, obtained_at
   FROM geo.inventory WHERE player_id = $1 AND id = $2 FOR UPDATE;
 `;
 
@@ -266,31 +266,99 @@ export const TAKE_FROM_STACK = `
 
 /** Puts a copy back exactly as it was: same id, same obtained date. */
 export const RESTORE_INVENTORY_ROW = `
-  INSERT INTO geo.inventory (id, player_id, item_id, quantity, charges_left, obtained_at, reforge)
-  VALUES ($1, $2, $3, $4, $5, $6, $7)
+  INSERT INTO geo.inventory (id, player_id, item_id, quantity, charges_left, obtained_at, reforge, pet)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
   ON CONFLICT (id) DO NOTHING
   RETURNING id;
 `;
 
 /**
- * Locks every row of one item the player has free to spend (not worn, bagged
- * or in a hand), oldest first.
+ * Locks every row of one item the player has free to spend (not worn, bagged,
+ * in a hand or the active pet), oldest first.
  */
 export const LOCK_FREE_ROWS_OF_ITEM = `
-  SELECT i.id, i.player_id, i.item_id, i.quantity, i.charges_left, i.reforge, i.obtained_at
+  SELECT i.id, i.player_id, i.item_id, i.quantity, i.charges_left, i.reforge, i.pet, i.obtained_at
   FROM geo.inventory i
   WHERE i.player_id = $1 AND i.item_id = $2
     AND NOT EXISTS (SELECT 1 FROM geo.equipment e WHERE e.player_id = $1 AND e.inventory_id = i.id)
     AND NOT EXISTS (SELECT 1 FROM geo.talisman_bag b WHERE b.player_id = $1 AND b.inventory_id = i.id)
     AND NOT EXISTS (SELECT 1 FROM geo.hands h WHERE h.player_id = $1 AND i.id = ANY(h.inventory_ids))
+    AND NOT EXISTS (SELECT 1 FROM geo.active_pets a WHERE a.player_id = $1 AND a.inventory_id = i.id)
   ORDER BY i.obtained_at
   FOR UPDATE OF i;
 `;
 
-/** Where an inventory row is in use: worn, bagged, or in a hand. */
+/** Where an inventory row is in use: worn, bagged, in a hand, or the active pet. */
 export const FIND_USES = `
   SELECT
     EXISTS (SELECT 1 FROM geo.equipment WHERE player_id = $1 AND inventory_id = $2) AS equipped,
     EXISTS (SELECT 1 FROM geo.talisman_bag WHERE player_id = $1 AND inventory_id = $2) AS bagged,
-    EXISTS (SELECT 1 FROM geo.hands WHERE player_id = $1 AND $2 = ANY(inventory_ids)) AS in_hand;
+    EXISTS (SELECT 1 FROM geo.hands WHERE player_id = $1 AND $2 = ANY(inventory_ids)) AS in_hand,
+    EXISTS (SELECT 1 FROM geo.active_pets WHERE player_id = $1 AND inventory_id = $2) AS active_pet;
+`;
+
+/** The active pet's inventory row, if there is one. */
+export const FIND_ACTIVE_PET = `
+  SELECT i.id, i.player_id, i.item_id, i.quantity, i.charges_left, i.reforge, i.pet, i.obtained_at
+  FROM geo.active_pets a JOIN geo.inventory i ON i.id = a.inventory_id AND i.player_id = a.player_id
+  WHERE a.player_id = $1;
+`;
+
+export const SET_ACTIVE_PET = `
+  INSERT INTO geo.active_pets (player_id, inventory_id) VALUES ($1, $2)
+  ON CONFLICT (player_id) DO UPDATE SET inventory_id = EXCLUDED.inventory_id;
+`;
+
+export const CLEAR_ACTIVE_PET = `
+  DELETE FROM geo.active_pets WHERE player_id = $1;
+`;
+
+/** Adds XP to a pet copy in one statement, so two gains at once both count. */
+export const ADD_PET_XP = `
+  UPDATE geo.inventory
+  SET pet = jsonb_set(COALESCE(pet, '{"xp": 0, "heldItem": null}'), '{xp}', to_jsonb(COALESCE((pet->>'xp')::float8, 0) + $3))
+  WHERE player_id = $1 AND id = $2;
+`;
+
+/** Sets only the held item ($3 JSON: an item id or null). No row back means the copy is no longer the player's. */
+export const SET_PET_HELD_ITEM = `
+  UPDATE geo.inventory
+  SET pet = jsonb_set(COALESCE(pet, '{"xp": 0, "heldItem": null}'), '{heldItem}', $3::jsonb)
+  WHERE player_id = $1 AND id = $2
+  RETURNING id;
+`;
+
+/** The pet left with Kat, if any. */
+export const FIND_PET_UPGRADE = `
+  SELECT inventory_id, item_id, to_item_id, pet, obtained_at, ready_at FROM geo.pet_upgrades WHERE player_id = $1;
+`;
+
+export const INSERT_PET_UPGRADE = `
+  INSERT INTO geo.pet_upgrades (player_id, inventory_id, item_id, to_item_id, pet, obtained_at, ready_at)
+  VALUES ($1, $2, $3, $4, $5, $6, $7);
+`;
+
+/** Hands the pet back: no row back means there was none (or it was already collected). */
+export const DELETE_PET_UPGRADE = `
+  DELETE FROM geo.pet_upgrades WHERE player_id = $1
+  RETURNING inventory_id, item_id, to_item_id, pet, obtained_at, ready_at;
+`;
+
+/** Health carried between fights (NULL is full) and camp, rounded. */
+export const FIND_HEALTH_AND_CAMP = `
+  SELECT health, camp_latitude, camp_longitude, camp_set_at FROM geo.players WHERE id = $1;
+`;
+
+/** $2 NULL is full health. */
+export const SET_HEALTH = `
+  UPDATE geo.players SET health = $2 WHERE id = $1;
+`;
+
+export const SET_CAMP = `
+  UPDATE geo.players SET camp_latitude = $2, camp_longitude = $3, camp_set_at = now() WHERE id = $1;
+`;
+
+/** Forgets the point but not when it was set: the weekly limit still holds. */
+export const CLEAR_CAMP = `
+  UPDATE geo.players SET camp_latitude = NULL, camp_longitude = NULL WHERE id = $1;
 `;

@@ -17,4 +17,6 @@ export type RunRow = {
     rewards: GeoRewards | null;
     /** BIGINT arrives as a string. */
     coins_lost: string | null;
+    /** Fought at full health, leaving the player's own as it was (a dungeon's). */
+    keeps_health: boolean;
 };

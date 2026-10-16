@@ -15,11 +15,7 @@ import type { GeoHandCard, GeoLunchboxSlot } from "./run.contract";
 /** The farm is a square this many tiles across; tiles are unlocked one at a time. */
 export const GEO_FARM_SIZE = 9;
 
-/**
- * A farm turn's weather: the real weather of the farm's home region over the
- * 12 hours before the turn, or a seeded roll when there's no home region or
- * the weather service can't answer.
- */
+/** A farm turn's weather: a seeded roll per turn, the same whenever it's asked. */
 export const GEO_FARM_WEATHERS = ["clear", "overcast", "rain", "heatwave", "storm", "frost"] as const;
 export type GeoFarmWeather = (typeof GEO_FARM_WEATHERS)[number];
 
@@ -171,17 +167,6 @@ export type GeoFarmContests = {
     }[];
 };
 
-export type GeoFarmWeatherSource = {
-    /** "real": the home region's weather. "placeholder": seeded rolls (no home yet, or the service is down). */
-    source: "real" | "placeholder";
-    /** The home region's centre (a coarse grid square), or null before the farm has one. */
-    home: { latitude: number; longitude: number } | null;
-    /** When the home region can next be moved; null when it can be now. */
-    canMoveAt: string | null;
-    /** Home regions are grid squares this many degrees across (to tell if a place is in the home one). */
-    regionDegrees: number;
-};
-
 /** A kind of structure, as the app needs it to draw and explain one. */
 export type GeoStructureView = {
     id: string;
@@ -314,8 +299,6 @@ export type GeoFarmView = {
     maxTurnsAway: number;
     /** Weather for the coming turns, soonest first. One unless the sky has been read. */
     forecast: GeoFarmWeather[];
-    /** Where the weather comes from. */
-    weather: GeoFarmWeatherSource;
     /** Farm events: the one coming on the next turn (telegraphed), and the one on now. */
     events: { next: GeoFarmEventView | null; active: GeoFarmEventView | null };
     /** This week's Order Board. */
@@ -403,8 +386,6 @@ export type GeoFarmAction =
     | { type: "scrub"; tile: number }
     /** Free: items onto the Mysterious Shrine. Their NPC value buys a roll for a blessing; it may answer with a curse. */
     | { type: "offer"; tile: number; itemId: string; quantity: number }
-    /** Free: the farm's weather comes from this place's region from now on. Rarely allowed. */
-    | { type: "home"; latitude: number; longitude: number }
     /** Coins: buy the Travelling Merchant's offer at this index. */
     | { type: "buy"; offer: number }
     /** Coins (the deposit): take an order on. */
@@ -431,7 +412,6 @@ export const GEO_FARM_ACTION_TYPES = [
     "release",
     "turn-in",
     "pesthunter-buy",
-    "home",
     "scrub",
     "offer",
     "amend",

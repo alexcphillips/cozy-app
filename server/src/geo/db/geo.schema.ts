@@ -72,6 +72,26 @@ const STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS inventory_player_idx ON geo.inventory (player_id);`,
     // A weapon or armour copy's reforge (data/reforges/), rolled at a vendor.
     `ALTER TABLE geo.inventory ADD COLUMN IF NOT EXISTS reforge VARCHAR(80);`,
+    // A pet copy's XP and held item, { xp, heldItem } (pets/pets.ts PetCopy); NULL for anything else.
+    `ALTER TABLE geo.inventory ADD COLUMN IF NOT EXISTS pet JSONB;`,
+    // A first try kept the active pet on geo.players; it's geo.active_pets now.
+    `ALTER TABLE geo.players DROP COLUMN IF EXISTS active_pet;`,
+    // The one pet giving its stats, kept like geo.equipment: gone with the copy.
+    `CREATE TABLE IF NOT EXISTS geo.active_pets (
+        player_id UUID PRIMARY KEY REFERENCES geo.players(id) ON DELETE CASCADE,
+        inventory_id UUID NOT NULL UNIQUE REFERENCES geo.inventory(id) ON DELETE CASCADE
+    );`,
+    // A pet left with Kat to raise its rarity: out of the inventory, kept as
+    // it was (id, XP, held item), until it's collected as to_item_id. One at a time.
+    `CREATE TABLE IF NOT EXISTS geo.pet_upgrades (
+        player_id UUID PRIMARY KEY REFERENCES geo.players(id) ON DELETE CASCADE,
+        inventory_id UUID NOT NULL,
+        item_id VARCHAR(80) NOT NULL,
+        to_item_id VARCHAR(80) NOT NULL,
+        pet JSONB NOT NULL,
+        obtained_at TIMESTAMPTZ NOT NULL,
+        ready_at TIMESTAMPTZ NOT NULL
+    );`,
 
     `CREATE TABLE IF NOT EXISTS geo.equipment (
         player_id UUID NOT NULL REFERENCES geo.players(id) ON DELETE CASCADE,
@@ -79,6 +99,8 @@ const STATEMENTS = [
         inventory_id UUID NOT NULL UNIQUE REFERENCES geo.inventory(id) ON DELETE CASCADE,
         PRIMARY KEY (player_id, slot)
     );`,
+    // Rings went from four slots to two; the rings worn in the old 3rd and 4th go back to the bag.
+    `DELETE FROM geo.equipment WHERE slot IN ('ring3', 'ring4');`,
 
     // Talismans count only while in the bag, and only one copy of each: the
     // primary key on item_id is what stops duplicates.
@@ -154,6 +176,26 @@ const STATEMENTS = [
     // At most one Run in progress per player.
     `CREATE UNIQUE INDEX IF NOT EXISTS runs_one_active_idx
         ON geo.runs (player_id) WHERE status = 'active';`,
+    // A Run fought at full health that leaves the player's own as it was
+    // (a dungeon's). Others save the player's health every turn.
+    `ALTER TABLE geo.runs ADD COLUMN IF NOT EXISTS keeps_health BOOLEAN NOT NULL DEFAULT false;`,
+
+    // Health carried between fights; NULL is full. Clamped to max health
+    // (which moves with gear) whenever it's read.
+    `ALTER TABLE geo.players ADD COLUMN IF NOT EXISTS health INTEGER CHECK (health >= 1);`,
+    // Camp, where the lunchbox and bait are restocked. Stored rounded to
+    // about 110 m (GEO_CAMP_DECIMALS), never the exact point the phone sent:
+    // it's likely where the player lives. Forgetting it clears the point but
+    // keeps camp_set_at, so the weekly limit can't be dodged that way.
+    `ALTER TABLE geo.players
+        ADD COLUMN IF NOT EXISTS camp_latitude DOUBLE PRECISION,
+        ADD COLUMN IF NOT EXISTS camp_longitude DOUBLE PRECISION,
+        ADD COLUMN IF NOT EXISTS camp_set_at TIMESTAMPTZ;`,
+    // Camp was first called home.
+    `ALTER TABLE geo.players
+        DROP COLUMN IF EXISTS home_latitude,
+        DROP COLUMN IF EXISTS home_longitude,
+        DROP COLUMN IF EXISTS home_set_at;`,
 
     // Each player's spawns, made around them by GET /geo/world and kept only
     // while they last (geo/world/spawns.ts). A beaten one keeps its slot,
@@ -259,6 +301,7 @@ const STATEMENTS = [
         ON geo.market_listings (ends_at) WHERE status = 'active' AND type = 'auction';`,
     // The listed copy's reforge, handed on with it.
     `ALTER TABLE geo.market_listings ADD COLUMN IF NOT EXISTS reforge VARCHAR(80);`,
+    `ALTER TABLE geo.market_listings ADD COLUMN IF NOT EXISTS pet JSONB;`,
 
     // A bid's coins leave the bidder when it's placed ('held'), and go back
     // when outbid ('returned') or to the seller when it wins ('won').
@@ -531,30 +574,34 @@ const STATEMENTS = [
     );`,
     `CREATE UNIQUE INDEX IF NOT EXISTS seed_bag_one_slot_per_seed_idx ON geo.seed_bag (player_id, item_id);`,
 
-    // Dungeon lobbies (modules/dungeons). Starts at starts_at, or at
-    // started_at if the host starts it early; closed_at is set when the host
-    // leaves an open one. Nothing ticks: the phase is worked out on read.
+    // Dungeon lobbies (modules/dungeons). Open until the host starts it
+    // (started_at, everyone goes in) or it closes (closed_at: the host left
+    // or was away too long). Only open lobbies are ever shown.
     `CREATE TABLE IF NOT EXISTS geo.dungeon_lobbies (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         dungeon_id VARCHAR(80) NOT NULL,
         host_id UUID NOT NULL REFERENCES geo.players(id) ON DELETE CASCADE,
-        required_level SMALLINT NOT NULL CHECK (required_level >= 1),
+        required_level SMALLINT NOT NULL CONSTRAINT dungeon_lobbies_level_min CHECK (required_level >= 0),
         max_players SMALLINT NOT NULL CHECK (max_players >= 1),
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        starts_at TIMESTAMPTZ NOT NULL,
         started_at TIMESTAMPTZ,
         closed_at TIMESTAMPTZ
     );`,
-    `CREATE INDEX IF NOT EXISTS dungeon_lobbies_starts_idx
-        ON geo.dungeon_lobbies (starts_at) WHERE closed_at IS NULL AND started_at IS NULL;`,
-    // Who's in each lobby. entered_at is set when they begin their Run.
+    // Lobbies first had a countdown (starts_at) and required level 1+; now
+    // the host starts them, and 0 means anyone.
+    `ALTER TABLE geo.dungeon_lobbies DROP COLUMN IF EXISTS starts_at;`,
+    `ALTER TABLE geo.dungeon_lobbies DROP CONSTRAINT IF EXISTS dungeon_lobbies_required_level_check;`,
+    `CREATE INDEX IF NOT EXISTS dungeon_lobbies_open_idx
+        ON geo.dungeon_lobbies (created_at) WHERE closed_at IS NULL AND started_at IS NULL;`,
+    // Who's in each lobby.
     `CREATE TABLE IF NOT EXISTS geo.dungeon_lobby_members (
         lobby_id UUID NOT NULL REFERENCES geo.dungeon_lobbies(id) ON DELETE CASCADE,
         player_id UUID NOT NULL REFERENCES geo.players(id) ON DELETE CASCADE,
         joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        entered_at TIMESTAMPTZ,
         PRIMARY KEY (lobby_id, player_id)
     );`,
+    // Members once entered one by one; starting now takes everyone in at once.
+    `ALTER TABLE geo.dungeon_lobby_members DROP COLUMN IF EXISTS entered_at;`,
     `CREATE INDEX IF NOT EXISTS dungeon_lobby_members_player_idx ON geo.dungeon_lobby_members (player_id);`,
 
     // chum-slick was renamed bloody-bait: carry over what players held, so a

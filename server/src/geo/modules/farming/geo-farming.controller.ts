@@ -40,9 +40,6 @@ export async function act(req: Request, res: Response) {
     } else if (type === "amend") {
         if (!isInt(body.tile) || typeof body.itemId !== "string") throw AppError.badRequest("Missing tile or itemId");
         action = { type, tile: body.tile, itemId: body.itemId };
-    } else if (type === "home") {
-        if (typeof body.latitude !== "number" || typeof body.longitude !== "number") throw AppError.badRequest("Missing latitude and longitude");
-        action = { type, latitude: body.latitude, longitude: body.longitude };
     } else {
         if (!isInt(body.tile)) throw AppError.badRequest("Missing tile");
         const tile = body.tile;

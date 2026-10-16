@@ -179,10 +179,12 @@ const WeaponFile = z.strictObject({
 const ArmourFile = z.strictObject({
     ...itemBase,
     ...equipmentRules,
-    slot: z.enum(["offHand", "head", "chest", "hands", "legs"]),
+    slot: z.enum(["offHand", "head", "chest", "hands", "legs", "feet", "shoulders", "cloak", "belt"]),
 });
 
 const RingFile = z.strictObject({ ...itemBase, ...equipmentRules });
+
+const AmuletFile = z.strictObject({ ...itemBase, ...equipmentRules });
 
 const TalismanFile = z.strictObject({ ...itemBase, ...gearRules });
 
@@ -215,6 +217,52 @@ const MiscFile = z.strictObject({
     ...itemBase,
     kind: z.enum(["misc", "consumable"]).default("misc"),
     stackSize: count.default(99),
+});
+
+const PetStatSchema = z.strictObject({
+    stat: z.string().min(1),
+    kind: z.enum(["flat", "percent"]).default("flat"),
+    perLevel: z.union([z.number(), z.partialRecord(Rarity, z.number())]),
+});
+
+const PetUpgradeSchema = z.strictObject({
+    coins: z.int().min(0),
+    items: z.array(ItemAmount).default([]),
+    hours: z.number().min(0),
+});
+
+const PetFile = z.strictObject({
+    id,
+    name: z.string().min(1),
+    icon: z.string().min(1),
+    image: z.string().min(1),
+    description: z.string(),
+    skill: z.string().min(1),
+    rarities: z
+        .array(Rarity)
+        .min(1)
+        .refine((list) => list.every((rarity, i) => i === 0 || RARITIES.indexOf(rarity) > RARITIES.indexOf(list[i - 1]!)), {
+            message: "list rarities once each, lowest first",
+        }),
+    stats: z.array(PetStatSchema),
+    abilities: z.array(
+        z.strictObject({
+            id: z.string().min(1),
+            name: z.string().min(1),
+            from: Rarity,
+            description: z.string(),
+            modifiers: z.array(PetStatSchema).default([]),
+        }),
+    ),
+    sellValue: z.partialRecord(Rarity, z.int().min(0)).optional(),
+    upgrades: z.partialRecord(Rarity, PetUpgradeSchema).optional(),
+});
+
+const PetItemFile = z.strictObject({
+    ...itemBase,
+    modifiers: z.array(StatModifierSchema).optional(),
+    xpBoost: z.strictObject({ multiplier: z.number().positive(), skill: z.string().min(1).optional() }).optional(),
+    stackSize: count.default(64),
 });
 
 // ---------------------------------------------------------------------------
@@ -408,11 +456,12 @@ const VendorFile = z.strictObject({
     ),
     buys: z
         .strictObject({
-            kinds: z.array(z.enum(["card", "equipment", "talisman", "material", "consumable", "misc"])).optional(),
+            kinds: z.array(z.enum(["card", "equipment", "talisman", "material", "consumable", "misc", "pet", "petItem"])).optional(),
             skills: z.array(z.string()).optional(),
             itemIds: z.array(ref).optional(),
         }),
     reforge: z.strictObject({ cost: z.record(Rarity, count) }).optional(),
+    petUpgrades: z.boolean().optional(),
 });
 
 const ReforgeFile = z.strictObject({
@@ -442,7 +491,7 @@ const DungeonFile = z.strictObject({
     description: z.string(),
     boss: ref,
     bossModifiers: z.array(StatModifierSchema).optional(),
-    minCombatLevel: z.int().min(1).max(GEO_MAX_SKILL_LEVEL),
+    requiredLevel: z.int().min(0).max(GEO_MAX_SKILL_LEVEL),
     maxPlayers: z.int().min(1).max(8),
 });
 
@@ -455,11 +504,14 @@ export const DATA_FOLDERS = {
     weapons: WeaponFile,
     armour: ArmourFile,
     rings: RingFile,
+    amulets: AmuletFile,
     talismans: TalismanFile,
     materials: MaterialFile,
     food: FoodFile,
     bait: BaitFile,
     misc: MiscFile,
+    pets: PetFile,
+    "pet-items": PetItemFile,
     fish: FishFile,
     crops: CropFile,
     pests: PestFile,
@@ -553,12 +605,6 @@ const FarmingConfig = z.strictObject({
     globalEvents: z.array(z.strictObject({ eventId: ref, days: z.int().min(1).max(7), weight: z.number().min(0) })),
     weatherWeights: z.record(z.enum(GEO_FARM_WEATHERS), z.number().min(0)),
     weather: z.strictObject({
-        heatwaveC: z.number(),
-        frostC: z.number(),
-        rainMm: z.number().min(0),
-        overcastCloud: z.number().min(0).max(100),
-        regionDegrees: z.number().positive(),
-        homeCooldownDays: z.number().min(0),
         stormFlattenChance: fraction,
         frostKillsUpToStage: z.int().min(0),
     }),
@@ -588,7 +634,7 @@ const SpawnsConfig = z.strictObject({
 
 const StarterKitConfig = z.strictObject({
     items: z.array(ItemAmount),
-    equip: z.partialRecord(z.enum(["mainHand", "offHand", "head", "chest", "hands", "legs", "ring"]), ref),
+    equip: z.partialRecord(z.enum(["mainHand", "offHand", "head", "chest", "hands", "legs", "feet", "shoulders", "cloak", "belt", "amulet", "ring"]), ref),
     handSkills: z.array(z.string()),
     lunchbox: z.array(ItemAmount),
     bait: z.array(ItemAmount),
@@ -610,6 +656,16 @@ const WeaponsConfig = z.strictObject({
     styles: z.array(z.string().min(1)),
 });
 
+const PetsConfig = z.strictObject({
+    maxLevel: z.int().min(1),
+    xpCurve: z.strictObject({ base: z.number().positive(), rarityMultiplier: byRarity(z.number().positive()) }),
+    otherSkillShare: fraction,
+    skillMultiplier: z.record(z.string(), z.number().positive()),
+    upgrades: z.partialRecord(Rarity, PetUpgradeSchema),
+    upgradeDiscountPerLevel: fraction,
+    heldItemRemovalCost: byRarity(z.int().min(0)),
+});
+
 const ChestTiersConfig = z.strictObject({
     tiers: z.array(z.strictObject({ id: ChestTier, name: z.string().min(1), cost: z.int().min(0) })),
 });
@@ -625,6 +681,7 @@ export const CONFIG_FILES = {
     economy: EconomyConfig,
     weapons: WeaponsConfig,
     "chest-tiers": ChestTiersConfig,
+    pets: PetsConfig,
 } as const;
 
 export type DataFolder = keyof typeof DATA_FOLDERS;
@@ -647,11 +704,14 @@ const folderModels: { [K in DataFolder]: Same<z.input<(typeof DATA_FOLDERS)[K]>,
     weapons: true,
     armour: true,
     rings: true,
+    amulets: true,
     talismans: true,
     materials: true,
     food: true,
     bait: true,
     misc: true,
+    pets: true,
+    "pet-items": true,
     fish: true,
     crops: true,
     pests: true,
@@ -676,6 +736,7 @@ const configModels: { [K in ConfigFile]: Same<z.input<(typeof CONFIG_FILES)[K]>,
     economy: true,
     weapons: true,
     "chest-tiers": true,
+    pets: true,
 };
 void folderModels;
 void configModels;
@@ -686,11 +747,14 @@ export type ModelOf = {
     weapons: M.Weapon;
     armour: M.Armour;
     rings: M.Ring;
+    amulets: M.Amulet;
     talismans: M.Talisman;
     materials: M.Material;
     food: M.Food;
     bait: M.Bait;
     misc: M.MiscItem;
+    pets: M.Pet;
+    "pet-items": M.PetItem;
     fish: M.Fish;
     crops: M.Crop;
     pests: M.Pest;
@@ -717,4 +781,5 @@ export type ConfigModelOf = {
     economy: M.EconomyConfig;
     weapons: M.WeaponsConfig;
     "chest-tiers": M.ChestTiersConfig;
+    pets: M.PetsConfig;
 };

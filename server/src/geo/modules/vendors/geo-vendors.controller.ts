@@ -4,6 +4,7 @@ import {
     GEO_VENDOR_MAX_QUANTITY,
     type GeoRarity,
     type GeoVendor,
+    type GeoPetUpgradeRequest,
     type GeoVendorBuyRequest,
     type GeoVendorReforgeRequest,
     type GeoVendorSellRequest,
@@ -16,6 +17,7 @@ import { requirePlayerId } from "../../middleware/geo-auth";
 import * as playerRepository from "../player/geo-player.repository";
 import { applyModifiers, globalModifiers } from "../../world/global-effects";
 import type { StatModifier } from "../../engine/engine.types";
+import { NEW_PET, petOf, petState } from "../../pets/pets";
 
 /**
  * What a vendor charges now: its list price, scaled by global effects (e.g.
@@ -56,6 +58,7 @@ function toVendorView(vendor: VendorDef, modifiers: StatModifier[]): GeoVendor {
                 ]),
             ) as Record<GeoRarity, number>,
         }),
+        ...(vendor.petUpgrades && { petUpgrades: true }),
     };
 }
 
@@ -158,6 +161,66 @@ export async function reforge(req: Request, res: Response) {
         const cost = reforgeCostNow(costs, item.rarity, await globalModifiers(tx));
         await playerRepository.spendCoins(tx, playerId, cost, "vendor-reforge", `vendor:${vendor.id}:reforge:${owned.id}`);
         await playerRepository.setReforge(tx, playerId, owned.id, picked.id);
+    });
+
+    res.status(200).json(await playerRepository.findMe(playerId));
+}
+
+/**
+ * Leaves a pet with Kat to raise it one rarity, paying her price now (coins
+ * and materials, less a little per level). The pet leaves the inventory,
+ * XP and held item intact, until it's collected. One pet at a time.
+ */
+export async function upgradePet(req: Request, res: Response) {
+    const playerId = requirePlayerId(req);
+    const vendor = findVendor(req);
+    const { inventoryId } = (req.body ?? {}) as Partial<GeoPetUpgradeRequest>;
+    if (!vendor.petUpgrades) throw AppError.badRequest(`The ${vendor.name} doesn't raise pets`);
+    if (typeof inventoryId !== "string" || !inventoryId) throw AppError.badRequest("Missing inventoryId");
+
+    await withTransaction(async (tx) => {
+        await playerRepository.lockPlayer(tx, playerId);
+        if (await playerRepository.findPetUpgrade(playerId, tx)) throw AppError.badRequest(`${vendor.name} is already looking after a pet`);
+
+        const owned = await playerRepository.lockInventoryRow(tx, playerId, inventoryId);
+        if (!owned || !petOf(owned.item_id)) throw AppError.notFound("You don't own that pet");
+        const quote = petState(owned.item_id, owned.pet ?? NEW_PET)?.upgrade;
+        if (!quote) throw AppError.badRequest("That pet can't go any higher");
+
+        const reference = `vendor:${vendor.id}:pet-upgrade:${owned.id}`;
+        await playerRepository.spendCoins(tx, playerId, quote.coins, "pet-upgrade", reference);
+        for (const { itemId, quantity } of quote.items) await playerRepository.takeItems(tx, playerId, itemId, quantity);
+        const taken = await playerRepository.takeFromInventory(tx, playerId, owned.id, 1);
+        await playerRepository.insertPetUpgrade(tx, playerId, taken, quote.toItemId, new Date(Date.now() + quote.hours * 3_600_000));
+    });
+
+    res.status(200).json(await playerRepository.findMe(playerId));
+}
+
+/** Takes the pet back from Kat once it's ready: the same copy, one rarity higher. */
+export async function collectPetUpgrade(req: Request, res: Response) {
+    const playerId = requirePlayerId(req);
+    const vendor = findVendor(req);
+    if (!vendor.petUpgrades) throw AppError.badRequest(`The ${vendor.name} doesn't raise pets`);
+
+    await withTransaction(async (tx) => {
+        await playerRepository.lockPlayer(tx, playerId);
+        const waiting = await playerRepository.findPetUpgrade(playerId, tx);
+        if (!waiting) throw AppError.badRequest(`${vendor.name} isn't looking after a pet of yours`);
+        if (waiting.ready_at.getTime() > Date.now()) throw AppError.badRequest("It isn't ready yet");
+
+        await playerRepository.takePetUpgrade(tx, playerId);
+        // A rarity since removed from the content comes back as it went in.
+        const itemId = CONTENT.items[waiting.to_item_id] ? waiting.to_item_id : waiting.item_id;
+        await playerRepository.restoreItem(tx, playerId, {
+            inventoryId: waiting.inventory_id,
+            itemId,
+            quantity: 1,
+            chargesLeft: null,
+            reforge: null,
+            pet: waiting.pet,
+            obtainedAt: waiting.obtained_at,
+        });
     });
 
     res.status(200).json(await playerRepository.findMe(playerId));

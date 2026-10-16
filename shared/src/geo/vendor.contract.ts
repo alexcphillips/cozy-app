@@ -37,6 +37,8 @@ export type GeoVendor = {
      * (mayor perks included). A reroll never lands on the reforge it has.
      */
     reforgeCost?: Record<GeoRarity, number>;
+    /** Set when the vendor raises pets' rarity (Kat). Each pet's price is on its `GeoPetState.upgrade`. */
+    petUpgrades?: boolean;
 };
 
 /** `GET /geo/vendors`. */

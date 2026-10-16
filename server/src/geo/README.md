@@ -30,7 +30,7 @@ server/src/geo/
 │   ├── friends/         mutual friends by username, requests, presence heartbeat
 │   ├── inbox/           messages (one player's) and announcements (everyone's, one row)
 │   ├── feedback/        players send bugs and suggestions; admins triage and reply
-│   ├── player/          /geo/me, equipment, hands, saved hands, lunchbox, bait, inventory grants
+│   ├── player/          /geo/me, equipment, hands, saved hands, lunchbox, bait, camp and health, inventory grants
 │   ├── runs/            start (reach-checked), play a card or eat, flee
 │   ├── fishing/         fishing Runs: open at a spot, cast and fight, leave
 │   ├── chests/          chest selections: pending, history, opening one
@@ -102,6 +102,33 @@ Bait works the same way for fishing: a `consumable` with `bait` rules
 up to 4) through `PUT/DELETE /geo/me/bait/:slot`. Bait used to be cards;
 the old card rows went with a progress wipe (`wipe:geo`). Each cast takes one
 from the first packed slot (a mayor's Bait Lover may save it).
+
+## Health, camp and restocking
+
+Risk comes from not being able to top up away from camp. Health carries
+between fights (`geo.players.health`, NULL = full, clamped to max health from
+gear whenever it's read): a combat Run starts from it and saves it every turn,
+so closing the app mid-fight, or fleeing, keeps the damage. Fleeing costs
+nothing else. A defeat (or any death) leaves a tenth of max
+(`GEO_DEFEAT_HEALTH_FRACTION`) and every coin is lost. Health never
+regenerates over time. Only two things refill it: food from the packed
+lunchbox (as a turn in a fight, or between fights anywhere with
+`POST /geo/me/lunchbox/:slot/eat`). Between fights the food resolves in the
+battle engine (`eatBetweenFights`) but only its effect on health is kept:
+heals (with `foodHealing`) and harm, which stops at 1 HP; buffs and statuses
+only work in a fight),
+and resting at camp (`POST /geo/me/camp/rest`). The lunchbox is the only food
+a player has while away, because repacking needs camp.
+
+Dungeon Runs are the exception: fought at full health, and the player's own
+health is as it was afterwards, win or lose (`geo.runs.keeps_health`).
+
+Camp is set with `PUT /geo/me/camp { position }`, at most once every
+`GEO_CAMP_MOVE_DAYS`, and stored rounded to 3 decimals (about 110 m), never
+the exact point: it's likely where the player lives. `DELETE` forgets it but
+keeps when it was set, so the week still counts. Packing the lunchbox or bait
+needs `position` within `GEO_CAMP_RADIUS_METRES` of camp; unpacking works
+anywhere. Rules: `modules/player/geo-camp.rules.ts`.
 
 ## Fishing Runs
 

@@ -1,4 +1,5 @@
 import type { GeoListingStatus, GeoListingType } from "@cozy/shared/geo";
+import type { PetCopy } from "../../pets/pets";
 
 /** A listing as pg returns it, with the names the views show. BIGINTs arrive as strings. */
 export type ListingRow = {
@@ -11,6 +12,8 @@ export type ListingRow = {
     source_inventory_id: string | null;
     charges_left: number | null;
     reforge: string | null;
+    /** Pets: the copy's XP and held item. */
+    pet: PetCopy | null;
     obtained_at: Date;
     quantity_listed: number;
     quantity_left: number;

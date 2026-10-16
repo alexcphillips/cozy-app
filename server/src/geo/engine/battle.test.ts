@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { BattleRuleError, createBattle, eatFood, playCard, type CombatantSetup } from "./battle";
+import { BattleRuleError, createBattle, eatBetweenFights, eatFood, playCard, type CombatantSetup } from "./battle";
 import type { EngineContent } from "./content.types";
 import type { CardDef, EffectDef, FoodDef, LogEntry, StatusDef } from "./engine.types";
 
@@ -486,6 +486,39 @@ describe("eating from the lunchbox", () => {
         const { log } = eatFood(start.state, content(), { slot: 1 });
         // Stew's 10 → 15; Well Fed's regen is a status, not the food, so stays 8.
         assert.deepEqual(heals(log), [15, 8]);
+    });
+
+    describe("between fights", () => {
+        /** A food that hurts and buffs, as later content may. */
+        const bitter: FoodDef = {
+            id: "bitter",
+            name: "Bitter Root",
+            actions: [
+                { type: "damage", to: "self", amount: 30, ignoreDefence: true },
+                { type: "applyStatus", to: "self", status: "well-fed" },
+            ],
+        };
+        const withBitter: EngineContent = { ...content(), foods: { ...FOODS, bitter } };
+        const box = [...lunchbox(), { slot: 3, foodId: "bitter", quantity: 1 }];
+
+        it("heals as in a fight, foodHealing included", () => {
+            const you = player({ health: 40, lunchbox: box, modifiers: [{ stat: "foodHealing", kind: "flat", value: 0.5 }] });
+            assert.equal(eatBetweenFights(you, withBitter, { slot: 0 }, 1).health, 40 + 23);
+        });
+
+        it("takes a food's harm, keeps none of its buffs, and stops at 1", () => {
+            const hurt = eatBetweenFights(player({ health: 50, lunchbox: box }), withBitter, { slot: 3 }, 1);
+            assert.equal(hurt.health, 20);
+            assert.ok(hurt.log.some((e) => e.type === "statusApplied"), "the status resolves, then is dropped with the fight state");
+            assert.equal(eatBetweenFights(player({ health: 10, lunchbox: box }), withBitter, { slot: 3 }, 1).health, 1);
+        });
+
+        it("refuses an empty slot and leaves the setup untouched", () => {
+            const you = player({ health: 50, lunchbox: box });
+            assert.throws(() => eatBetweenFights(you, withBitter, { slot: 7 }, 1), BattleRuleError);
+            eatBetweenFights(you, withBitter, { slot: 0 }, 1);
+            assert.equal(you.lunchbox![0]!.quantity, 2);
+        });
     });
 });
 

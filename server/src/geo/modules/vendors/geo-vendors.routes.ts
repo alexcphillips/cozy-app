@@ -11,3 +11,5 @@ geoVendorsRouter.get(GEO_API_PATHS.vendors.list, geoAuth, asyncHandler(vendorsCo
 geoVendorsRouter.post(GEO_API_PATHS.vendors.buy, geoAuth, asyncHandler(vendorsController.buy));
 geoVendorsRouter.post(GEO_API_PATHS.vendors.sell, geoAuth, asyncHandler(vendorsController.sell));
 geoVendorsRouter.post(GEO_API_PATHS.vendors.reforge, geoAuth, asyncHandler(vendorsController.reforge));
+geoVendorsRouter.post(GEO_API_PATHS.vendors.petUpgrade, geoAuth, asyncHandler(vendorsController.upgradePet));
+geoVendorsRouter.post(GEO_API_PATHS.vendors.collectPetUpgrade, geoAuth, asyncHandler(vendorsController.collectPetUpgrade));

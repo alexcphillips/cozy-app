@@ -109,13 +109,15 @@ export type Weapon = ItemBase &
         };
     };
 
-/** Shields (offHand), helmets, chest pieces, gloves, leg armour. */
+/** Shields (offHand), helmets, shoulders, chest pieces, gloves, leg armour, boots, cloaks, belts. */
 export type Armour = ItemBase &
     EquipmentRules & {
-        slot: "offHand" | "head" | "chest" | "hands" | "legs";
+        slot: "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt";
     };
 
 export type Ring = ItemBase & EquipmentRules;
+
+export type Amulet = ItemBase & EquipmentRules;
 
 /** Counts only while in the Talisman Bag, one copy each. */
 export type Talisman = ItemBase & GearRules;
@@ -162,6 +164,78 @@ export type MiscItem = ItemBase & {
     /** Which inventory tab. Default "misc"; "consumable" for potions that aren't food. */
     kind?: "misc" | "consumable";
     /** Default 99. */
+    stackSize?: number;
+};
+
+/**
+ * A stat a pet gives that grows with its level: `perLevel` × level. At level
+ * 100 a `perLevel` of 0.3 is +30.
+ */
+export type PetStat = {
+    stat: string;
+    /** Default "flat". Percent values are fractions: 0.001 per level is +10% at 100. */
+    kind?: "flat" | "percent";
+    /** One number for every rarity, or one per rarity (a rarity left out gives nothing). */
+    perLevel: number | Partial<Record<Rarity, number>>;
+};
+
+/** A pet ability: stats from the rarity it unlocks at, growing with level like `stats`. */
+export type PetAbility = {
+    /** Unique within the pet. */
+    id: string;
+    name: string;
+    /** The lowest rarity that has it; every higher one does too. */
+    from: Rarity;
+    /** What it does, in words. Its stat rows are added by themselves. */
+    description: string;
+    modifiers?: PetStat[];
+};
+
+/** What Kat charges to raise a pet one rarity. Each pet level takes some off (config/pets). */
+export type PetUpgrade = {
+    coins: number;
+    items?: ItemAmount[];
+    /** Real hours the pet stays with Kat. */
+    hours: number;
+};
+
+/**
+ * A pet: gives stats while it's the active one, and never fights. Makes one
+ * item per rarity, `pet.<id>.<rarity>`, which is what loot, recipes and
+ * vendors name. A copy keeps its XP from one rarity to the next.
+ */
+export type Pet = {
+    /** Must match the file name. */
+    id: string;
+    name: string;
+    /** A Game Icons name, for lists that don't draw the pet's art. */
+    icon: string;
+    /** The app's pet art: `features/pets/assets/<image>.png`. */
+    image: string;
+    description: string;
+    /** It gains full XP from this skill's XP, and a share of every other skill's (config/pets). */
+    skill: string;
+    /** The rarities it comes in, lowest first; Kat raises it through these. */
+    rarities: Rarity[];
+    stats: PetStat[];
+    abilities: PetAbility[];
+    /** Coins an NPC pays, by rarity. Unset = the rarity placeholder in config/economy. */
+    sellValue?: Partial<Record<Rarity, number>>;
+    /** Kat's price to raise it from each rarity. Unset = config/pets `upgrades`. */
+    upgrades?: Partial<Record<Rarity, PetUpgrade>>;
+};
+
+/**
+ * Held by a pet, one per pet, adding to what it gives. Applying one uses it
+ * up; swapping hands the old one back, and taking one off costs coins
+ * (config/pets).
+ */
+export type PetItem = ItemBase & {
+    /** Stats while a pet holds it and is active. */
+    modifiers?: StatModifier[];
+    /** Multiplies the pet's XP gain; `skill` limits it to that skill's XP. */
+    xpBoost?: { multiplier: number; skill?: string };
+    /** Default 64. */
     stackSize?: number;
 };
 
@@ -456,7 +530,7 @@ export type Recipe = {
     skills?: { skill: string; level: number }[];
 };
 
-export type ItemKind = "card" | "equipment" | "talisman" | "material" | "consumable" | "misc";
+export type ItemKind = "card" | "equipment" | "talisman" | "material" | "consumable" | "misc" | "pet" | "petItem";
 
 /** An NPC shop. */
 export type Vendor = {
@@ -483,9 +557,11 @@ export type Vendor = {
      * rarity, for a random reforge from `data/reforges/` (never the one it has).
      */
     reforge?: { cost: Record<Rarity, number> };
+    /** Gives the vendor a Pets tab to raise a pet's rarity, at its `upgrades` price (Kat). */
+    petUpgrades?: boolean;
 };
 
-/** Which gear a reforge can land on. Armour is the off hand, head, chest, hands and legs; never rings. */
+/** Which gear a reforge can land on. Armour is the off hand, head, chest, hands, legs, cloak and belt; never rings or amulets. */
 export type ReforgeTarget = "weapon" | "armour";
 
 /** A reforge: a named bonus a vendor rolls onto one copy of a weapon or armour, e.g. "Heavy". */
@@ -513,8 +589,11 @@ export type Dungeon = {
      * `{ stat: "maxHealth", kind: "percent", value: 2 }` for triple health.
      */
     bossModifiers?: StatModifier[];
-    /** The lowest combat level a lobby for it can ask for. */
-    minCombatLevel: number;
+    /**
+     * The combat level needed to make or join a lobby for it. 0 = none. A
+     * host can ask more of their lobby, up to their own level.
+     */
+    requiredLevel: number;
     /** How many players a lobby holds, host included. */
     maxPlayers: number;
 };
@@ -543,7 +622,7 @@ export type PlayerConfig = {
     baseStats: Record<string, number>;
 };
 
-export type EquipSlot = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "ring";
+export type EquipSlot = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring";
 
 export type StarterKitConfig = {
     /** Granted to every new player. Cards are `card.<id>`. */
@@ -690,23 +769,10 @@ export type FarmingConfig = {
      * UTC), and every farm's turns during it get it.
      */
     globalEvents: { eventId: string; days: number; weight: number }[];
-    /** Placeholder weather, rolled when there's no real weather: how often each comes. */
+    /** How often each weather is rolled for a turn. */
     weatherWeights: Record<GeoFarmWeather, number>;
-    /**
-     * Real weather. A period is a `storm` with any thunderstorm hour; else
-     * `frost` at or below `frostC`; else `heatwave` at or above `heatwaveC`;
-     * else `rain` with `rainMm` or more in all; else `overcast` with mean
-     * cloud cover at or above `overcastCloud` %; else `clear`.
-     */
+    /** What the harsh weathers do. */
     weather: {
-        heatwaveC: number;
-        frostC: number;
-        rainMm: number;
-        overcastCloud: number;
-        /** The home region is a grid square this many degrees across. */
-        regionDegrees: number;
-        /** Days before the home region can be moved again. */
-        homeCooldownDays: number;
         /** Storm: chance each open-field crop is flattened. */
         stormFlattenChance: number;
         /** Frost: growing open-field crops at this stage or below die. */
@@ -770,6 +836,27 @@ export type WeaponsConfig = {
     types: string[];
     /** How weapons fight, e.g. "melee". */
     styles: string[];
+};
+
+export type PetsConfig = {
+    /** Levels stop here. XP past it is kept but adds nothing. */
+    maxLevel: number;
+    /**
+     * PLACEHOLDER curve: XP from level L to L + 1 is base × L × the rarity's
+     * multiplier, so a rarer pet levels slower (and drops levels when Kat
+     * raises it, keeping its XP).
+     */
+    xpCurve: { base: number; rarityMultiplier: Record<Rarity, number> };
+    /** Share of another skill's XP the active pet gains (Hypixel: a third). */
+    otherSkillShare: number;
+    /** Extra pet XP from a skill, e.g. `{ fishing: 1.5 }`. Unlisted = 1. */
+    skillMultiplier: Record<string, number>;
+    /** Kat's price to raise a pet from each rarity, for pets without their own. */
+    upgrades: Partial<Record<Rarity, PetUpgrade>>;
+    /** Taken off Kat's coins and hours per pet level, e.g. 0.003 = 30% at level 100. */
+    upgradeDiscountPerLevel: number;
+    /** Coins to take a held item off a pet, by the held item's rarity. */
+    heldItemRemovalCost: Record<Rarity, number>;
 };
 
 export type ChestTiersConfig = {

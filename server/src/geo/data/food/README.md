@@ -17,6 +17,12 @@ Plus the [fields every item has](../README.md#fields-every-item-has).
 | `tags` | list of text | no | e.g. `spicy`, `fish`, `hearty`. Gear can react with `foodHasTag`, e.g. "spicy food heals 20% more". |
 | `stackSize` | whole number ≥ 1 | no (default 99) | How many fit in one stack. A lunchbox slot holds up to 10. |
 
+Food is eaten from the lunchbox, in a fight (as a turn) or between fights.
+Between fights it runs the same way, but only its effect on health is kept:
+heals count, and so does harm (e.g. `{ type: "damage", to: "self", amount: 20 }`),
+which stops at 1 HP. Buffs and statuses only work in a fight, so a food that
+hurts you for a buff is one to eat mid-fight.
+
 A lasting buff is a **status**: make it in [statuses](../statuses/README.md)
 (e.g. `well-fed`: heals 8 a turn), then apply it here. Status durations count
 the eating turn, so `"duration": 4` = your next 3 turns. Describe it in

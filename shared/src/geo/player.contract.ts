@@ -1,6 +1,8 @@
 import type { GeoPlayer } from "./auth.contract";
-import type { GeoEquipmentSlot } from "./content.contract";
+import type { GeoEquipmentSlot, GeoRarity } from "./content.contract";
+import type { GeoPoint } from "./distance";
 import type { GeoSeedBag } from "./farming.contract";
+import type { GeoPetState, GeoPetUpgrade } from "./pet.contract";
 import type { GeoLunchboxSlot } from "./run.contract";
 
 /** One owned copy (or stack) of an item. */
@@ -12,6 +14,8 @@ export type GeoInventoryEntry = {
     chargesLeft: number | null;
     /** Weapons and armour: its reforge id (`GeoReforgeView`), or null. */
     reforge: string | null;
+    /** Pets: its level, held item and what it gives; null for anything else. */
+    pet: GeoPetState | null;
     obtainedAt: string;
 };
 
@@ -31,12 +35,69 @@ export type GeoMeResponse = {
     bait: GeoBait;
     /** Seeds packed for farming. */
     seedBag: GeoSeedBag;
+    health: GeoHealth;
+    /** null until the player sets one. */
+    camp: GeoCamp | null;
+    /** The active pet's inventory id, or null. */
+    activePet: string | null;
+    /** The pet left with Kat, or null. */
+    petUpgrade: GeoPetUpgrade | null;
+    /** Coins to take a held item off a pet, by the held item's rarity. */
+    heldItemRemovalCost: Record<GeoRarity, number>;
 };
+
+/**
+ * The player's health between fights. It carries from one fight to the next
+ * and doesn't regenerate: only lunchbox food (in a fight, or between fights
+ * with `POST /geo/me/lunchbox/:slot/eat`) and resting at camp refill it.
+ * Fleeing keeps the damage taken.
+ * Losing a fight leaves GEO_DEFEAT_HEALTH_FRACTION of max. Dungeon Runs are
+ * fought at full health and leave this as it was.
+ */
+export type GeoHealth = {
+    current: number;
+    /** From the player's gear right now; `current` is never above it. */
+    max: number;
+};
+
+/** What's left of max health after losing a fight: rounded up, at least 1. */
+export const GEO_DEFEAT_HEALTH_FRACTION = 0.1;
+
+/**
+ * Where the player restocks: the lunchbox and bait slots can only be packed
+ * within GEO_CAMP_RADIUS_METRES of it, and resting there refills health.
+ * Stored rounded (GEO_CAMP_DECIMALS), never as the exact point given.
+ */
+export type GeoCamp = {
+    position: GeoPoint;
+    /** When it was last set; it can be moved again from `movableAt`. */
+    setAt: string;
+    movableAt: string;
+};
+
+/** Camp is stored to this many decimal places: about 110 m. */
+export const GEO_CAMP_DECIMALS = 3;
+
+/** How close counts as at camp. Covers the rounding with room for GPS drift. PLACEHOLDER. */
+export const GEO_CAMP_RADIUS_METRES = 150;
+
+/** Days before a camp can be moved again. */
+export const GEO_CAMP_MOVE_DAYS = 7;
+
+/** `PUT /geo/me/camp`: camp becomes (about) here. `POST /geo/me/camp/rest` takes the same. */
+export type GeoSetCampRequest = {
+    position: GeoPoint;
+};
+
+/** `POST /geo/me/camp/rest`: refills health; refused away from camp. */
+export type GeoRestRequest = GeoSetCampRequest;
 
 /**
  * Food packed for Runs: each slot holds a stack of one food, and no food is in
  * two slots. Packed food has left the inventory (it can't be sold or crafted)
- * until it's unpacked or eaten. Can't change mid-Run.
+ * until it's unpacked or eaten. Can't change mid-Run. Only packed food can be
+ * eaten, in a fight or between fights; between fights only its effect on
+ * health counts (harm stops at 1 HP), not its buffs or statuses.
  */
 export type GeoLunchbox = {
     /** Slots unlocked: starts at 1, up to GEO_LUNCHBOX_MAX_SLOTS. */
@@ -50,10 +111,15 @@ export const GEO_LUNCHBOX_MAX_SLOTS = 4;
 /** Most of one food a lunchbox slot holds. PLACEHOLDER. */
 export const GEO_LUNCHBOX_STACK_SIZE = 10;
 
-/** `PUT /geo/me/lunchbox/:slot`: the slot now holds this many of this food. */
+/**
+ * `PUT /geo/me/lunchbox/:slot`: the slot now holds this many of this food.
+ * Packing is restocking, so only at camp: `position` is checked against it.
+ * Unpacking (DELETE) works anywhere.
+ */
 export type GeoPackLunchboxRequest = {
     itemId: string;
     quantity: number;
+    position: GeoPoint;
 };
 
 /**

@@ -58,11 +58,7 @@ export async function leaveLobby(req: Request, res: Response) {
     res.status(200).json(await dungeonsRepository.leaveLobby(requirePlayerId(req), lobbyId(req)));
 }
 
+/** Host only: takes everyone in at once. Replies with the host's Run. */
 export async function startLobby(req: Request, res: Response) {
     res.status(200).json(await dungeonsRepository.startLobby(requirePlayerId(req), lobbyId(req)));
-}
-
-/** Begins the player's Run against the boss: from anywhere, once they're in a started lobby. */
-export async function enterLobby(req: Request, res: Response) {
-    res.status(201).json(await dungeonsRepository.enterLobby(requirePlayerId(req), lobbyId(req)));
 }
