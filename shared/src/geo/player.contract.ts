@@ -49,7 +49,7 @@ export type GeoMeResponse = {
 /**
  * The player's health between fights. It carries from one fight to the next
  * and doesn't regenerate: only lunchbox food (in a fight, or between fights
- * with `POST /geo/me/lunchbox/:slot/eat`) and resting at camp refill it.
+ * with `POST /geo/me/lunchbox/:slot/eat`) refills it. There is no resting.
  * Fleeing keeps the damage taken.
  * Losing a fight leaves GEO_DEFEAT_HEALTH_FRACTION of max. Dungeon Runs are
  * fought at full health and leave this as it was.
@@ -65,7 +65,8 @@ export const GEO_DEFEAT_HEALTH_FRACTION = 0.1;
 
 /**
  * Where the player restocks: the lunchbox and bait slots can only be packed
- * within GEO_CAMP_RADIUS_METRES of it, and resting there refills health.
+ * within GEO_CAMP_RADIUS_METRES of it. It never expires: it stays until the
+ * player sets a new one.
  * Stored rounded (GEO_CAMP_DECIMALS), never as the exact point given.
  */
 export type GeoCamp = {
@@ -75,22 +76,19 @@ export type GeoCamp = {
     movableAt: string;
 };
 
-/** Camp is stored to this many decimal places: about 110 m. */
-export const GEO_CAMP_DECIMALS = 3;
+/** Camp is stored to this many decimal places: about 11 m, so it moves at most ~8 m. */
+export const GEO_CAMP_DECIMALS = 4;
 
 /** How close counts as at camp. Covers the rounding with room for GPS drift. PLACEHOLDER. */
-export const GEO_CAMP_RADIUS_METRES = 150;
+export const GEO_CAMP_RADIUS_METRES = 75;
 
 /** Days before a camp can be moved again. */
-export const GEO_CAMP_MOVE_DAYS = 7;
+export const GEO_CAMP_MOVE_DAYS = 2;
 
-/** `PUT /geo/me/camp`: camp becomes (about) here. `POST /geo/me/camp/rest` takes the same. */
+/** `PUT /geo/me/camp`: camp becomes (about) here. */
 export type GeoSetCampRequest = {
     position: GeoPoint;
 };
-
-/** `POST /geo/me/camp/rest`: refills health; refused away from camp. */
-export type GeoRestRequest = GeoSetCampRequest;
 
 /**
  * Food packed for Runs: each slot holds a stack of one food, and no food is in

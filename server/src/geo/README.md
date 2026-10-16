@@ -111,22 +111,22 @@ gear whenever it's read): a combat Run starts from it and saves it every turn,
 so closing the app mid-fight, or fleeing, keeps the damage. Fleeing costs
 nothing else. A defeat (or any death) leaves a tenth of max
 (`GEO_DEFEAT_HEALTH_FRACTION`) and every coin is lost. Health never
-regenerates over time. Only two things refill it: food from the packed
-lunchbox (as a turn in a fight, or between fights anywhere with
-`POST /geo/me/lunchbox/:slot/eat`). Between fights the food resolves in the
+regenerates over time, and there is no resting. Only food from the packed
+lunchbox refills it: as a turn in a fight, or between fights anywhere with
+`POST /geo/me/lunchbox/:slot/eat`. Between fights the food resolves in the
 battle engine (`eatBetweenFights`) but only its effect on health is kept:
 heals (with `foodHealing`) and harm, which stops at 1 HP; buffs and statuses
-only work in a fight),
-and resting at camp (`POST /geo/me/camp/rest`). The lunchbox is the only food
+only work in a fight. The lunchbox is the only food
 a player has while away, because repacking needs camp.
 
 Dungeon Runs are the exception: fought at full health, and the player's own
 health is as it was afterwards, win or lose (`geo.runs.keeps_health`).
 
 Camp is set with `PUT /geo/me/camp { position }`, at most once every
-`GEO_CAMP_MOVE_DAYS`, and stored rounded to 3 decimals (about 110 m), never
-the exact point: it's likely where the player lives. `DELETE` forgets it but
-keeps when it was set, so the week still counts. Packing the lunchbox or bait
+`GEO_CAMP_MOVE_DAYS` (2), never expires (it stays until a new one is set), and stored rounded to 4 decimals (about 11 m), never
+the exact point given. It's personal location data: only the player sees it
+(never other players, admin pages or logs), and it goes with the account. `DELETE` forgets it but
+keeps when it was set, so the move limit still counts. Packing the lunchbox or bait
 needs `position` within `GEO_CAMP_RADIUS_METRES` of camp; unpacking works
 anywhere. Rules: `modules/player/geo-camp.rules.ts`.
 

@@ -25,7 +25,6 @@ geoPlayerRouter.put(GEO_API_PATHS.me.seedBagSlot, geoAuth, asyncHandler(playerCo
 geoPlayerRouter.delete(GEO_API_PATHS.me.seedBagSlot, geoAuth, asyncHandler(playerController.unpackSeeds));
 geoPlayerRouter.put(GEO_API_PATHS.me.camp, geoAuth, asyncHandler(playerController.setCamp));
 geoPlayerRouter.delete(GEO_API_PATHS.me.camp, geoAuth, asyncHandler(playerController.clearCamp));
-geoPlayerRouter.post(GEO_API_PATHS.me.rest, geoAuth, asyncHandler(playerController.rest));
 geoPlayerRouter.put(GEO_API_PATHS.me.activePet, geoAuth, asyncHandler(petsController.setActivePet));
 geoPlayerRouter.put(GEO_API_PATHS.me.petItem, geoAuth, asyncHandler(petsController.givePetItem));
 geoPlayerRouter.delete(GEO_API_PATHS.me.petItem, geoAuth, asyncHandler(petsController.takePetItem));

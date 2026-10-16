@@ -33,10 +33,8 @@ export const GEO_API_PATHS = {
         baitSlot: "/geo/me/bait/:slot",
         /** PUT { itemId, quantity } packs seeds into the slot; DELETE unpacks it. */
         seedBagSlot: "/geo/me/seed-bag/:slot",
-        /** PUT { position } sets camp (once a week); DELETE forgets it. */
+        /** PUT { position } sets camp (once every GEO_CAMP_MOVE_DAYS); DELETE forgets it. */
         camp: "/geo/me/camp",
-        /** POST { position }: refills health, at camp only. */
-        rest: "/geo/me/camp/rest",
         /** PUT { inventoryId }: the active pet (null puts it away). */
         activePet: "/geo/me/pet",
         /** PUT { inventoryId } gives the pet a held item; DELETE takes it off, for coins. */

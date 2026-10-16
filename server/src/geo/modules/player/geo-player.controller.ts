@@ -15,7 +15,6 @@ import {
     GEO_CAMP_MOVE_DAYS,
     type GeoEquipmentSlot,
     type GeoPoint,
-    type GeoRestRequest,
     type GeoSetCampRequest,
     type GeoPackBaitRequest,
     type GeoPackSeedsRequest,
@@ -465,20 +464,5 @@ export async function setCamp(req: Request, res: Response) {
 export async function clearCamp(req: Request, res: Response) {
     const playerId = requirePlayerId(req);
     await withTransaction((tx) => playerRepository.clearCamp(tx, playerId));
-    res.status(200).json(await playerRepository.findMe(playerId));
-}
-
-/** Rests at camp: health back to full. Not mid-Run. */
-export async function rest(req: Request, res: Response) {
-    const playerId = requirePlayerId(req);
-    const position = parsePosition(req.body as Partial<GeoRestRequest>);
-
-    await withTransaction(async (tx) => {
-        await playerRepository.lockPlayer(tx, playerId);
-        await runsRepository.assertNotInRun(tx, playerId, "You can't rest mid-Run");
-        await assertAtCamp(req, tx, playerId, position, "rest");
-        await playerRepository.fillHealth(tx, playerId);
-    });
-
     res.status(200).json(await playerRepository.findMe(playerId));
 }

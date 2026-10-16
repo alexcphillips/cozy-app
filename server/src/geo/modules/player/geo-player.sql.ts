@@ -358,7 +358,7 @@ export const SET_CAMP = `
   UPDATE geo.players SET camp_latitude = $2, camp_longitude = $3, camp_set_at = now() WHERE id = $1;
 `;
 
-/** Forgets the point but not when it was set: the weekly limit still holds. */
+/** Forgets the point but not when it was set: the move limit still holds. */
 export const CLEAR_CAMP = `
   UPDATE geo.players SET camp_latitude = NULL, camp_longitude = NULL WHERE id = $1;
 `;

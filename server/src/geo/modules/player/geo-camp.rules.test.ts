@@ -4,12 +4,12 @@ import { distanceMetres } from "@cozy/shared/geo";
 import { campMovableAt, currentHealth, defeatHealth, isAtCamp, roundCamp } from "./geo-camp.rules";
 
 describe("roundCamp", () => {
-    it("drops the exact point to three decimals", () => {
-        assert.deepEqual(roundCamp({ latitude: 51.507351, longitude: -0.127758 }), { latitude: 51.507, longitude: -0.128 });
+    it("drops the exact point to four decimals", () => {
+        assert.deepEqual(roundCamp({ latitude: 51.507351, longitude: -0.127758 }), { latitude: 51.5074, longitude: -0.1278 });
     });
 
     it("stays within reach of the point it came from", () => {
-        const exact = { latitude: 51.5075, longitude: -0.1275 };
+        const exact = { latitude: 51.50755, longitude: -0.12755 };
         assert.ok(isAtCamp(exact, roundCamp(exact)));
     });
 });
@@ -30,10 +30,10 @@ describe("isAtCamp", () => {
 });
 
 describe("campMovableAt", () => {
-    it("is now for a camp never set, and a week after it was", () => {
+    it("is now for a camp never set, and GEO_CAMP_MOVE_DAYS after it was", () => {
         assert.ok(campMovableAt(null).getTime() <= Date.now());
         const setAt = new Date("2026-10-15T12:00:00Z");
-        assert.equal(campMovableAt(setAt).toISOString(), "2026-10-22T12:00:00.000Z");
+        assert.equal(campMovableAt(setAt).toISOString(), "2026-10-17T12:00:00.000Z");
     });
 });
 

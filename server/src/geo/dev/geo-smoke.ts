@@ -145,18 +145,18 @@ try {
     await withTransaction((tx) => grantItems(tx, playerId, [{ itemId: "grilled-trout", quantity: 4 }]));
 
     // Camp: packing (restocking) only happens there.
-    const CAMP = { latitude: 51.5071, longitude: -0.1279 };
+    const CAMP = { latitude: 51.50713, longitude: -0.12794 };
     const AWAY = { latitude: 51.52, longitude: -0.1279 };
     const campless = await call<{ error: string }>("PUT", lunchboxPath(0), accessToken, { itemId: "grilled-trout", quantity: 1, position: CAMP });
     assert.equal(campless.status, 400);
     step(`packing with no camp set is refused: "${campless.body.error}"`);
     const camped = await call<GeoMeResponse>("PUT", GEO_API_PATHS.me.camp, accessToken, { position: CAMP });
     assert.equal(camped.status, 200, JSON.stringify(camped.body));
-    assert.deepEqual(camped.body.camp?.position, { latitude: 51.507, longitude: -0.128 }, "stored rounded");
-    step("camp set, stored rounded to 3 decimals");
+    assert.deepEqual(camped.body.camp?.position, { latitude: 51.5071, longitude: -0.1279 }, "stored rounded");
+    step("camp set, stored rounded to 4 decimals");
     const campMoved = await call<{ error: string }>("PUT", GEO_API_PATHS.me.camp, accessToken, { position: AWAY });
     assert.equal(campMoved.status, 400);
-    step(`moving camp again within the week is refused: "${campMoved.body.error}"`);
+    step(`moving camp again within GEO_CAMP_MOVE_DAYS is refused: "${campMoved.body.error}"`);
     const away = await call<{ error: string }>("PUT", lunchboxPath(0), accessToken, { itemId: "grilled-trout", quantity: 1, position: AWAY });
     assert.equal(away.status, 400);
     step(`packing away from camp is refused: "${away.body.error}"`);
@@ -343,7 +343,7 @@ try {
         step(`defeat took all ${before} coins, and the ledger says so`);
 
         // Health carries out of the fight: a defeat leaves a tenth of max.
-        // Packed food heals between fights, anywhere; only resting at camp fills it.
+        // Packed food heals between fights, anywhere. There is no resting.
         const beatenMe = (await call<GeoMeResponse>("GET", GEO_API_PATHS.me.root, accessToken)).body;
         const beaten = beatenMe.health;
         assert.equal(beaten.current, Math.ceil(beaten.max / 10));
@@ -357,12 +357,6 @@ try {
         const emptySlot = await call<{ error: string }>("POST", GEO_API_PATHS.me.eatLunchbox.replace(":slot", "3"), accessToken);
         assert.equal(emptySlot.status, 400);
         step(`eating packed trout between fights healed to ${snack.body.health.current}; an empty slot is refused`);
-        const restAway = await call<{ error: string }>("POST", GEO_API_PATHS.me.rest, accessToken, { position: AWAY });
-        assert.equal(restAway.status, 400);
-        const rested = await call<GeoMeResponse>("POST", GEO_API_PATHS.me.rest, accessToken, { position: CAMP });
-        assert.equal(rested.status, 200, JSON.stringify(rested.body));
-        assert.equal(rested.body.health.current, rested.body.health.max);
-        step(`resting away is refused ("${restAway.body.error}"); at camp it fills health`);
     }
 
     // The admin kill: all coins go, and a Run in progress ends as a defeat.

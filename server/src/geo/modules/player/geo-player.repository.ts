@@ -282,11 +282,6 @@ export async function setHealth(tx: TxQuery, playerId: string, health: number, m
     await tx(SET_HEALTH, [playerId, health >= max ? null : Math.max(1, Math.round(health))]);
 }
 
-/** Back to full, e.g. resting at camp. */
-export async function fillHealth(tx: TxQuery, playerId: string) {
-    await tx(SET_HEALTH, [playerId, null]);
-}
-
 /** The player's camp, or null if none is set (or it was forgotten). */
 export async function findCamp(playerId: string, tx: TxQuery = db): Promise<GeoCamp | null> {
     const [row] = await tx<HealthAndCampRow>(FIND_HEALTH_AND_CAMP, [playerId]);

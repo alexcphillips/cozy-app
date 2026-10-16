@@ -186,7 +186,7 @@ const STATEMENTS = [
     // Camp, where the lunchbox and bait are restocked. Stored rounded to
     // about 110 m (GEO_CAMP_DECIMALS), never the exact point the phone sent:
     // it's likely where the player lives. Forgetting it clears the point but
-    // keeps camp_set_at, so the weekly limit can't be dodged that way.
+    // keeps camp_set_at, so the move limit can't be dodged that way.
     `ALTER TABLE geo.players
         ADD COLUMN IF NOT EXISTS camp_latitude DOUBLE PRECISION,
         ADD COLUMN IF NOT EXISTS camp_longitude DOUBLE PRECISION,
