@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { GEO_MAX_SKILL_LEVEL, geoSkillLevel, geoSkillProgress } from "@cozy/shared/geo";
 import { CONTENT } from "../content";
 import type { GameContent } from "../content";
+import { canWield } from "../engine/battle";
 import { DAMAGE_DEALT_STAT } from "../engine/engine.types";
 import { createRng } from "../engine/rng";
 import { playerCombatant, rollChests, withMagicFind } from "./combatants";
@@ -18,6 +19,17 @@ describe("player combatant", () => {
     it("gets nothing from talismans left out of the bag", () => {
         const empty = playerCombatant({ name: "You", equipment: [], talismans: [], hand: [] }, CONTENT);
         assert.equal(empty.effects.length, 0);
+    });
+
+    it("punches with fists when no weapon is equipped: melee, one attack less than the Bronze Dagger", () => {
+        const attack = (setup: { modifiers: { stat: string; value: number }[] }) =>
+            setup.modifiers.filter((mod) => mod.stat === "attack").reduce((sum, mod) => sum + mod.value, 0);
+        const fists = playerCombatant({ name: "You", equipment: [], talismans: [], hand: [] }, CONTENT);
+        const dagger = playerCombatant({ name: "You", equipment: ["bronze-dagger"], talismans: [], hand: [] }, CONTENT);
+        assert.deepEqual(fists.weaponTags, ["fists", "melee"]);
+        assert.ok(canWield(CONTENT.cards.slash!, fists.weaponTags));
+        assert.equal(attack(fists), 1);
+        assert.equal(attack(dagger), 2);
     });
 });
 

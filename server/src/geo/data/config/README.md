@@ -110,6 +110,7 @@ Enemy spawns around each player.
 | --- | --- |
 | `types` | Weapon types (`dagger`, `sword`…). A weapon's `weapon.type` and a card's `requiresWeapon` must use these. Add a type here first. |
 | `styles` | How weapons fight (`melee`…). Same rules. |
+| `unarmed` | `{ type, style, modifiers }`: what the player fights with when no weapon is equipped (fists, +1 attack). Its type and style must be in the lists above. |
 
 ## chest-tiers.ts
 

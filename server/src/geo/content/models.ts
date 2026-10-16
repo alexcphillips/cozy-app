@@ -836,6 +836,11 @@ export type WeaponsConfig = {
     types: string[];
     /** How weapons fight, e.g. "melee". */
     styles: string[];
+    /**
+     * What the player fights with when no weapon is equipped: its type and
+     * style (for `requiresWeapon`) and its stats, e.g. +1 attack for fists.
+     */
+    unarmed: { type: string; style: string; modifiers: StatModifier[] };
 };
 
 export type PetsConfig = {

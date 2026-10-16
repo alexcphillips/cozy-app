@@ -654,6 +654,11 @@ const EconomyConfig = z.strictObject({
 const WeaponsConfig = z.strictObject({
     types: z.array(z.string().min(1)),
     styles: z.array(z.string().min(1)),
+    unarmed: z.strictObject({
+        type: z.string().min(1),
+        style: z.string().min(1),
+        modifiers: z.array(StatModifierSchema),
+    }),
 });
 
 const PetsConfig = z.strictObject({

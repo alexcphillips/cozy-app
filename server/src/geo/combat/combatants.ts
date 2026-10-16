@@ -50,7 +50,7 @@ export function playerCombatant(loadout: PlayerLoadout, content: GameContent): C
         modifiers.push({ stat: DAMAGE_DEALT_STAT, kind: "flat", value: loadout.combatLevel * GEO_COMBAT_DAMAGE_PER_LEVEL });
     }
     const effects: EffectDef[] = [];
-    let weaponTags: string[] = [];
+    let weaponTags: string[] | null = null;
 
     // A Set as well, so a duplicate talisman can never count twice.
     for (const itemId of [...loadout.equipment, ...new Set(loadout.talismans)]) {
@@ -59,6 +59,12 @@ export function playerCombatant(loadout: PlayerLoadout, content: GameContent): C
         modifiers.push(...(item.modifiers ?? []));
         effects.push(...(item.effects ?? []));
         if (item.kind === "equipment" && item.weapon) weaponTags = [item.weapon.type, item.weapon.style];
+    }
+    // No weapon: fists (`data/config/weapons.ts`).
+    if (!weaponTags) {
+        const { unarmed } = GAME_CONFIG.weapons;
+        weaponTags = [unarmed.type, unarmed.style];
+        modifiers.push(...unarmed.modifiers);
     }
     for (const { itemId, reforgeId } of loadout.reforges ?? []) modifiers.push(...reforgeModifiers(content, itemId, reforgeId));
 

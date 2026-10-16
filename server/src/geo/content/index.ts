@@ -62,6 +62,12 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
     };
 
     const weaponTags = new Set([...config.weapons.types, ...config.weapons.styles]);
+    if (!config.weapons.types.includes(config.weapons.unarmed.type)) {
+        problems.push(`Unarmed has unknown type "${config.weapons.unarmed.type}" (config/weapons.ts)`);
+    }
+    if (!config.weapons.styles.includes(config.weapons.unarmed.style)) {
+        problems.push(`Unarmed has unknown style "${config.weapons.unarmed.style}" (config/weapons.ts)`);
+    }
     for (const card of Object.values(content.cards)) {
         needStatuses(`Card "${card.id}"`, card.actions, card.effects);
         for (const tag of card.requiresWeapon ?? []) {
