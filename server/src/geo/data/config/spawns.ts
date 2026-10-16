@@ -1,7 +1,7 @@
 import type { SpawnsConfig } from "#geo/models";
 
 export default {
-    reachMetres: 50,
+    reachMetres: 60,
     minSpawnMetres: 10,
     outOfReachSeconds: 45,
     respawnAfterWinSeconds: 60,
