@@ -43,7 +43,7 @@ async function main() {
 
         const bad = async (body: unknown) => (await call("POST", GEO_API_PATHS.admin.places, admin.accessToken, body)).status;
         assert.equal(await bad({ ...request, kind: "other" }), 400);
-        assert.equal(await bad({ ...request, name: "   " }), 400);
+        assert.equal(await bad({ ...request, name: 42 }), 400);
         assert.equal(await bad({ ...request, name: "x".repeat(61) }), 400);
         assert.equal(await bad({ ...request, description: "x".repeat(281) }), 400);
         assert.equal(await bad({ ...request, latitude: 91 }), 400);
@@ -58,6 +58,20 @@ async function main() {
         assert.equal(created.body.description, "a pond for testing");
         assert.equal(created.body.active, true);
         assert.equal(created.body.createdBy, admin.player.displayName);
+
+        // The name is optional, when made and when edited.
+        const { name: _name, ...unnamedRequest } = request;
+        const unnamed = await call<GeoAdminPlace>("POST", GEO_API_PATHS.admin.places, admin.accessToken, unnamedRequest);
+        assert.equal(unnamed.status, 201);
+        placeIds.push(unnamed.body.id);
+        assert.equal(unnamed.body.name, "");
+        const unnamedPath = GEO_API_PATHS.admin.place.replace(":placeId", unnamed.body.id);
+        const renamed = await call<GeoAdminPlace>("PATCH", unnamedPath, admin.accessToken, { name: "Named" });
+        assert.equal(renamed.body.name, "Named");
+        const cleared = await call<GeoAdminPlace>("PATCH", unnamedPath, admin.accessToken, { name: "   " });
+        assert.equal(cleared.status, 200);
+        assert.equal(cleared.body.name, "");
+        step("a place needs no name");
         assert.deepEqual(created.body.settings, { fishing: { tier: "open" } });
         step("an admin makes a fishing place with its tier");
 

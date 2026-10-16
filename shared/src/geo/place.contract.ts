@@ -43,6 +43,7 @@ export type GeoPlaceSettings = {
 export type GeoPlace = {
     id: string;
     kind: GeoPlaceKind;
+    /** Empty when there is none; the app then calls it by its type. */
     name: string;
     /** Empty when there is none. */
     description: string;
@@ -80,7 +81,7 @@ export type GeoAdminPlacesResponse = {
  */
 export type GeoAdminCreatePlaceRequest = {
     kind: GeoPlaceKind;
-    name: string;
+    name?: string;
     description?: string;
     latitude: number;
     longitude: number;

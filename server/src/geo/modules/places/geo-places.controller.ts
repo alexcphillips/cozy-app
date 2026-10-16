@@ -36,8 +36,9 @@ function placeId(req: Request): string {
     return id;
 }
 
+/** Optional: an empty name leaves the app to call the place by its type. */
 function cleanName(name: unknown): string {
-    if (typeof name !== "string" || !name.trim()) throw AppError.badRequest("A name is needed");
+    if (typeof name !== "string") throw AppError.badRequest("name must be text");
     if (name.trim().length > GEO_PLACE_NAME_MAX) {
         throw AppError.badRequest(`The name can be at most ${GEO_PLACE_NAME_MAX} characters`);
     }
@@ -106,7 +107,7 @@ export async function createPlace(req: Request, res: Response) {
     }
     const place = {
         kind,
-        name: cleanName(name),
+        name: name === undefined ? "" : cleanName(name),
         description: description === undefined ? "" : cleanDescription(description),
         latitude: point.latitude,
         longitude: point.longitude,

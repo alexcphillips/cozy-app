@@ -412,7 +412,7 @@ const STATEMENTS = [
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         kind VARCHAR(20) NOT NULL
             CHECK (kind IN ('mining', 'fishing', 'farming', 'foraging', 'landmark')),
-        name VARCHAR(60) NOT NULL CHECK (length(name) > 0),
+        name VARCHAR(60) NOT NULL DEFAULT '',
         description VARCHAR(280) NOT NULL DEFAULT '',
         latitude DOUBLE PRECISION NOT NULL CHECK (latitude BETWEEN -90 AND 90),
         longitude DOUBLE PRECISION NOT NULL CHECK (longitude BETWEEN -180 AND 180),
@@ -426,6 +426,9 @@ const STATEMENTS = [
         ON geo.places (latitude, longitude) WHERE active;`,
     // Per-kind settings an admin sets, e.g. a fishing spot's tier.
     `ALTER TABLE geo.places ADD COLUMN IF NOT EXISTS settings JSONB NOT NULL DEFAULT '{}';`,
+    // The name is optional: empty, and the app calls the place by its type.
+    `ALTER TABLE geo.places DROP CONSTRAINT IF EXISTS places_name_check;`,
+    `ALTER TABLE geo.places ALTER COLUMN name SET DEFAULT '';`,
 
     // A deleted player takes their listings with
     // them. Other players' coins held by bids on those listings go back to

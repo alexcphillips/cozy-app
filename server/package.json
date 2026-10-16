@@ -19,6 +19,7 @@
         "smoke:geo-economy": "tsx --env-file ../.env src/geo/dev/geo-economy-smoke.ts",
         "smoke:geo-crafting": "tsx --env-file ../.env src/geo/dev/geo-crafting-smoke.ts",
         "smoke:geo-chests": "tsx --env-file ../.env src/geo/dev/geo-chests-smoke.ts",
+        "smoke:geo-pets": "tsx --env-file ../.env src/geo/dev/geo-pets-smoke.ts",
         "smoke:geo-friends": "tsx --env-file ../.env src/geo/dev/geo-friends-smoke.ts",
         "smoke:geo-fishing": "tsx --env-file ../.env src/geo/dev/geo-fishing-smoke.ts",
         "smoke:geo-farming": "tsx --env-file ../.env src/geo/dev/geo-farming-smoke.ts",
