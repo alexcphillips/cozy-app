@@ -34,7 +34,10 @@ export type FishDef = {
     xp: number;
 };
 
-export type RodDef = { name: string; power: number; line: number; maxTier: GeoQualityTier };
+/** A rod's fishing numbers: see `Rod` in `#geo/models`. */
+export type RodStats = { power: number; line: number; maxRarity: Rarity; maxTier: GeoQualityTier | null };
+/** The rod a cast uses: the equipped rod item's name and numbers. */
+export type RodDef = RodStats & { name: string };
 
 /** The fishing cards whose rules exist in `fishing/fishing-run.ts`. */
 export const FISHING_CARD_IDS = [

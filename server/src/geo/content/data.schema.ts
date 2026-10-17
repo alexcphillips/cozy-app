@@ -187,6 +187,17 @@ const RingFile = z.strictObject({ ...itemBase, ...equipmentRules });
 
 const AmuletFile = z.strictObject({ ...itemBase, ...equipmentRules });
 
+const RodFile = z.strictObject({
+    ...itemBase,
+    ...equipmentRules,
+    rod: z.strictObject({
+        power: z.int().min(0),
+        line: count,
+        maxRarity: Rarity,
+        maxTier: z.enum(GEO_QUALITY_TIERS).nullable(),
+    }),
+});
+
 const TalismanFile = z.strictObject({ ...itemBase, ...gearRules });
 
 const MaterialFile = z.strictObject({
@@ -507,6 +518,7 @@ export const DATA_FOLDERS = {
     armour: ArmourFile,
     rings: RingFile,
     amulets: AmuletFile,
+    rods: RodFile,
     talismans: TalismanFile,
     materials: MaterialFile,
     food: FoodFile,
@@ -550,8 +562,6 @@ const FishingConfig = z.strictObject({
         tierThresholds: z.record(z.enum(GEO_QUALITY_TIERS), z.number().positive()),
         maxTurns: count,
     }),
-    defaultRod: z
-        .strictObject({ name: z.string(), power: z.int().min(0), line: count, maxTier: z.enum(GEO_QUALITY_TIERS) }),
     seaCreatures: z.record(
         z.enum(GEO_FISHING_TIERS),
         z.array(z.strictObject({ enemyId: id, weight: z.number().positive() })),
@@ -635,7 +645,7 @@ const SpawnsConfig = z.strictObject({
 
 const StarterKitConfig = z.strictObject({
     items: z.array(ItemAmount),
-    equip: z.partialRecord(z.enum(["mainHand", "offHand", "head", "chest", "hands", "legs", "feet", "shoulders", "cloak", "belt", "amulet", "ring"]), ref),
+    equip: z.partialRecord(z.enum(["mainHand", "offHand", "head", "chest", "hands", "legs", "feet", "shoulders", "cloak", "belt", "amulet", "ring", "rod"]), ref),
     handSkills: z.array(z.string()),
     lunchbox: z.array(ItemAmount),
     bait: z.array(ItemAmount),
@@ -710,6 +720,7 @@ const folderModels: { [K in DataFolder]: Same<z.input<(typeof DATA_FOLDERS)[K]>,
     armour: true,
     rings: true,
     amulets: true,
+    rods: true,
     talismans: true,
     materials: true,
     food: true,
@@ -753,6 +764,7 @@ export type ModelOf = {
     armour: M.Armour;
     rings: M.Ring;
     amulets: M.Amulet;
+    rods: M.Rod;
     talismans: M.Talisman;
     materials: M.Material;
     food: M.Food;

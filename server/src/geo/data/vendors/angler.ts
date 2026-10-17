@@ -8,6 +8,10 @@ export default {
     sells: [
         { itemId: "worm-bait", price: 3 },
         { itemId: "bloody-bait", price: 25 },
+        { itemId: "ashwood-rod", price: 250 },
+        { itemId: "greenheart-rod", price: 1500 },
+        { itemId: "ironwood-rod", price: 8000 },
+        { itemId: "leviathan-rod", price: 40000 },
         { itemId: "card.fish.reel", price: 40 },
         { itemId: "card.fish.slack", price: 40 },
         { itemId: "card.fish.steady", price: 40 },

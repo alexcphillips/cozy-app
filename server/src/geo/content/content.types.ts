@@ -1,12 +1,12 @@
 import type { GeoChestTier, GeoQualityTier, GeoWorldHabitat, GeoWorldWaterKind } from "@cozy/shared/geo";
 import type { CropDef, FarmEventDef, MutationDef, PestDef, StructureDef } from "./farming";
-import type { FishDef } from "./fishing";
+import type { FishDef, RodStats } from "./fishing";
 import type { Action, CardDef, EffectDef, EnemyMove, FoodDef, StatModifier, Stats, StatusDef } from "../engine/engine.types";
 
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
 /** Equipment slot kinds, matching the app's character screen. */
-export type EquipKind = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring";
+export type EquipKind = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring" | "rod";
 
 /**
  * A weapon's type (dagger) and style (melee), from `data/config/weapons.ts`.
@@ -73,6 +73,8 @@ export type ItemDef =
           unlocksCards?: string[];
           /** Main-hand weapons: their type and style, which decide what cards they can play. */
           weapon?: WeaponTags;
+          /** Fishing rods (the rod slot): what a cast can hook and land. */
+          rod?: RodStats;
       })
     | (ItemBase & {
           /** Counts only while in the Talisman Bag, one copy per talisman; never equipped. */

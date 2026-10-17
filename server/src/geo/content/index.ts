@@ -355,8 +355,6 @@ export const WATER_RARITIES = fishing.waterRarities;
 export const RARITY_DIFFICULTY = fishing.rarityDifficulty;
 export const PAR_TURNS = fishing.parTurns;
 export const FISHING_TUNING = fishing.tuning;
-/** PLACEHOLDER: every player fishes with this until rods are gear. */
-export const DEFAULT_ROD = fishing.defaultRod;
 /** The enemies a sea creature can be, per water. */
 export const SEA_CREATURES = fishing.seaCreatures;
 

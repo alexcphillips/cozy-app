@@ -9,6 +9,7 @@ import type {
 import { GEO_QUALITY_TIERS } from "@cozy/shared/geo";
 import type { Rarity } from "../content/content.types";
 import { FISHING_TUNING, PAR_TURNS, RARITY_DIFFICULTY, RARITY_WEIGHT, SEA_CREATURES, WATER_RARITIES } from "../content";
+import { RARITIES } from "../content/data.schema";
 import { isFishingCardId, type FishDef, type FishingCardId, type RodDef } from "../content/fishing";
 import { createRng, type Rng } from "../engine/rng";
 
@@ -199,8 +200,15 @@ function strike(state: FishingState, setup: FishingSetup, rng: Rng): FishingStat
     return startFight({ ...state, fishId: fish.id }, setup, rng);
 }
 
+/** The rarities that can bite: the water's, up to the rod's rarest. Every rod hooks commons. */
+export function biteRarities(tier: GeoFishingTier, maxRarity: Rarity): Rarity[] {
+    const cap = RARITIES.indexOf(maxRarity);
+    const allowed = WATER_RARITIES[tier].filter((rarity) => RARITIES.indexOf(rarity) <= cap);
+    return allowed.length > 0 ? allowed : ["common"];
+}
+
 function randomFish(tier: GeoFishingTier, setup: FishingSetup, rng: Rng): FishDef {
-    const allowed = WATER_RARITIES[tier];
+    const allowed = biteRarities(tier, setup.rod.maxRarity);
     const weights = Object.fromEntries(allowed.map((rarity) => [rarity, RARITY_WEIGHT[rarity]])) as Record<Rarity, number>;
     const rarity = pickWeighted(weights, rng.next());
     const pool = Object.values(setup.fish).filter((fish) => fish.rarity === rarity);
@@ -444,10 +452,11 @@ function land(state: FishingState, fish: FishDef, setup: FishingSetup, rng: Rng,
 
 /**
  * Quality is a surprise: Finesse weights a luck roll, rarer fish need more
- * of it, and the rod caps the best tier. No Finesse, no tier.
+ * of it, and the rod caps the best tier. No Finesse, or a rod with no
+ * quality at all, no tier.
  */
-export function rollTier(finesse: number, rarity: Rarity, maxTier: GeoQualityTier, roll: number): GeoQualityTier | null {
-    if (finesse <= 0) return null;
+export function rollTier(finesse: number, rarity: Rarity, maxTier: GeoQualityTier | null, roll: number): GeoQualityTier | null {
+    if (finesse <= 0 || !maxTier) return null;
     const value = finesse * (0.4 + roll * roll * 1.6);
     let tier: GeoQualityTier | null = null;
     for (const candidate of GEO_QUALITY_TIERS) {

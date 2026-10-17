@@ -1,9 +1,9 @@
 import type { Enemy } from "#geo/models";
 
 export default {
-    id: "grotto-crab",
-    name: "Grotto Crab",
-    sprite: "grotto-crab",
+    id: "basalt-crab",
+    name: "Basalt Crab",
+    sprite: "basalt-crab",
     tier: 1,
     stats: {
         maxHealth: 65,

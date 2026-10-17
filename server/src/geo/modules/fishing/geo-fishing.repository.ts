@@ -1,7 +1,7 @@
 import type { GeoFishingAction, GeoFishingRunView, GeoFishingTier } from "@cozy/shared/geo";
 import { AppError } from "../../../http/AppError";
-import { CHUM_BAIT_IDS, CONTENT, DEFAULT_ROD } from "../../content";
-import { fishItemId, isFishingCardId, qualityFishItemId } from "../../content/fishing";
+import { CHUM_BAIT_IDS, CONTENT } from "../../content";
+import { fishItemId, isFishingCardId, qualityFishItemId, type RodDef } from "../../content/fishing";
 import { withTransaction, type TxQuery } from "../../db/transaction";
 import { randomSeed } from "../../engine/rng";
 import { fishingOdds } from "../../fishing/fishing";
@@ -47,17 +47,28 @@ async function loadHand(tx: TxQuery, playerId: string): Promise<FishingHandCard[
     });
 }
 
+/** The rod in the player's rod slot. Refused without one: you can't fish without a rod. */
+async function loadRod(tx: TxQuery, playerId: string): Promise<RodDef> {
+    const slot = (await playerRepository.findEquipment(playerId, tx)).find((row) => row.slot === "rod");
+    const [row] = slot ? await playerRepository.findInventoryByIds(playerId, [slot.inventory_id], tx) : [];
+    const item = row ? CONTENT.items[row.item_id] : undefined;
+    if (item?.kind !== "equipment" || !item.rod) throw AppError.badRequest("Equip a fishing rod first. The Angler sells them.");
+    return { name: item.name, ...item.rod };
+}
+
 /**
- * Rod, Fishing Power and odds, from the player's level and every modifier
- * they have. An admin's testing switch makes every bite a sea creature.
+ * Rod, Fishing Power and odds, from the equipped rod, the player's level and
+ * every modifier they have. An admin's testing switch makes every bite a sea
+ * creature.
  */
 async function loadSetup(tx: TxQuery, playerId: string): Promise<FishingSetup> {
+    const rod = await loadRod(tx, playerId);
     const fishingLevel = (await playerRepository.findSkillLevels(tx, playerId)).fishing ?? 1;
     const odds = fishingOdds(await playerModifiers(playerId, tx));
     const [testing] = await tx<{ always: boolean }>(ALWAYS_SEA_CREATURES, [playerId]);
     return {
-        rod: DEFAULT_ROD,
-        power: DEFAULT_ROD.power + fishingLevel,
+        rod,
+        power: rod.power + fishingLevel,
         seaCreatureChance: testing?.always ? 1 : odds.seaCreatureChance,
         fish: CONTENT.fish,
     };

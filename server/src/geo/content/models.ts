@@ -119,6 +119,21 @@ export type Ring = ItemBase & EquipmentRules;
 
 export type Amulet = ItemBase & EquipmentRules;
 
+/** A fishing rod: worn in the rod slot, it decides what a cast can hook and land. */
+export type Rod = ItemBase &
+    EquipmentRules & {
+        rod: {
+            /** Added to the fishing level for Fishing Power: reels faster, tires fish quicker, outclasses small ones. */
+            power: number;
+            /** Line strength: the Tension cap. The sweet zone scales with it. */
+            line: number;
+            /** The rarest fish it can hook. Rarer bites re-roll among the rarities it can. */
+            maxRarity: Rarity;
+            /** The best quality it can land. null: never a quality catch. */
+            maxTier: GeoQualityTier | null;
+        };
+    };
+
 /** Counts only while in the Talisman Bag, one copy each. */
 export type Talisman = ItemBase & GearRules;
 
@@ -627,7 +642,7 @@ export type PlayerConfig = {
     baseStats: Record<string, number>;
 };
 
-export type EquipSlot = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring";
+export type EquipSlot = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring" | "rod";
 
 export type StarterKitConfig = {
     /** Granted to every new player. Cards are `card.<id>`. */
@@ -809,8 +824,6 @@ export type FishingConfig = {
         /** A fight this long is lost. */
         maxTurns: number;
     };
-    /** Every player fishes with this until rods are gear. */
-    defaultRod: { name: string; power: number; line: number; maxTier: GeoQualityTier };
     /**
      * The enemies a sea creature can be in each water, picked by weight. An
      * empty list means no sea creatures bite there at all.

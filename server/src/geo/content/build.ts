@@ -24,6 +24,7 @@ export const compactId = (itemId: string) => `compact-${itemId}`;
 export const petItemId = (petId: string, rarity: Rarity) => `pet.${petId}.${rarity}`;
 
 const TIER_LABELS: Record<GeoQualityTier, string> = { bronze: "Bronze", silver: "Silver", gold: "Gold", ruby: "Ruby" };
+const RARITY_LABELS: Record<Rarity, string> = { common: "Common", uncommon: "Uncommon", rare: "Rare", epic: "Epic", legendary: "Legendary" };
 
 export type BuiltContent = {
     content: GameContent;
@@ -56,7 +57,7 @@ export function buildContent(data: GameData): BuiltContent {
     for (const card of data.cards) {
         items.push({ ...itemBase(card), id: `card.${card.id}`, kind: "card", cardId: card.id, maxCharges: card.maxCharges, finesse: card.finesse });
     }
-    const gear = (entry: GameData["weapons"][number] | GameData["armour"][number] | GameData["rings"][number] | GameData["amulets"][number]) => ({
+    const gear = (entry: GameData["weapons"][number] | GameData["armour"][number] | GameData["rings"][number] | GameData["amulets"][number] | GameData["rods"][number]) => ({
         modifiers: entry.modifiers,
         effects: entry.effects,
         unlocksCards: entry.unlocksCards,
@@ -67,6 +68,16 @@ export function buildContent(data: GameData): BuiltContent {
     for (const armour of data.armour) items.push({ ...itemBase(armour), kind: "equipment", slot: armour.slot, ...gear(armour) });
     for (const ring of data.rings) items.push({ ...itemBase(ring), kind: "equipment", slot: "ring", ...gear(ring) });
     for (const amulet of data.amulets) items.push({ ...itemBase(amulet), kind: "equipment", slot: "amulet", ...gear(amulet) });
+    for (const rod of data.rods) {
+        const rows = [
+            { label: "Fishing Power", value: `+${rod.rod.power}` },
+            { label: "Line", value: `${rod.rod.line}` },
+            { label: "Hooks", value: `Up to ${RARITY_LABELS[rod.rod.maxRarity]}` },
+            { label: "Quality", value: rod.rod.maxTier ? `Up to ${TIER_LABELS[rod.rod.maxTier]}` : "None" },
+        ];
+        const base = itemBase(rod);
+        items.push({ ...base, stats: [...rows, ...(base.stats ?? [])], kind: "equipment", slot: "rod", rod: rod.rod, ...gear(rod) });
+    }
     for (const talisman of data.talismans) {
         items.push({ ...itemBase(talisman), kind: "talisman", modifiers: talisman.modifiers, effects: talisman.effects });
     }

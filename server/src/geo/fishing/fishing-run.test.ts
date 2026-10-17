@@ -2,10 +2,18 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { GeoFishingAction } from "@cozy/shared/geo";
 import { CONTENT } from "../content";
-import { DEFAULT_ROD, WATER_RARITIES } from "../content";
-import { FishingRuleError, newFishingState, rollTier, stepFishing, type FishingSetup, type FishingState } from "./fishing-run";
+import { WATER_RARITIES } from "../content";
+import type { RodDef } from "../content/fishing";
+import { biteRarities, FishingRuleError, newFishingState, rollTier, stepFishing, type FishingSetup, type FishingState } from "./fishing-run";
 
-const setup: FishingSetup = { rod: DEFAULT_ROD, power: DEFAULT_ROD.power + 1, seaCreatureChance: 0, fish: CONTENT.fish };
+function rod(itemId: string): RodDef {
+    const item = CONTENT.items[itemId];
+    assert.ok(item?.kind === "equipment" && item.rod, `${itemId} is a rod`);
+    return { name: item.name, ...item.rod };
+}
+const setupWith = (r: RodDef): FishingSetup => ({ rod: r, power: r.power + 1, seaCreatureChance: 0, fish: CONTENT.fish });
+const setup = setupWith(rod("leviathan-rod"));
+const twig = setupWith(rod("twig-rod"));
 const hand = ["fish.reel", "fish.slack", "fish.steady", "fish.gaff"].map((cardId, i) => ({
     inventoryId: `inv-${i}`,
     itemId: `card.${cardId}`,
@@ -15,8 +23,8 @@ const hand = ["fish.reel", "fish.slack", "fish.steady", "fish.gaff"].map((cardId
 const worm = { itemId: "worm-bait", chum: false };
 
 /** Plays a cast to its end: strike the bite, quick-land what it can, then a simple card policy. */
-function playCast(start: FishingState): FishingState {
-    let state = stepFishing(start, { type: "cast" }, setup, worm);
+function playCast(start: FishingState, using: FishingSetup = setup): FishingState {
+    let state = stepFishing(start, { type: "cast" }, using, worm);
     for (let guard = 0; state.phase !== "over"; guard++) {
         assert.ok(guard < 200, `stuck in ${state.phase}`);
         let action: GeoFishingAction;
@@ -28,7 +36,7 @@ function playCast(start: FishingState): FishingState {
             const pick = f.distance <= 2 ? "fish.gaff" : f.tension > f.zoneHigh ? "fish.slack" : "fish.reel";
             action = { type: "play", inventoryId: state.hand.find((c) => c.cardId === pick)!.inventoryId };
         }
-        state = stepFishing(state, action, setup);
+        state = stepFishing(state, action, using);
     }
     return state;
 }
@@ -73,6 +81,20 @@ describe("fishing Run", () => {
     it("rolls no tier without Finesse, and never past the rod's best", () => {
         assert.equal(rollTier(0, "common", "ruby", 0.99), null);
         assert.equal(rollTier(100, "common", "silver", 0.99), "silver");
+        assert.equal(rollTier(100, "common", null, 0.99), null, "a rod with no quality never grades a catch");
+    });
+
+    it("hooks only what the rod can handle, whatever the water", () => {
+        assert.deepEqual(biteRarities("open", "common"), ["common"]);
+        assert.deepEqual(biteRarities("lake", "uncommon"), ["common", "uncommon"]);
+        assert.deepEqual(biteRarities("pond", "legendary"), ["common", "uncommon"]);
+
+        for (let seed = 0; seed < 200; seed++) {
+            const result = playCast(newFishingState("open", hand, seed), twig).result!;
+            if (result.kind !== "landed") continue;
+            assert.equal(CONTENT.fish[result.fishId]?.rarity, "common", "the Twig Rod hooks only commons");
+            assert.equal(result.tier, null, "the Twig Rod never lands a quality catch");
+        }
     });
 
     it("hooks a sea creature at the creature chance, and fighting it names the enemy", () => {

@@ -17,7 +17,6 @@ export default {
         tierThresholds: { bronze: 2.5, silver: 4.5, gold: 7, ruby: 10 },
         maxTurns: 40,
     },
-    defaultRod: { name: "Ashwood Rod", power: 7, line: 12, maxTier: "silver" },
     // PLACEHOLDER: the Kraken is the only sea creature so far. Nothing lurks in a puddle.
     seaCreatures: {
         puddle: [],

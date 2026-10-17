@@ -29,7 +29,7 @@ export function toFishingView(id: string, state: FishingState, setup: FishingSet
         hand: state.hand.map((card) => ({ ...card })),
         baitItemId: state.baitItemId,
         power: setup.power,
-        rod: { name: setup.rod.name, maxTier: setup.rod.maxTier },
+        rod: { name: setup.rod.name, maxRarity: setup.rod.maxRarity, maxTier: setup.rod.maxTier },
     };
 }
 

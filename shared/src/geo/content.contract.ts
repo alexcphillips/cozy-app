@@ -3,7 +3,7 @@ import type { GeoQualityTier } from "./fishing.contract";
 
 export type GeoRarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
-export type GeoEquipKind = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring";
+export type GeoEquipKind = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring" | "rod";
 
 /** Equipment slot ids on the character screen; rings take either of two. */
 export type GeoEquipmentSlot =
@@ -19,7 +19,8 @@ export type GeoEquipmentSlot =
     | "belt"
     | "amulet"
     | "ring1"
-    | "ring2";
+    | "ring2"
+    | "rod";
 
 export const GEO_EQUIPMENT_SLOTS: readonly GeoEquipmentSlot[] = [
     "mainHand",
@@ -35,6 +36,7 @@ export const GEO_EQUIPMENT_SLOTS: readonly GeoEquipmentSlot[] = [
     "amulet",
     "ring1",
     "ring2",
+    "rod",
 ];
 
 /** Which kind of item each slot takes. */

@@ -59,6 +59,7 @@ One entry per file, named by its id: `data/weapons/broadsword.ts` has
 | `armour/` | Shields (off hand), head, shoulders, chest, hands, legs, feet, cloak, belt — a subfolder per slot | [armour](armour/README.md) |
 | `rings/` | Rings | [rings](rings/README.md) |
 | `amulets/` | Amulets | [amulets](amulets/README.md) |
+| `rods/` | Fishing rods: what a cast can hook and land | [rods](rods/README.md) |
 | `talismans/` | Talismans for the Talisman Bag | [talismans](talismans/README.md) |
 | `materials/` | Crafting materials, by skill | [materials](materials/README.md) |
 | `food/` | Food for the lunchbox | [food](food/README.md) |
@@ -104,7 +105,7 @@ selling Reel sells `card.fish.reel`.
 
 ## Fields every item has
 
-Cards, weapons, armour, rings, amulets, talismans, materials, food, bait and misc all
+Cards, weapons, armour, rings, amulets, rods, talismans, materials, food, bait and misc all
 start with these:
 
 | Field | Type | Required? | What it does |

@@ -3,6 +3,7 @@ import type { StarterKitConfig } from "#geo/models";
 export default {
     items: [
         { itemId: "bronze-dagger", quantity: 1 },
+        { itemId: "twig-rod", quantity: 1 },
         { itemId: "card.slash", quantity: 1 },
         { itemId: "card.double-slash", quantity: 1 },
         { itemId: "card.fish.reel", quantity: 1 },
@@ -17,7 +18,7 @@ export default {
         { itemId: "wheat-seeds", quantity: 12 },
         { itemId: "carrot-seeds", quantity: 6 },
     ],
-    equip: { mainHand: "bronze-dagger" },
+    equip: { mainHand: "bronze-dagger", rod: "twig-rod" },
     handSkills: ["combat", "fishing", "farming"],
     lunchbox: [{ itemId: "bread", quantity: 5 }],
     bait: [{ itemId: "worm-bait", quantity: 20 }],

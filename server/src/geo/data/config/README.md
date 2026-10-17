@@ -58,7 +58,6 @@ Enemy spawns around each player.
 | `tuning.zoneLow`, `zoneHigh` | The sweet Tension zone, as a share of the line's cap. |
 | `tuning.tierThresholds` | Finesse needed for bronze, silver, gold, ruby. |
 | `tuning.maxTurns` | A fight this long is lost. |
-| `defaultRod` | `name`, `power`, `line`, `maxTier`: everyone's rod until rods are gear. |
 | `seaCreatures` | Per water, the [enemies](../enemies/README.md) a sea creature can be: `{ enemyId, weight }`. Fighting one starts a combat Run. Empty: no sea creatures there. |
 
 ## farming.ts

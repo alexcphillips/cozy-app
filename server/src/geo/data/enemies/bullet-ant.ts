@@ -1,9 +1,9 @@
 import type { Enemy } from "#geo/models";
 
 export default {
-    id: "army-ant",
-    name: "Army Ant",
-    sprite: "army-ant",
+    id: "bullet-ant",
+    name: "Bullet Ant",
+    sprite: "bullet-ant",
     tier: 1,
     stats: { maxHealth: 23, attack: 22, defence: 0, speed: 12 },
     moves: [
