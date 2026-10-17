@@ -11,7 +11,7 @@ Plus the [fields every item has](../README.md#fields-every-item-has).
 
 | Field | Type | Required? | What it does |
 | --- | --- | --- | --- |
-| `heal` | whole number ≥ 1 | no | Heals the eater this much, never past max health. Also adds a "Heals" row to the item page. Raised by the eater's `foodHealing` stat. |
+| `heal` | whole number ≥ 1 | no | Heals the eater this much, never past max health. Also adds a "Heals" row to the item page. Mending never raises it. |
 | `actions` | list of [actions](../EFFECTS.md#actions) | no | Done after the heal. `self` is the eater. Usually `applyStatus` for a buff that lasts. |
 | `effects` | list of [effects](../EFFECTS.md#effects-when-x-if-y-maybe-do-z) | no | Food-only rules, heard only as this food is eaten (`foodEaten`). |
 | `tags` | list of text | no | e.g. `spicy`, `fish`, `hearty`. Gear can react with `foodHasTag`, e.g. "spicy food heals 20% more". |

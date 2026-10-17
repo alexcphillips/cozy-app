@@ -7,6 +7,5 @@ export default {
     rarity: "uncommon",
     icon: "clover",
     description: "Found in a field of three-leaf ones. The field noticed.",
-    stats: [{ label: "Farming Fortune", value: "+10" }],
     modifiers: [{ stat: "farmingFortune", kind: "flat", value: 10 }],
 } satisfies Talisman;

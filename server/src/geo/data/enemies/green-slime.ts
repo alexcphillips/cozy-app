@@ -5,7 +5,7 @@ export default {
     name: "Green Slime",
     sprite: "green-slime",
     tier: 1,
-    stats: { maxHealth: 12, attack: 8, defence: 0, speed: 12 },
+    stats: { maxHealth: 12, attack: 7, defence: 0, speed: 9 },
     moves: [
         {
             id: "bash",

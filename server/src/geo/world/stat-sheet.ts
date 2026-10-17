@@ -27,6 +27,28 @@ export type StatSheetInput = {
 
 type StatDef = { id: StatId; group: GeoStatGroup; base: number };
 
+/** What each stat does, for the tooltip. Keep in step with `data/EFFECTS.md`. */
+const DESCRIPTIONS: Record<StatId, string> = {
+    maxHealth: "The most health you can have. Health carries between fights; food restores it.",
+    attack: "Weapon power. Attack cards hit harder with it.",
+    defence: "Taken off every hit you receive.",
+    speed: "Turn order: the fastest acts first each round.",
+    critChance: "Chance for an attack to crit.",
+    critMultiplier: "A crit's damage, as a share of a normal hit.",
+    counterChance: "Chance to strike back after being attacked: once per attack, however many hits.",
+    counterDamage: "A counter's damage, as a share of your attack.",
+    damageDealt: "Extra damage on every hit you deal. Not on status damage like Burning.",
+    intelligence: "Magic power. Spells that scale with it hit harder.",
+    mending: "Heals you receive are this much bigger. Food's own heals aren't boosted.",
+    magicFind: "Rare drops (under 5%) are likelier: +1 = 1% likelier.",
+    seaCreatureChance: "Chance a bite is a sea creature to fight instead of a fish.",
+    eelChance: "Chance a catch is an eel. Not in use yet.",
+    baitSaveChance: "Chance a cast doesn't use up your bait.",
+    farmingFortune: "More crops per harvest: each 100 adds the harvest again; the rest is a chance of one more.",
+    pestChance: "How likely pests are to arrive, against normal (×1).",
+    mutationChance: "How likely mutations are to sprout, against normal (×1).",
+};
+
 /**
  * Pest and mutation chance are multipliers on 1, shown as ×0.75; the
  * fishing chances are capped to 0–1 as fishing reads them.
@@ -45,10 +67,11 @@ const STATS: StatDef[] = [
         "speed",
         "critChance",
         "critMultiplier",
+        "counterChance",
+        "counterDamage",
         "damageDealt",
         "intelligence",
         "mending",
-        "foodHealing",
         "magicFind",
     ].map((id): StatDef => ({ id, group: "combat", base: combatBase(id) })),
     { id: "seaCreatureChance", group: "fishing", base: FISHING_BASE.seaCreatureChance },
@@ -125,6 +148,6 @@ export function statSheet(input: StatSheetInput): GeoStatLine[] {
             const value = formatPart(id, source.modifiers);
             if (value) rows.push({ label: source.label, value });
         }
-        return { id, group, label: statLabel(id), value: formatValue(id, total), sources: rows };
+        return { id, group, label: statLabel(id), description: DESCRIPTIONS[id] ?? "", value: formatValue(id, total), sources: rows };
     });
 }

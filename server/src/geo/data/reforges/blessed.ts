@@ -1,15 +1,15 @@
 import type { Reforge } from "#geo/models";
 
-// Mending: heal a little at the start of each of your turns.
+// Mending: heals you receive are bigger (not food's).
 export default {
     id: "blessed",
     name: "Blessed",
     appliesTo: ["armour"],
     modifiers: {
-        common: [{ stat: "mending", kind: "flat", value: 1 }],
-        uncommon: [{ stat: "mending", kind: "flat", value: 1 }],
-        rare: [{ stat: "mending", kind: "flat", value: 2 }],
-        epic: [{ stat: "mending", kind: "flat", value: 3 }],
-        legendary: [{ stat: "mending", kind: "flat", value: 4 }],
+        common: [{ stat: "mending", kind: "flat", value: 0.05 }],
+        uncommon: [{ stat: "mending", kind: "flat", value: 0.05 }],
+        rare: [{ stat: "mending", kind: "flat", value: 0.1 }],
+        epic: [{ stat: "mending", kind: "flat", value: 0.15 }],
+        legendary: [{ stat: "mending", kind: "flat", value: 0.2 }],
     },
 } satisfies Reforge;

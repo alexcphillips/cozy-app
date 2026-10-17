@@ -95,6 +95,13 @@ const CARDS: Record<string, CardDef> = {
         targets: "self",
         actions: [{ type: "guard", to: "self", amount: 8 }],
     },
+    barrier: {
+        id: "barrier",
+        name: "Barrier",
+        skill: "combat",
+        targets: "self",
+        actions: [{ type: "barrier", to: "self", amount: 10 }],
+    },
 };
 
 const WELL_FED: StatusDef = {
@@ -170,6 +177,11 @@ describe("turn order", () => {
 
     it("gives ties to the player", () => {
         const { state } = createBattle([player(), spider({ baseStats: { maxHealth: 40, attack: 12, speed: 10 } })], 1, content());
+        assert.deepEqual(state.order, ["player", "enemy:0"]);
+    });
+
+    it("gives ties to the player even when the enemy is set up first", () => {
+        const { state } = createBattle([spider({ baseStats: { maxHealth: 40, attack: 12, speed: 10 } }), player()], 1, content());
         assert.deepEqual(state.order, ["player", "enemy:0"]);
     });
 });
@@ -286,16 +298,10 @@ describe("gear and talisman effects", () => {
 });
 
 describe("mending", () => {
-    it("heals its bearer at the start of each of their turns, never past max", () => {
-        const mending = [{ stat: "mending", kind: "flat" as const, value: 5 }];
-        // The faster spider bites for 12 first; then the player's turn starts and mends 5.
-        const { state, log } = createBattle([player({ modifiers: mending }), spider()], 1, content());
-        assert.equal(healthOf(state, "player"), 93);
-        assert.ok(log.some((e) => e.type === "heal" && e.target === "player" && e.amount === 5));
-
-        const unhurt = createBattle([player({ modifiers: mending }), spider({ baseStats: { maxHealth: 40, attack: 12, speed: 1 } })], 1, content());
-        assert.equal(healthOf(unhurt.state, "player"), 100);
-        assert.ok(!unhurt.log.some((e) => e.type === "heal"));
+    it("never heals by itself", () => {
+        const { state, log } = createBattle([player({ modifiers: [{ stat: "mending", kind: "flat", value: 0.5 }] }), spider()], 1, content());
+        assert.equal(healthOf(state, "player"), 88);
+        assert.ok(!log.some((e) => e.type === "heal"));
     });
 });
 
@@ -305,6 +311,52 @@ describe("guard", () => {
         const { state, log } = playCard(start.state, content(), { cardInstanceId: "c3" });
         assert.equal(damageTo(log, "player")[0]?.blocked, 8);
         assert.equal(healthOf(state, "player"), 96);
+    });
+});
+
+describe("barrier", () => {
+    const barrierOf = (state: { combatants: { id: string; barrier: number }[] }, id: string) =>
+        state.combatants.find((c) => c.id === id)!.barrier;
+    // Faster than a weak spider, so each card lands before its bite.
+    const caster = (overrides: Partial<CombatantSetup> = {}) =>
+        player({ baseStats: { maxHealth: 100, attack: 10, speed: 20 }, hand: hand("slash", "barrier", "brace"), ...overrides });
+    const weak = () => spider({ baseStats: { maxHealth: 200, attack: 5, speed: 12 } });
+
+    it("starts on a combatant set up with one, logged, and soaks before health with the overflow carried", () => {
+        const start = createBattle([caster(), spider({ barrier: 8 })], 1, content());
+        assert.deepEqual(start.log[0], { type: "barrier", target: "enemy:0", amount: 8 });
+        const { state, log } = playCard(start.state, content(), { cardInstanceId: "c0" });
+        assert.equal(damageTo(log, "enemy:0")[0]?.absorbed, 8);
+        assert.equal(damageTo(log, "enemy:0")[0]?.amount, 2);
+        assert.equal(barrierOf(state, "enemy:0"), 0);
+        assert.equal(healthOf(state, "enemy:0"), 38);
+    });
+
+    it("lasts across turns, unlike guard", () => {
+        const start = createBattle([caster(), weak()], 1, content());
+        const cast = playCard(start.state, content(), { cardInstanceId: "c1" });
+        assert.equal(barrierOf(cast.state, "player"), 5);
+        const next = playCard(cast.state, content(), { cardInstanceId: "c0" });
+        assert.equal(barrierOf(next.state, "player"), 0);
+        assert.equal(healthOf(next.state, "player"), 100);
+    });
+
+    it("resets on a recast instead of stacking", () => {
+        const start = createBattle([caster(), weak()], 1, content());
+        const cast = playCard(start.state, content(), { cardInstanceId: "c1" });
+        const recast = playCard(cast.state, content(), { cardInstanceId: "c1" });
+        assert.ok(recast.log.some((e) => e.type === "barrier" && e.amount === 10));
+        // 10 again, then the bite takes 5: not 5 + 10 − 5.
+        assert.equal(barrierOf(recast.state, "player"), 5);
+    });
+
+    it("is spent after guard", () => {
+        const start = createBattle([caster({ barrier: 10 }), spider({ baseStats: { maxHealth: 200, attack: 12, speed: 12 } })], 1, content());
+        const { state, log } = playCard(start.state, content(), { cardInstanceId: "c2" });
+        assert.equal(damageTo(log, "player")[0]?.blocked, 8);
+        assert.equal(damageTo(log, "player")[0]?.absorbed, 4);
+        assert.equal(barrierOf(state, "player"), 6);
+        assert.equal(healthOf(state, "player"), 100);
     });
 });
 
@@ -348,6 +400,50 @@ describe("multi-hit attacks", () => {
         const { state, log } = playCard(start.state, content(), { cardInstanceId: "c0" });
         assert.equal(damageTo(log, "enemy:0").length, 1);
         assert.equal(state.outcome, "victory");
+    });
+});
+
+describe("counters", () => {
+    const counters = (log: LogEntry[], target: string) => damageTo(log, target).filter((d) => d.counter);
+    const crab = (overrides: Partial<CombatantSetup> = {}) =>
+        spider({ baseStats: { maxHealth: 40, attack: 12, defence: 0, speed: 1, counterChance: 1 }, ...overrides });
+
+    it("strikes back once per attack, not per hit, for half its attack against defence", () => {
+        const you = player({ baseStats: { maxHealth: 100, attack: 10, defence: 2, speed: 20 }, hand: hand("flurry") });
+        const start = createBattle([you, crab()], 1, content());
+        const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
+        // 12 × 0.5 − 2
+        assert.deepEqual(counters(log, "player").map((d) => d.amount), [4]);
+        // After both hits land.
+        const order = log.filter((e) => e.type === "damage").map((e) => (e.counter ? "counter" : e.target));
+        assert.deepEqual(order.slice(0, 3), ["enemy:0", "enemy:0", "counter"]);
+    });
+
+    it("hits for counterDamage × attack when set", () => {
+        const start = createBattle([player({ hand: hand("slash") }), crab({ baseStats: { maxHealth: 40, attack: 12, speed: 1, counterChance: 1, counterDamage: 0.25 } })], 1, content());
+        const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
+        assert.deepEqual(counters(log, "player").map((d) => d.amount), [3]);
+    });
+
+    it("never counters a counter", () => {
+        const you = player({ baseStats: { maxHealth: 100, attack: 10, defence: 0, speed: 20, counterChance: 1 } });
+        const start = createBattle([you, crab()], 1, content());
+        const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
+        // Your slash is countered, then the crab's bite is: one each way.
+        assert.equal(counters(log, "player").length, 1);
+        assert.equal(counters(log, "enemy:0").length, 1);
+    });
+
+    it("doesn't counter from the grave", () => {
+        const start = createBattle([player(), crab({ baseStats: { maxHealth: 5, attack: 12, speed: 1, counterChance: 1 } })], 1, content());
+        const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
+        assert.equal(counters(log, "player").length, 0);
+    });
+
+    it("never rolls without counter chance", () => {
+        const start = createBattle([player(), spider()], 1, content());
+        const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
+        assert.equal(counters(log, "player").length + counters(log, "enemy:0").length, 0);
     });
 });
 
@@ -470,22 +566,12 @@ describe("eating from the lunchbox", () => {
         assert.ok(ramen.log.some((e) => e.type === "guard" && e.amount === 5));
     });
 
-    it("boosts the food's own heals by foodHealing, and nothing else", () => {
-        const start = createBattle(
-            [
-                player({
-                    health: 40,
-                    lunchbox: lunchbox(),
-                    modifiers: [{ stat: "foodHealing", kind: "flat", value: 0.5 }],
-                }),
-                harmless(),
-            ],
-            1,
-            content(),
-        );
+    it("Mending boosts heals its bearer receives, but not the food's own", () => {
+        const mending = [{ stat: "mending", kind: "flat" as const, value: 0.5 }];
+        const start = createBattle([player({ health: 40, lunchbox: lunchbox(), modifiers: mending }), harmless()], 1, content());
         const { log } = eatFood(start.state, content(), { slot: 1 });
-        // Stew's 10 → 15; Well Fed's regen is a status, not the food, so stays 8.
-        assert.deepEqual(heals(log), [15, 8]);
+        // Stew's own 10 stays 10; Well Fed's regen is a status, so 8 → 12.
+        assert.deepEqual(heals(log), [10, 12]);
     });
 
     describe("between fights", () => {
@@ -501,9 +587,9 @@ describe("eating from the lunchbox", () => {
         const withBitter: EngineContent = { ...content(), foods: { ...FOODS, bitter } };
         const box = [...lunchbox(), { slot: 3, foodId: "bitter", quantity: 1 }];
 
-        it("heals as in a fight, foodHealing included", () => {
-            const you = player({ health: 40, lunchbox: box, modifiers: [{ stat: "foodHealing", kind: "flat", value: 0.5 }] });
-            assert.equal(eatBetweenFights(you, withBitter, { slot: 0 }, 1).health, 40 + 23);
+        it("heals as in a fight, food's own heal unboosted by Mending", () => {
+            const you = player({ health: 40, lunchbox: box, modifiers: [{ stat: "mending", kind: "flat", value: 0.5 }] });
+            assert.equal(eatBetweenFights(you, withBitter, { slot: 0 }, 1).health, 40 + 15);
         });
 
         it("takes a food's harm, keeps none of its buffs, and stops at 1", () => {

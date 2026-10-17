@@ -15,7 +15,14 @@ import type {
     StatusInstance,
     Who,
 } from "./engine.types";
-import { CORE_STATS, DAMAGE_DEALT_STAT, FOOD_HEALING_STAT, MENDING_STAT } from "./engine.types";
+import {
+    CORE_STATS,
+    COUNTER_CHANCE_STAT,
+    COUNTER_DAMAGE_STAT,
+    DAMAGE_DEALT_STAT,
+    DEFAULT_COUNTER_DAMAGE,
+    MENDING_STAT,
+} from "./engine.types";
 import { createRng, type Rng } from "./rng";
 import { statOf } from "./stats";
 
@@ -38,9 +45,11 @@ const MAX_EFFECT_DEPTH = 6;
 /** Turns one advance may run, as a backstop against a battle nobody can act in. */
 const MAX_TURNS_PER_ADVANCE = 100;
 
-export type CombatantSetup = Omit<Combatant, "health" | "guard" | "statuses"> & {
+export type CombatantSetup = Omit<Combatant, "health" | "guard" | "barrier" | "statuses"> & {
     /** Starts at max health when omitted. */
     health?: number;
+    /** A barrier it starts the fight with, e.g. an enemy that spawns shielded. */
+    barrier?: number;
 };
 
 export type BattleResult = { state: BattleState; log: LogEntry[] };
@@ -72,6 +81,7 @@ export function createBattle(
                 ...setup,
                 health: 0,
                 guard: 0,
+                barrier: setup.barrier ?? 0,
                 statuses: [],
             };
             draft.health = setup.health ?? statOf(draft, CORE_STATS.maxHealth, content);
@@ -81,6 +91,10 @@ export function createBattle(
     };
 
     const ctx = makeContext(state, content);
+    // Logged so the app shows a starting barrier arriving, like any other.
+    for (const combatant of state.combatants) {
+        if (combatant.barrier > 0) ctx.log.push({ type: "barrier", target: combatant.id, amount: combatant.barrier });
+    }
     emit(ctx, { type: "battleStart" });
     advance(ctx);
     return finish(ctx);
@@ -129,8 +143,7 @@ export function eatFood(previous: BattleState, content: EngineContent, eat: { sl
 
 /**
  * The player eats one food from a lunchbox slot between fights. The food
- * resolves exactly as in a fight (its heals boosted by `foodHealing`, its
- * damage, gear that reacts to `foodEaten`), but only the eater's health is
+ * resolves exactly as in a fight (its heals, its damage, gear that reacts to `foodEaten`), but only the eater's health is
  * kept: statuses, guard and the rest exist only in a fight. Eating can't
  * kill: health stops at 1. Throws `BattleRuleError` for an empty slot.
  */
@@ -140,7 +153,7 @@ export function eatBetweenFights(
     eat: { slot: number },
     seed: number,
 ): { health: number; log: LogEntry[] } {
-    const eater: Combatant = { ...structuredClone(setup), health: 0, guard: 0, statuses: [] };
+    const eater: Combatant = { ...structuredClone(setup), health: 0, guard: 0, barrier: 0, statuses: [] };
     eater.health = setup.health ?? statOf(eater, CORE_STATS.maxHealth, content);
     const state: BattleState = { seed, rngDraws: 0, round: 0, order: [eater.id], turnIndex: 0, combatants: [eater], outcome: "ongoing" };
     const ctx = makeContext(state, content);
@@ -236,7 +249,6 @@ function advance(ctx: Context): void {
         actor.guard = 0;
         emit(ctx, { type: "turnStart", actor: actor.id });
         if (state.outcome !== "ongoing") return;
-        mend(ctx, actor);
         if (!isAlive(actor)) {
             state.turnIndex += 1;
             continue;
@@ -256,16 +268,6 @@ function advance(ctx: Context): void {
         enemyTurn(ctx, actor);
         if (state.outcome === "ongoing") endTurn(ctx, actor);
     }
-}
-
-/** Mending heals its bearer a little at the start of each of their turns. */
-function mend(ctx: Context, actor: Combatant): void {
-    if (!isAlive(actor)) return;
-    const max = statOf(actor, CORE_STATS.maxHealth, ctx.content);
-    const healed = Math.min(max - actor.health, Math.round(statOf(actor, MENDING_STAT, ctx.content)));
-    if (healed <= 0) return;
-    actor.health += healed;
-    ctx.log.push({ type: "heal", target: actor.id, amount: healed });
 }
 
 /**
@@ -518,7 +520,7 @@ type ActionScope = {
     effectId?: string;
     /** Where cancelAction / freeCharge report back to the emitter. */
     outcome?: EventOutcome;
-    /** The eaten food's own actions, whose heals `foodHealing` boosts. */
+    /** The eaten food's own actions, whose heals Mending doesn't boost. */
     fromFood?: boolean;
 };
 
@@ -563,7 +565,8 @@ function runAction(ctx: Context, action: Action, scope: ActionScope): void {
             const target = resolveWho(ctx, action.to, owner, event);
             if (!target || !isAlive(target)) return;
             const max = statOf(target, CORE_STATS.maxHealth, ctx.content);
-            const boost = scope.fromFood ? 1 + statOf(owner, FOOD_HEALING_STAT, ctx.content) : 1;
+            // Mending is the healed one's: it boosts heals they receive, but never food's.
+            const boost = scope.fromFood ? 1 : 1 + statOf(target, MENDING_STAT, ctx.content);
             const healed = Math.min(max - target.health, Math.round(amountOf(ctx, action.amount, scope) * boost));
             if (healed <= 0) return;
             target.health += healed;
@@ -576,6 +579,13 @@ function runAction(ctx: Context, action: Action, scope: ActionScope): void {
             const amount = Math.round(amountOf(ctx, action.amount, scope));
             target.guard += amount;
             ctx.log.push({ type: "guard", target: target.id, amount });
+            return;
+        }
+        case "barrier": {
+            const target = resolveWho(ctx, action.to, owner, event);
+            if (!target || !isAlive(target)) return;
+            target.barrier = Math.max(0, Math.round(amountOf(ctx, action.amount, scope)));
+            ctx.log.push({ type: "barrier", target: target.id, amount: target.barrier });
             return;
         }
         case "applyStatus": {
@@ -613,6 +623,7 @@ function attack(
     target: Combatant,
     action: Extract<Action, { type: "attack" }>,
     scope: ActionScope,
+    isCounter = false,
 ): void {
     const hits = Math.max(1, Math.floor(action.hits ?? 1));
     for (let hit = 0; hit < hits; hit++) {
@@ -631,12 +642,29 @@ function attack(
             crit,
             ignoreDefence: false,
             delivery: action.delivery ?? "melee",
+            counter: isCounter || undefined,
         });
 
         if (ctx.state.outcome !== "ongoing") return;
         if (!isAlive(target)) break;
     }
     emit(ctx, { type: "attackFinished", actor: attacker.id, target: target.id });
+    if (!isCounter) counter(ctx, target, attacker);
+}
+
+/** One roll per attack, not per hit, so multi-hit attacks don't invite more counters. */
+function counter(ctx: Context, defender: Combatant, attacker: Combatant): void {
+    if (ctx.state.outcome !== "ongoing" || !isAlive(defender) || !isAlive(attacker)) return;
+    if (!ctx.rng.chance(statOf(defender, COUNTER_CHANCE_STAT, ctx.content))) return;
+    const share = statOf(defender, COUNTER_DAMAGE_STAT, ctx.content) || DEFAULT_COUNTER_DAMAGE;
+    const blow = {
+        type: "attack",
+        to: "other",
+        amount: { stat: CORE_STATS.attack, multiplier: share },
+        delivery: "melee",
+    } as const;
+    const event: BattleEvent = { type: "attackFinished", actor: attacker.id, target: defender.id };
+    attack(ctx, defender, attacker, blow, { owner: defender, event }, true);
 }
 
 function dealDamage(
@@ -650,6 +678,8 @@ function dealDamage(
         crit: boolean;
         ignoreDefence: boolean;
         delivery?: "melee" | "projectile";
+        /** A counterattack (`COUNTER_CHANCE_STAT`). */
+        counter?: boolean;
         effectId?: string;
         /** The status whose effect this is (a Burning tick), if any. */
         fromStatus?: string;
@@ -675,6 +705,11 @@ function dealDamage(
     const blocked = Math.min(target.guard, amount);
     target.guard -= blocked;
     amount -= blocked;
+    // Guard lapses anyway, so it goes first and the lasting barrier is spared.
+    // Runs saved before barriers existed have none.
+    const absorbed = Math.min(target.barrier ?? 0, amount);
+    target.barrier = (target.barrier ?? 0) - absorbed;
+    amount -= absorbed;
 
     target.health = Math.max(0, target.health - amount);
     ctx.log.push({
@@ -683,10 +718,12 @@ function dealDamage(
         target: target.id,
         amount,
         blocked,
+        absorbed,
         element: options.element,
         crit: options.crit,
         isAttack: options.isAttack,
         delivery: options.delivery,
+        counter: options.counter,
         effectId: options.effectId,
     });
 
@@ -705,6 +742,7 @@ function dealDamage(
 function defeat(ctx: Context, target: Combatant, killer: Combatant): void {
     target.statuses = [];
     target.guard = 0;
+    target.barrier = 0;
     ctx.log.push({ type: "defeated", target: target.id });
     emit(ctx, { type: "defeated", actor: killer.id, target: target.id });
 

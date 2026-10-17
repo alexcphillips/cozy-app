@@ -56,6 +56,8 @@ export type GeoStatLine = {
     id: string;
     group: GeoStatGroup;
     label: string;
+    /** What the stat does, in a sentence. */
+    description: string;
     /** The total as shown: "12", "7%", "×0.75". */
     value: string;
     sources: GeoItemStat[];

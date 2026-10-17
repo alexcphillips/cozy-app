@@ -5,7 +5,8 @@ export default {
     name: "Fungal Slime",
     sprite: "fungal-slime",
     tier: 1,
-    stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
+    stats: { maxHealth: 26, attack: 12, defence: 1, speed: 10 },
+    barrier: 8,
     moves: [
         {
             id: "bite",
@@ -24,5 +25,8 @@ export default {
     loot: [{ itemId: "slime", chance: 1, quantity: 1 }],
     coins: { min: 1, max: 3 },
     xp: 40,
-    habitats: [{ near: "farming", weight: 30 }, { near: "foraging", weight: 10 }],
+    habitats: [
+        { near: "farming", weight: 30 },
+        { near: "foraging", weight: 10 },
+    ],
 } satisfies Enemy;

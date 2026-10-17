@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { z } from "zod";
 import { CONFIG_FILES, DATA_FOLDERS, type ConfigFile, type DataFolder, type GameData } from "./data.schema";
@@ -27,6 +27,9 @@ export class GameDataError extends Error {
         this.problems = problems;
     }
 }
+
+/** offHand → off-hand: an armour slot as its folder name. */
+const slotFolderName = (slot: string) => slot.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 
 const isDataFile = (name: string) => name.endsWith(".ts") && !name.endsWith(".d.ts") && !name.endsWith(".test.ts");
 
@@ -99,6 +102,14 @@ export async function loadGameData(dir: string = DATA_DIR): Promise<GameData> {
             if (basename(file) !== expected) {
                 problems.push(`${show(file)}: id "${entry.id}" doesn't match the file name (rename it ${expected})`);
                 return;
+            }
+            // Armour is sorted into a folder per slot: armour/head/, armour/off-hand/…
+            if (folder === "armour" && "slot" in entry) {
+                const slotFolder = slotFolderName(String(entry.slot));
+                if (basename(dirname(file)) !== slotFolder) {
+                    problems.push(`${show(file)}: a ${entry.slot} piece goes in armour/${slotFolder}/`);
+                    return;
+                }
             }
             folders[folder].push(entry);
         });

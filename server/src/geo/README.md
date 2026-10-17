@@ -63,7 +63,7 @@ Combat rules are data too, built from effects (`data/EFFECTS.md`):
   `target` = "when you're attacked");
 - **conditions**: e.g. the target `hasStatus` burning, the card `cardHasTag` fire;
 - **chance**: 0–1;
-- **actions**: attack, damage, heal, guard, applyStatus, removeStatus,
+- **actions**: attack, damage, heal, guard, barrier, applyStatus, removeStatus,
   cancelAction, freeCharge, modifyDamage.
 
 The content index checks ids at boot, so a typo fails on start, not mid-fight.
@@ -87,8 +87,8 @@ status that makes burns hit 1.5×.
 Food is a `consumable` item with `food` rules (`data/food/`): tags, and
 actions done to the eater, e.g. a heal plus `applyStatus` Well Fed. A new dish
 is an entry there; a new kind of effect is a status, built like any other.
-Eating fires `foodEaten`, so gear can react to it (`foodHasTag`), and the
-`foodHealing` stat boosts the food's own heals.
+Eating fires `foodEaten`, so gear can react to it (`foodHasTag`). Mending
+never boosts the food's own heals.
 
 Players pack food into lunchbox slots before a Run (1 slot to start, up to 4;
 a stack of one food per slot, no food in two slots). Packing moves it out of
@@ -115,7 +115,7 @@ regenerates over time, and there is no resting. Only food from the packed
 lunchbox refills it: as a turn in a fight, or between fights anywhere with
 `POST /geo/me/lunchbox/:slot/eat`. Between fights the food resolves in the
 battle engine (`eatBetweenFights`) but only its effect on health is kept:
-heals (with `foodHealing`) and harm, which stops at 1 HP; buffs and statuses
+heals and harm, which stops at 1 HP; buffs and statuses
 only work in a fight. The lunchbox is the only food
 a player has while away, because repacking needs camp.
 

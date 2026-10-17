@@ -93,6 +93,7 @@ export function enemyCombatant(enemyId: string, index: number, content: GameCont
         modifiers: [],
         effects: enemy.effects ?? [],
         moves: enemy.moves,
+        barrier: enemy.barrier,
     };
 }
 

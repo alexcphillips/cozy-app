@@ -211,6 +211,8 @@ export type EnemyDef = {
     /** From 1; spawns only for players whose combat level has opened it. */
     tier: number;
     stats: Stats;
+    /** A barrier it spawns with, soaking damage before health. */
+    barrier?: number;
     moves: EnemyMove[];
     /** Innate effects, e.g. a spider that poisons on hit. */
     effects?: EffectDef[];

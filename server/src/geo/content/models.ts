@@ -139,7 +139,7 @@ export type Material = ItemBase & {
 export type Food = ItemBase & {
     /** Default 99. A lunchbox slot holds up to 10. */
     stackSize?: number;
-    /** Heals the eater this much (raised by foodHealing), and adds a Heals row. */
+    /** Heals the eater this much (never raised by Mending), and adds a Heals row. */
     heal?: number;
     /** e.g. "spicy", for foodHasTag conditions. */
     tags?: string[];
@@ -480,6 +480,11 @@ export type Enemy = {
     tier: number;
     /** maxHealth, attack, defence, speed, critChance… Missing = 0. */
     stats: Record<string, number>;
+    /**
+     * A barrier it spawns with: soaks this much damage (after guard, before
+     * health) until broken. Shown as gold over its health bar.
+     */
+    barrier?: number;
     /** Each turn it picks one by weight. At least one. */
     moves: EnemyMove[];
     /** Innate rules, e.g. poisons on hit. */

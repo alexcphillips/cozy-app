@@ -29,6 +29,7 @@ export function toRunView(row: RunRow): GeoRunView {
             health: c.health,
             maxHealth: statOf(c, CORE_STATS.maxHealth, CONTENT),
             guard: c.guard,
+            barrier: c.barrier ?? 0,
             statuses: c.statuses.map((s) => ({ ...s })),
         };
     });

@@ -32,12 +32,6 @@ export const CORE_STATS = {
 } as const;
 
 /**
- * How much more the food you eat heals, as a fraction: a flat +0.25 from gear
- * = food heals 25% more. Only the food's own heals; 0 unless something gives it.
- */
-export const FOOD_HEALING_STAT: StatId = "foodHealing";
-
-/**
  * Extra damage this combatant deals, as a fraction: a flat +0.25 = 25% more.
  * Every element and kind (blows, spells, procs), but never damage from a
  * status (a Burning tick) or to oneself: status damage changes only through
@@ -68,8 +62,27 @@ export const MUTATION_CHANCE_STAT: StatId = "mutationChance";
  */
 export const INTELLIGENCE_STAT: StatId = "intelligence";
 
-/** Health healed at the start of each of the bearer's turns in a fight, rounded. Never past max. */
+/**
+ * How much more the bearer is healed, as a fraction: a flat +0.1 = heals on
+ * them are 10% bigger. Every heal but food's.
+ */
 export const MENDING_STAT: StatId = "mending";
+
+/**
+ * 0–1: the chance to strike back after being attacked. Rolled once per
+ * attack however many hits it had, and only while both sides still stand.
+ * The counter is a blow for `COUNTER_DAMAGE_STAT` × the counterer's attack:
+ * it can crit and meets defence like any attack, but is never countered.
+ */
+export const COUNTER_CHANCE_STAT: StatId = "counterChance";
+
+/**
+ * A counter's damage as a share of attack: 0.5 = half. The player's base is
+ * in `config/player.ts` and gear adds to it; an enemy without one uses
+ * `DEFAULT_COUNTER_DAMAGE`.
+ */
+export const COUNTER_DAMAGE_STAT: StatId = "counterDamage";
+export const DEFAULT_COUNTER_DAMAGE = 0.5;
 
 /**
  * Better loot: every chance on an enemy's loot list and chest offers is
@@ -167,7 +180,7 @@ export type Condition =
     | { type: "any"; conditions: Condition[] };
 
 /**
- * How big a damage, heal or guard amount is. A bare number is flat. The object
+ * How big a damage, heal, guard or barrier amount is. A bare number is flat. The object
  * form is (owner's `stat` × `multiplier`) + `flat`, then × stacks when
  * `perStack` — e.g. `{ stat: "attack", multiplier: 1.2 }` for a heavy blow,
  * `{ flat: 3, perStack: true }` for a burn.
@@ -207,6 +220,11 @@ export type Action =
     | { type: "heal"; to: Who; amount: Amount }
     /** Absorbs the next hits until used up. */
     | { type: "guard"; to: Who; amount: Amount }
+    /**
+     * Sets the target's barrier to `amount`, replacing any left (a recast
+     * resets it, never stacks). Lasts the fight, until broken; spent after guard.
+     */
+    | { type: "barrier"; to: Who; amount: Amount }
     | {
           type: "applyStatus";
           to: Who;
@@ -326,6 +344,8 @@ export type Combatant = {
     effects: EffectDef[];
     health: number;
     guard: number;
+    /** Soaks damage after guard, until broken. Never carries past the fight. */
+    barrier: number;
     statuses: StatusInstance[];
     /** Enemies only. */
     moves?: EnemyMove[];

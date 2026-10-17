@@ -84,6 +84,7 @@ const ActionSchema = z.discriminatedUnion("type", [
         }),
     z.strictObject({ type: z.literal("heal"), to: Who, amount: AmountSchema }),
     z.strictObject({ type: z.literal("guard"), to: Who, amount: AmountSchema }),
+    z.strictObject({ type: z.literal("barrier"), to: Who, amount: AmountSchema }),
     z.strictObject({
         type: z.literal("applyStatus"),
         to: Who,
@@ -378,6 +379,7 @@ const EnemyFile = z.strictObject({
     sprite: z.string().min(1),
     tier: z.int().min(1),
     stats: z.record(z.string(), z.number()),
+    barrier: z.int().min(1).optional(),
     moves: z
         .array(
             z.strictObject({

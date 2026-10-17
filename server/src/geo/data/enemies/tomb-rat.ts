@@ -5,7 +5,7 @@ export default {
     name: "Tomb Rat",
     sprite: "tomb-rat",
     tier: 1,
-    stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
+    stats: { maxHealth: 16, attack: 9, defence: 0, speed: 11 },
     moves: [
         {
             id: "bite",
@@ -21,8 +21,7 @@ export default {
             ],
         },
     ],
-    loot: [{ itemId: "slime", chance: 1, quantity: 1 }],
+    loot: [{ itemId: "bones", chance: 1, quantity: 1 }],
     coins: { min: 1, max: 3 },
     xp: 40,
-    habitats: [{ near: "landmark", weight: 20 }],
 } satisfies Enemy;

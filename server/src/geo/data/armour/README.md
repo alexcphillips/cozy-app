@@ -3,6 +3,13 @@
 Everything worn that isn't a main-hand weapon, a ring or an amulet: shields
 (off hand), helmets, shoulders, chest pieces, gloves, leg armour, boots, cloaks and belts.
 
+## Folders
+
+One folder per slot, named after it: `head/`, `shoulders/`, `chest/`,
+`hands/`, `legs/`, `feet/`, `cloak/`, `belt/`, and `off-hand/` for shields.
+A file goes in the folder of its `slot`; the server refuses to start if it's
+in another. Make a folder the first time a slot gets an item.
+
 ## Fields
 
 Model: `Armour` in `#geo/models` (`content/models.ts`). Hover any field in the editor for the same help.

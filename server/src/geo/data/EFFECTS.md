@@ -17,10 +17,11 @@ A stat is any name. These are the ones the game reads today:
 | `speed` | combat | Turn order: fastest first. |
 | `critChance` | combat | 0–1. Attacks only. |
 | `critMultiplier` | combat | e.g. 1.5. |
+| `counterChance` | combat | 0–1. After being attacked, the chance to strike back for `counterDamage` × attack (crits and defence as usual). One roll per attack, however many hits; counters are never countered. |
+| `counterDamage` | combat | A counter's share of attack, e.g. 0.5. Players start at 0.5 (`config/player.ts`); an enemy without it uses 0.5. |
 | `damageDealt` | combat | Fraction: 0.25 = 25% more damage. Never on status damage. Combat level gives 1% a level. |
-| `foodHealing` | combat | Fraction: 0.25 = food heals 25% more. |
 | `intelligence` | combat | Magic power. Nothing reads it by itself: scale a card off it with `{ stat: "intelligence" }`. |
-| `mending` | combat | Health healed at the start of each of your turns, never past max. |
+| `mending` | combat | Fraction: 0.1 = heals you receive are 10% bigger. Never food's own heals (a status a food applies, like Well Fed, is boosted). |
 | `magicFind` | combat rewards | Rare drops only: a loot-list or chest-offer chance under 5% × (1 + magicFind / 100), so +1 = 1% likelier, never past 5%. Commoner drops are untouched. |
 | `eelChance` `baitSaveChance` `seaCreatureChance` | fishing | Added to `config/fishing.ts` `baseOdds`. |
 | `farmingFortune` | farming | Flat: each 100 adds a harvest's crops again (1000 = ×11); the leftover fraction is a chance of 1 more. Not seeds. |
@@ -72,7 +73,8 @@ the rule:
 | `attack` | `to`, `amount`, `hits`?, `element`?, `delivery`? (`melee`/`projectile`, animation only) | A weapon blow: can crit, meets defence, and fires `attacked`. `hits` repeats it, each hit rolling its own crit. |
 | `damage` | `to`, `amount`, `element`?, `ignoreDefence`? | Damage that isn't an attack: no crit, and no `attacked` event, so procs can't chain off it. |
 | `heal` | `to`, `amount` | Never past max health. |
-| `guard` | `to`, `amount` | Absorbs the next hits until used up. |
+| `guard` | `to`, `amount` | Absorbs the next hits until used up. Lapses at the bearer's next turn. |
+| `barrier` | `to`, `amount` | Sets the target's barrier to `amount` (a recast replaces what's left, never adds). Soaks damage after guard and before health, and lasts the fight until broken. Shown as gold over the health bar. |
 | `applyStatus` | `to`, `status`, `stacks`?, `duration`? | `duration` overrides the status's own. |
 | `removeStatus` | `from`, `status` | |
 | `cancelAction` | | In `beforeAction`: the turn is skipped (Frozen). |

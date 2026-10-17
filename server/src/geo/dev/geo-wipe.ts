@@ -7,7 +7,7 @@ import { grantStarterKit } from "../modules/accounts/geo-accounts.repository";
 /**
  * Wipes every player's progress back to a fresh start, keeping their account:
  * email, password, name, role, ban, sessions, friends and inbox stay.
- * Everything earned goes (items, hands, lunchbox, bait, seeds, farm, XP, coins, Runs,
+ * Everything earned goes (items, hands, lunchbox, bait, seeds, farm, contest scores, camp, XP, coins, Runs,
  * Market, chests, travel, dungeon lobbies), then each player gets the starter kit again, as
  * if they'd just signed up. World content (places, suggestions, elections,
  * announcements, feedback) is untouched.
@@ -36,6 +36,7 @@ const PROGRESS_TABLES = [
     "hands",
     "lunchbox",
     "bait",
+    "farm_contest_scores",
     "farms",
     "talisman_bag",
     "active_pets",
@@ -51,23 +52,34 @@ async function main() {
 
     const counts = await Promise.all(
         PROGRESS_TABLES.map(async (table) => {
-            const { rows } = await pool.query<{ n: string }>(`SELECT count(*) AS n FROM geo.${table}`);
+            const { rows } = await pool.query<{ n: string }>(
+                `SELECT count(*) AS n FROM geo.${table}`,
+            );
             return `${table}: ${rows[0]!.n}`;
         }),
     );
-    const { rows: players } = await pool.query<{ id: string }>(`SELECT id FROM geo.players ORDER BY created_at`);
-    console.log(`${players.length} accounts kept. Rows to delete:\n  ${counts.join("\n  ")}`);
+    const { rows: players } = await pool.query<{ id: string }>(
+        `SELECT id FROM geo.players ORDER BY created_at`,
+    );
+    console.log(
+        `${players.length} accounts kept. Rows to delete:\n  ${counts.join("\n  ")}`,
+    );
     if (!confirmed) {
         console.log("\nDry run. Pass --yes to wipe.");
         return;
     }
 
     await withTransaction(async (tx) => {
-        await tx(`TRUNCATE ${PROGRESS_TABLES.map((table) => `geo.${table}`).join(", ")}`);
-        await tx(`UPDATE geo.players SET coins = 0, talisman_bag_pages = 1, lunchbox_slots = 1, bait_slots = 1, health = NULL`);
+        await tx(
+            `TRUNCATE ${PROGRESS_TABLES.map((table) => `geo.${table}`).join(", ")}`,
+        );
+        await tx(`UPDATE geo.players SET coins = 0, talisman_bag_pages = 1, lunchbox_slots = 1, bait_slots = 1, health = NULL,
+            camp_latitude = NULL, camp_longitude = NULL, camp_set_at = NULL`);
         for (const { id } of players) await grantStarterKit(tx, id);
     });
-    console.log(`\nWiped. ${players.length} accounts start fresh with the starter kit.`);
+    console.log(
+        `\nWiped. ${players.length} accounts start fresh with the starter kit.`,
+    );
 }
 
 main()

@@ -56,7 +56,7 @@ One entry per file, named by its id: `data/weapons/broadsword.ts` has
 | --- | --- | --- |
 | `cards/` | Cards: their rules and the item you own, in one file | [cards](cards/README.md) |
 | `weapons/` | Main-hand weapons | [weapons](weapons/README.md) |
-| `armour/` | Shields (off hand), head, shoulders, chest, hands, legs, feet, cloak, belt | [armour](armour/README.md) |
+| `armour/` | Shields (off hand), head, shoulders, chest, hands, legs, feet, cloak, belt — a subfolder per slot | [armour](armour/README.md) |
 | `rings/` | Rings | [rings](rings/README.md) |
 | `amulets/` | Amulets | [amulets](amulets/README.md) |
 | `talismans/` | Talismans for the Talisman Bag | [talismans](talismans/README.md) |
