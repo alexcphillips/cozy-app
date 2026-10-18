@@ -16,6 +16,7 @@ import {
 } from "../../fishing/fishing-run";
 import { playerModifiers } from "../../world/global-effects";
 import * as playerRepository from "../player/geo-player.repository";
+import * as wardrobeRepository from "../wardrobe/geo-wardrobe.repository";
 import { ABANDON_AFTER_MINUTES, openCombatRun } from "../runs/geo-runs.repository";
 import { ABANDON_STALE_RUNS, FIND_ACTIVE_RUN, FIND_RUN_FOR_UPDATE, INSERT_RUN, UPDATE_RUN } from "../runs/geo-runs.sql";
 import { toFishingView } from "./geo-fishing.view";
@@ -47,12 +48,14 @@ async function loadHand(tx: TxQuery, playerId: string): Promise<FishingHandCard[
     });
 }
 
-/** The rod in the player's rod slot. Refused without one: you can't fish without a rod. */
+/** The rod in the player's main hand. Refused without one: you can't fish without a rod. */
 async function loadRod(tx: TxQuery, playerId: string): Promise<RodDef> {
-    const slot = (await playerRepository.findEquipment(playerId, tx)).find((row) => row.slot === "rod");
+    const slot = (await playerRepository.findEquipment(playerId, tx)).find((row) => row.slot === "mainHand");
     const [row] = slot ? await playerRepository.findInventoryByIds(playerId, [slot.inventory_id], tx) : [];
     const item = row ? CONTENT.items[row.item_id] : undefined;
-    if (item?.kind !== "equipment" || !item.rod) throw AppError.badRequest("Equip a fishing rod first. The Angler sells them.");
+    if (item?.kind !== "equipment" || !item.rod) {
+        throw AppError.badRequest("Hold a fishing rod in your main hand: wear a fishing loadout from the Wardrobe. The Angler sells rods.");
+    }
     return { name: item.name, ...item.rod };
 }
 
@@ -83,9 +86,12 @@ export async function startFishing(playerId: string, tier: GeoFishingTier): Prom
         await playerRepository.lockPlayer(tx, playerId);
         await tx(ABANDON_STALE_RUNS, [playerId, ABANDON_AFTER_MINUTES]);
         const [active] = await tx<FishingRunRow>(FIND_ACTIVE_RUN, [playerId]);
+        if (active && active.kind !== "fishing") throw AppError.badRequest("You're in a fight. Finish or flee it first.");
+        // Before the rod is read: auto-swap puts on the fishing loadout. A
+        // Run being resumed keeps what it started with.
+        if (!active) await wardrobeRepository.autoSwap(tx, playerId, "fishing");
         const setup = await loadSetup(tx, playerId);
-        if (active?.kind === "fishing") return toFishingView(active.id, active.state, setup);
-        if (active) throw AppError.badRequest("You're in a fight. Finish or flee it first.");
+        if (active) return toFishingView(active.id, active.state, setup);
 
         const hand = await loadHand(tx, playerId);
         if (hand.length === 0) {

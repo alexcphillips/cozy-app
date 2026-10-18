@@ -44,6 +44,7 @@ function toItemView(item: ItemDef): GeoItemView {
             return {
                 ...base,
                 slot: item.slot,
+                ...(item.rod && { rod: true as const }),
                 unlocksCards: item.unlocksCards?.map((cardId) => CONTENT.cards[cardId]?.name ?? cardId),
                 ...(target && { reforgeTarget: target }),
             };
@@ -87,7 +88,14 @@ function toReforgeView(reforge: ReforgeDef): GeoReforgeView {
 }
 
 function toRecipeView(recipe: RecipeDef): GeoRecipe {
-    return { id: recipe.id, inputs: recipe.inputs, output: recipe.output, skills: recipe.skills ?? [] };
+    return {
+        id: recipe.id,
+        inputs: recipe.inputs,
+        output: recipe.output,
+        skills: recipe.skills ?? [],
+        ...(recipe.station && { station: recipe.station }),
+        ...(recipe.xp && { xp: recipe.xp }),
+    };
 }
 
 /** Where items come from: enemy drops and vendor stock. Crafting is in the recipes. */

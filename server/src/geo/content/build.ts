@@ -76,7 +76,7 @@ export function buildContent(data: GameData): BuiltContent {
             { label: "Quality", value: rod.rod.maxTier ? `Up to ${TIER_LABELS[rod.rod.maxTier]}` : "None" },
         ];
         const base = itemBase(rod);
-        items.push({ ...base, stats: [...rows, ...(base.stats ?? [])], kind: "equipment", slot: "rod", rod: rod.rod, ...gear(rod) });
+        items.push({ ...base, stats: [...rows, ...(base.stats ?? [])], kind: "equipment", slot: "mainHand", rod: rod.rod, ...gear(rod) });
     }
     for (const talisman of data.talismans) {
         items.push({ ...itemBase(talisman), kind: "talisman", modifiers: talisman.modifiers, effects: talisman.effects });

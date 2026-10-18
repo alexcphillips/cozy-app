@@ -1,4 +1,4 @@
-const PLAYER_COLUMNS = `id, display_name, coins, role, created_at`;
+const PLAYER_COLUMNS = `id, display_name, coins, bank_coins, role, created_at`;
 
 /** Signing in: the player and their password hash, to check against. */
 export const FIND_CREDENTIALS_BY_EMAIL = `

@@ -4,7 +4,7 @@ export default {
     id: "shambling-corpse",
     name: "Shambling Corpse",
     sprite: "shambling-corpse",
-    tier: 2,
+    tier: 5,
     stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
     moves: [
         {
@@ -21,7 +21,7 @@ export default {
             ],
         },
     ],
-    loot: [{ itemId: "slime", chance: 1, quantity: 1 }],
+    loot: [{ itemId: "slime", chance: 1, quantity: { min: 1, max: 1 } }],
     coins: { min: 1, max: 3 },
     xp: 40,
     habitats: [{ near: "landmark", weight: 20 }],

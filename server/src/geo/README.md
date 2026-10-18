@@ -31,6 +31,7 @@ server/src/geo/
 │   ├── inbox/           messages (one player's) and announcements (everyone's, one row)
 │   ├── feedback/        players send bugs and suggestions; admins triage and reply
 │   ├── player/          /geo/me, equipment, hands, saved hands, lunchbox, bait, camp and health, inventory grants
+│   ├── wardrobe/        saved loadouts (gear + pet), switching, auto-swap, slot and auto-swap purchases
 │   ├── runs/            start (reach-checked), play a card or eat, flee
 │   ├── fishing/         fishing Runs: open at a spot, cast and fight, leave
 │   ├── chests/          chest selections: pending, history, opening one
@@ -130,6 +131,28 @@ keeps when it was set, so the move limit still counts. Packing the lunchbox or b
 needs `position` within `GEO_CAMP_RADIUS_METRES` of camp; unpacking works
 anywhere. Rules: `modules/player/geo-camp.rules.ts`.
 
+The bank is at camp: `POST /geo/me/bank/deposit` and `/withdraw`
+`{ amount, position }` move coins between `coins` (the purse) and
+`bank_coins`. Both need `position` at camp and refuse mid-Run, since a
+defeat empties the purse and banking mid-fight would dodge it. Death never
+touches `bank_coins`. `npm run smoke:geo-bank`.
+
+## Wardrobe
+
+Saved loadouts of worn gear and a pet, after SkyBlock's wardrobe
+(`modules/wardrobe`, `geo.loadouts`). A loadout points at inventory ids
+rather than holding items, so a piece can be in several; whatever has left
+the inventory is skipped when it's worn and left out when it's read. The
+loadout last worn or saved is active (`players.active_loadout`), and every
+equip and pet change saves into it. Wearing is refused mid-Run.
+
+Rods are held in the main hand, so fishing means wearing a fishing loadout.
+Auto-swap (bought once, `config/wardrobe.ts`) wears the loadout tagged for
+`combat` or `fishing` as that starts, inside the Run's own transaction and
+before the gear is read: `openCombatRun` (spawns, dungeons, sea creatures)
+and `startFishing`. Extra slots are bought too. New players get the starter
+kit's loadouts (Combat, Fishing). `npm run smoke:geo-wardrobe`.
+
 ## Fishing Runs
 
 A fishing Run (`modules/fishing`, rules in `fishing/fishing-run.ts`) is a
@@ -164,7 +187,8 @@ the compact item and its recipe; it's one-way, and worth what it holds.
 ## Money and items
 
 Every coin movement writes a `coin_ledger` row, so a player's coins always
-equal the sum of their ledger (`GET /geo/admin/economy` lists any that
+equal the sum of their ledger, bank moves included as `bank-deposit` and
+`bank-withdraw` (`GET /geo/admin/economy` lists any that
 don't). Trades follow one order, in one transaction: coins are taken
 (`spendCoins`, which refuses rather than going below 0) before anything is
 handed over, and an item leaves its owner (`takeFromInventory`, row locked,

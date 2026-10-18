@@ -402,7 +402,7 @@ const EnemyFile = z.strictObject({
         )
         .min(1),
     effects: z.array(EffectSchema).optional(),
-    loot: z.array(z.strictObject({ itemId: ref, chance: fraction, quantity: count })).default([]),
+    loot: z.array(z.strictObject({ itemId: ref, chance: fraction, quantity: range(1) })).default([]),
     chests: z
         .strictObject({
             chance: fraction,
@@ -452,6 +452,8 @@ const RecipeFile = z.strictObject({
     skills: z
         .array(z.strictObject({ skill: z.string().min(1), level: count }))
         .optional(),
+    station: z.enum(["cooking"]).optional(),
+    xp: z.strictObject({ skill: z.string().min(1), amount: count }).optional(),
 });
 
 const VendorFile = z.strictObject({
@@ -645,11 +647,27 @@ const SpawnsConfig = z.strictObject({
 
 const StarterKitConfig = z.strictObject({
     items: z.array(ItemAmount),
-    equip: z.partialRecord(z.enum(["mainHand", "offHand", "head", "chest", "hands", "legs", "feet", "shoulders", "cloak", "belt", "amulet", "ring", "rod"]), ref),
+    loadouts: z
+        .array(
+            z.strictObject({
+                name: z.string().min(1).max(20),
+                equip: z.partialRecord(z.enum(["mainHand", "offHand", "head", "chest", "hands", "legs", "feet", "shoulders", "cloak", "belt", "amulet", "ring"]), ref),
+            }),
+        )
+        .min(1),
     handSkills: z.array(z.string()),
     lunchbox: z.array(ItemAmount),
     bait: z.array(ItemAmount),
 });
+
+const WardrobeConfig = z
+    .strictObject({
+        startingSlots: z.int().min(1),
+        maxSlots: z.int().min(1),
+        slotCost: z.strictObject({ first: z.int().min(0), step: z.int().min(0) }),
+        autoSwapCost: z.int().min(0),
+    })
+    .refine((config) => config.maxSlots >= config.startingSlots, "maxSlots must be at least startingSlots");
 
 const ElectionsConfig = z.strictObject({
     firstMayor: ref,
@@ -697,6 +715,7 @@ export const CONFIG_FILES = {
     weapons: WeaponsConfig,
     "chest-tiers": ChestTiersConfig,
     pets: PetsConfig,
+    wardrobe: WardrobeConfig,
 } as const;
 
 export type DataFolder = keyof typeof DATA_FOLDERS;
@@ -753,6 +772,7 @@ const configModels: { [K in ConfigFile]: Same<z.input<(typeof CONFIG_FILES)[K]>,
     weapons: true,
     "chest-tiers": true,
     pets: true,
+    wardrobe: true,
 };
 void folderModels;
 void configModels;
@@ -799,4 +819,5 @@ export type ConfigModelOf = {
     weapons: M.WeaponsConfig;
     "chest-tiers": M.ChestTiersConfig;
     pets: M.PetsConfig;
+    wardrobe: M.WardrobeConfig;
 };

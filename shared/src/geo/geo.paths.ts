@@ -33,6 +33,20 @@ export const GEO_API_PATHS = {
         baitSlot: "/geo/me/bait/:slot",
         /** PUT { position } sets camp (once every GEO_CAMP_MOVE_DAYS); DELETE forgets it. */
         camp: "/geo/me/camp",
+        /** POST { amount, position }: purse → bank. At camp only, not mid-Run. */
+        bankDeposit: "/geo/me/bank/deposit",
+        /** POST { amount, position }: bank → purse. At camp only, not mid-Run. */
+        bankWithdraw: "/geo/me/bank/withdraw",
+        /** PUT { name, save } saves what's worn into the loadout (or renames it); DELETE clears it. */
+        loadout: "/geo/me/wardrobe/:slot",
+        /** POST: wears the loadout. Not mid-Run. */
+        wearLoadout: "/geo/me/wardrobe/:slot/wear",
+        /** PUT { autoFor }: tags the loadout for auto-swap. */
+        loadoutAuto: "/geo/me/wardrobe/:slot/auto",
+        /** POST: buys one more loadout slot. */
+        buyLoadoutSlot: "/geo/me/wardrobe/buy-slot",
+        /** POST: buys auto-swap. */
+        buyAutoSwap: "/geo/me/wardrobe/buy-auto-swap",
         /** PUT { inventoryId }: the active pet (null puts it away). */
         activePet: "/geo/me/pet",
         /** PUT { inventoryId } gives the pet a held item; DELETE takes it off, for coins. */

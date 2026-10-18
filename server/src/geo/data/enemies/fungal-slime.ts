@@ -4,7 +4,7 @@ export default {
     id: "fungal-slime",
     name: "Fungal Slime",
     sprite: "fungal-slime",
-    tier: 1,
+    tier: 5,
     stats: { maxHealth: 26, attack: 12, defence: 1, speed: 10 },
     barrier: 8,
     moves: [
@@ -22,7 +22,7 @@ export default {
             ],
         },
     ],
-    loot: [{ itemId: "slime", chance: 1, quantity: 1 }],
+    loot: [{ itemId: "slime", chance: 1, quantity: { min: 1, max: 1 } }],
     coins: { min: 1, max: 3 },
     xp: 40,
     habitats: [

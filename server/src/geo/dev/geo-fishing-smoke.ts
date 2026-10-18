@@ -32,6 +32,8 @@ try {
     assert.equal(baitLeft(start), 20, "20 worms packed");
     step("starter kit: four fishing cards in the fishing hand, 20 worms in the bait slot");
 
+    // Rods are held in the main hand: the starter Fishing loadout has the Twig Rod.
+    assert.equal((await call("POST", GEO_API_PATHS.me.wearLoadout.replace(":slot", "1"), token)).status, 200);
     const refused = await call("POST", GEO_API_PATHS.fishing.start, token, { tier: "ocean-ish" });
     assert.equal(refused.status, 400);
     let run = (await call<GeoFishingRunView>("POST", GEO_API_PATHS.fishing.start, token, { tier: "pond" })).body;

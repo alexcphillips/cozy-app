@@ -19,7 +19,7 @@ function readQuantity(value: unknown): number {
 /**
  * Crafts a recipe `quantity` times, in one transaction: the skill levels are
  * checked, every input is taken (refusing, with nothing taken, if any falls
- * short), and only then is the output handed over.
+ * short), and only then is the output handed over, with any skill XP.
  */
 export async function craft(req: Request, res: Response) {
     const playerId = requirePlayerId(req);
@@ -39,6 +39,7 @@ export async function craft(req: Request, res: Response) {
         await playerRepository.grantItems(tx, playerId, [
             { itemId: recipe.output.itemId, quantity: recipe.output.quantity * times },
         ]);
+        if (recipe.xp) await playerRepository.addSkillXp(tx, playerId, recipe.xp.skill, recipe.xp.amount * times);
     });
 
     res.status(200).json(await playerRepository.findMe(playerId));

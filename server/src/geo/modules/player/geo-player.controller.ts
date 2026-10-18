@@ -13,6 +13,7 @@ import {
     GEO_CAMP_MOVE_DAYS,
     type GeoEquipmentSlot,
     type GeoPoint,
+    type GeoBankRequest,
     type GeoSetCampRequest,
     type GeoPackBaitRequest,
     type GeoEquipRequest,
@@ -25,6 +26,7 @@ import { CONTENT } from "../../content";
 import { withTransaction, type TxQuery } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
 import * as runsRepository from "../runs/geo-runs.repository";
+import { syncActiveLoadout } from "../wardrobe/geo-wardrobe.repository";
 import { campMovableAt, isAtCamp, roundCamp } from "./geo-camp.rules";
 import * as playerRepository from "./geo-player.repository";
 
@@ -34,7 +36,7 @@ export async function getMe(req: Request, res: Response) {
     res.status(200).json(me);
 }
 
-/** Puts an owned piece of equipment in a slot, or empties the slot. */
+/** Puts an owned piece of equipment in a slot, or empties the slot. The active loadout follows. */
 export async function setEquipment(req: Request, res: Response) {
     const playerId = requirePlayerId(req);
     const slot = req.params.slot as GeoEquipmentSlot;
@@ -45,18 +47,19 @@ export async function setEquipment(req: Request, res: Response) {
     await withTransaction(async (tx) => {
         if (inventoryId === null || inventoryId === undefined) {
             await playerRepository.clearSlot(tx, playerId, slot);
-            return;
+        } else {
+            if (typeof inventoryId !== "string") throw AppError.badRequest("inventoryId must be a string or null");
+
+            const [row] = await playerRepository.findInventoryByIds(playerId, [inventoryId], tx);
+            if (!row) throw AppError.notFound("You don't own that item");
+
+            const item = CONTENT.items[row.item_id];
+            if (item?.kind !== "equipment") throw AppError.badRequest("That item can't be equipped");
+            if (item.slot !== geoSlotKind(slot)) throw AppError.badRequest(`That goes in a ${item.slot} slot`);
+
+            await playerRepository.equip(tx, playerId, slot, inventoryId);
         }
-        if (typeof inventoryId !== "string") throw AppError.badRequest("inventoryId must be a string or null");
-
-        const [row] = await playerRepository.findInventoryByIds(playerId, [inventoryId], tx);
-        if (!row) throw AppError.notFound("You don't own that item");
-
-        const item = CONTENT.items[row.item_id];
-        if (item?.kind !== "equipment") throw AppError.badRequest("That item can't be equipped");
-        if (item.slot !== geoSlotKind(slot)) throw AppError.badRequest(`That goes in a ${item.slot} slot`);
-
-        await playerRepository.equip(tx, playerId, slot, inventoryId);
+        await syncActiveLoadout(tx, playerId);
     });
 
     res.status(200).json(await playerRepository.findMe(playerId));
@@ -387,6 +390,29 @@ export async function setCamp(req: Request, res: Response) {
             throw AppError.badRequest(`Camp can be moved once every ${GEO_CAMP_MOVE_DAYS} days`);
         }
         await playerRepository.setCamp(tx, playerId, roundCamp(position));
+    });
+
+    res.status(200).json(await playerRepository.findMe(playerId));
+}
+
+export const bankDeposit = (req: Request, res: Response) => moveBankCoins(req, res, "deposit");
+export const bankWithdraw = (req: Request, res: Response) => moveBankCoins(req, res, "withdraw");
+
+/**
+ * Moves coins between the purse and the bank. At camp only, and not mid-Run:
+ * a defeat takes the purse, so banking mid-fight would dodge it.
+ */
+async function moveBankCoins(req: Request, res: Response, direction: "deposit" | "withdraw") {
+    const playerId = requirePlayerId(req);
+    const { amount } = (req.body ?? {}) as Partial<GeoBankRequest>;
+    const position = parsePosition(req.body);
+    if (!Number.isSafeInteger(amount) || amount! < 1) throw AppError.badRequest("amount must be a whole number of coins, 1 or more");
+
+    await withTransaction(async (tx) => {
+        await playerRepository.lockPlayer(tx, playerId);
+        await runsRepository.assertNotInRun(tx, playerId, "You can't use the bank mid-Run");
+        await assertAtCamp(req, tx, playerId, position, "use the bank");
+        await playerRepository.moveBankCoins(tx, playerId, direction, amount!);
     });
 
     res.status(200).json(await playerRepository.findMe(playerId));

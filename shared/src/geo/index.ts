@@ -24,3 +24,5 @@ export * from "./world.contract";
 export * from "./vendor.contract";
 export * from "./mayor.contract";
 export * from "./pet.contract";
+export * from "./quest.contract";
+export * from "./wardrobe.contract";

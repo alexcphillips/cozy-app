@@ -8,6 +8,7 @@ import {
 } from "@cozy/shared/geo";
 import { AppError } from "../../../http/AppError";
 import { requirePlayerId } from "../../middleware/geo-auth";
+import { countPending } from "../chests/geo-chests.repository";
 import { countUnread } from "../inbox/geo-inbox.repository";
 import * as friendsRepository from "./geo-friends.repository";
 
@@ -68,11 +69,12 @@ export async function beat(req: Request, res: Response) {
     if (activity === "skilling" && (typeof skill !== "string" || !SKILL.test(skill))) {
         throw AppError.badRequest("skilling needs a skill");
     }
-    const [incomingRequests, unreadInbox] = await Promise.all([
+    const [incomingRequests, unreadInbox, pendingChests] = await Promise.all([
         friendsRepository.beat(playerId, activity, activity === "skilling" ? skill! : null),
         countUnread(playerId),
+        countPending(playerId),
     ]);
-    const response: GeoPresenceResponse = { incomingRequests, unreadInbox };
+    const response: GeoPresenceResponse = { incomingRequests, unreadInbox, pendingChests };
     res.status(200).json(response);
 }
 

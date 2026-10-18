@@ -15,6 +15,11 @@ export const FIND_PENDING = `
   ORDER BY created_at;
 `;
 
+export const COUNT_PENDING = `
+  SELECT COUNT(*) AS count FROM geo.chest_selections
+  WHERE player_id = $1 AND opened_at IS NULL;
+`;
+
 export const FIND_HISTORY = `
   SELECT ${SELECTION_COLUMNS} FROM geo.chest_selections
   WHERE player_id = $1 AND opened_at IS NOT NULL

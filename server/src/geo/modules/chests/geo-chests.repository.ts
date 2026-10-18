@@ -4,7 +4,7 @@ import { AppError } from "../../../http/AppError";
 import type { RolledChest } from "../../combat/combatants";
 import { withTransaction, type TxQuery } from "../../db/transaction";
 import * as playerRepository from "../player/geo-player.repository";
-import { FIND_HISTORY, FIND_PENDING, FIND_SELECTION_FOR_UPDATE, INSERT_SELECTION, MARK_OPENED } from "./geo-chests.sql";
+import { COUNT_PENDING, FIND_HISTORY, FIND_PENDING, FIND_SELECTION_FOR_UPDATE, INSERT_SELECTION, MARK_OPENED } from "./geo-chests.sql";
 import type { ChestSelectionRow } from "./geo-chests.types";
 
 /** A selection as the app sees it: closed chests show only tier and cost. */
@@ -39,6 +39,12 @@ export async function createSelection(
     ]);
     if (!row) throw new Error("Chest selection insert returned nothing");
     return row;
+}
+
+/** Selections not opened yet, for the heartbeat's badge. */
+export async function countPending(playerId: string): Promise<number> {
+    const [row] = await query<{ count: string }>(COUNT_PENDING, [playerId]);
+    return Number(row?.count ?? 0);
 }
 
 export async function listChests(playerId: string): Promise<GeoChestsResponse> {

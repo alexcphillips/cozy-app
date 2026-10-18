@@ -4,7 +4,7 @@ export default {
     id: "clusterflesh",
     name: "Clusterflesh",
     sprite: "clusterflesh",
-    tier: 3,
+    tier: 5,
     stats: { maxHealth: 30, attack: 4, defence: 0, speed: 5 },
     moves: [
         {
@@ -21,7 +21,7 @@ export default {
             ],
         },
     ],
-    loot: [{ itemId: "bones", chance: 1, quantity: 1 }],
+    loot: [{ itemId: "bones", chance: 1, quantity: { min: 1, max: 1 } }],
     chests: {
         chance: 1,
         offers: [

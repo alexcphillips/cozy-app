@@ -7,6 +7,7 @@ export type PlayerRow = {
     id: string;
     display_name: string;
     coins: string; // BIGINT arrives as a string
+    bank_coins: string;
     role: GeoRole;
     created_at: Date;
 };

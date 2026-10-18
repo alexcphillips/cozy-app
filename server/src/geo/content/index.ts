@@ -209,7 +209,10 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
 
     for (const enemy of Object.values(content.enemies)) {
         needStatuses(`Enemy "${enemy.id}"`, enemy.moves.flatMap((move) => move.actions), enemy.effects);
-        for (const drop of enemy.loot) needItem(`Enemy "${enemy.id}" loot`, drop.itemId);
+        for (const drop of enemy.loot) {
+            needItem(`Enemy "${enemy.id}" loot`, drop.itemId);
+            if (!isRange(drop.quantity)) problems.push(`Enemy "${enemy.id}" loot "${drop.itemId}": quantity min is over max`);
+        }
         if (enemy.coins && !isRange(enemy.coins)) problems.push(`Enemy "${enemy.id}" coins: min is over max`);
         // Every chest must give something: no empty pools, no zero rolls.
         const chests = enemy.chests;
@@ -312,7 +315,7 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
 
     const kit = config["starter-kit"];
     for (const { itemId } of kit.items) needItem("config/starter-kit.ts items", itemId);
-    for (const [slot, itemId] of Object.entries(kit.equip)) {
+    for (const [slot, itemId] of kit.loadouts.flatMap((loadout) => Object.entries(loadout.equip))) {
         const gear = item(itemId);
         if (gear?.kind !== "equipment" || gear.slot !== slot) problems.push(`config/starter-kit.ts equips "${itemId}", which isn't ${slot} gear`);
         else if (!kit.items.some((granted) => granted.itemId === itemId)) problems.push(`config/starter-kit.ts equips "${itemId}" without granting it`);

@@ -17,6 +17,8 @@ Model: `Recipe` in `#geo/models` (`content/models.ts`). Hover any field in the e
 | `inputs` | list of `{ itemId, quantity }` (at least 1) | yes | Used up per craft. Each item once. |
 | `output` | `{ itemId, quantity }` | yes | What one craft makes. |
 | `skills` | list of `{ skill, level }` | no | Levels needed, e.g. Combat 5. Max level is 50. |
+| `station` | `cooking` | no | Where it's made. `cooking` lists it on the Cooking menu (and still in item uses). Omit for the crafting screen. |
+| `xp` | `{ skill, amount }` | no | Skill XP per craft, e.g. `{ skill: "cooking", amount: 5 }`. |
 
 Item ids are the item's own id. A card is `card.<id>`, a fish
 `fish.<id>`, a compact material `compact-<id>`
@@ -31,7 +33,9 @@ export default {
     id: "trout-skewers",
     inputs: [{ itemId: "fish.trout", quantity: 2 }, { itemId: "oak-logs", quantity: 1 }],
     output: { itemId: "grilled-trout", quantity: 3 },
-    skills: [{ skill: "fishing", level: 2 }],
+    skills: [{ skill: "cooking", level: 2 }],
+    station: "cooking",
+    xp: { skill: "cooking", amount: 15 },
 } satisfies Recipe;
 ```
 

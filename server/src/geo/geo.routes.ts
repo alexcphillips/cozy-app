@@ -17,6 +17,7 @@ import { geoPlayerRouter } from "./modules/player/geo-player.routes";
 import { geoRunsRouter } from "./modules/runs/geo-runs.routes";
 import { geoSuggestionsRouter } from "./modules/suggestions/geo-suggestions.routes";
 import { geoVendorsRouter } from "./modules/vendors/geo-vendors.routes";
+import { geoWardrobeRouter } from "./modules/wardrobe/geo-wardrobe.routes";
 import { geoWorldRouter } from "./modules/world/geo-world.routes";
 
 /**
@@ -29,6 +30,7 @@ export const geoRouter: Router = Router();
 geoRouter.use(geoContentRouter);
 geoRouter.use(geoAccountsRouter);
 geoRouter.use(geoPlayerRouter);
+geoRouter.use(geoWardrobeRouter);
 geoRouter.use(geoRunsRouter);
 geoRouter.use(geoFishingRouter);
 geoRouter.use(geoDungeonsRouter);

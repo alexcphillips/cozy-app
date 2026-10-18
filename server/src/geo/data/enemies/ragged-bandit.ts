@@ -4,7 +4,7 @@ export default {
     id: "ragged-bandit",
     name: "Ragged Bandit",
     sprite: "ragged-bandit",
-    tier: 1,
+    tier: 5,
     stats: { maxHealth: 16, attack: 14, defence: 0, speed: 10 },
     moves: [
         {
@@ -21,7 +21,7 @@ export default {
             ],
         },
     ],
-    loot: [{ itemId: "bones", chance: 1, quantity: 1 }],
+    loot: [{ itemId: "bones", chance: 1, quantity: { min: 1, max: 1 } }],
     coins: { min: 1, max: 3 },
     xp: 40,
 } satisfies Enemy;

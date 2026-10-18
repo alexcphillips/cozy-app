@@ -6,6 +6,7 @@ import { withTransaction, type TxQuery } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
 import { petOf } from "../../pets/pets";
 import * as playerRepository from "./geo-player.repository";
+import { syncActiveLoadout } from "../wardrobe/geo-wardrobe.repository";
 import type { InventoryRow } from "./geo-player.types";
 
 /**
@@ -30,6 +31,8 @@ export async function setActivePet(req: Request, res: Response) {
     await withTransaction(async (tx) => {
         if (inventoryId) await lockPet(tx, playerId, inventoryId);
         await playerRepository.setActivePet(tx, playerId, inventoryId);
+        // The active loadout keeps its pet in step.
+        await syncActiveLoadout(tx, playerId);
     });
 
     res.status(200).json(await playerRepository.findMe(playerId));

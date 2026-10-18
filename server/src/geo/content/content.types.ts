@@ -6,7 +6,7 @@ import type { Action, CardDef, EffectDef, EnemyMove, FoodDef, StatModifier, Stat
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
 /** Equipment slot kinds, matching the app's character screen. */
-export type EquipKind = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring" | "rod";
+export type EquipKind = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring";
 
 /**
  * A weapon's type (dagger) and style (melee), from `data/config/weapons.ts`.
@@ -158,7 +158,8 @@ export type LootEntry = {
     itemId: string;
     /** 0–1. */
     chance: number;
-    quantity: number;
+    /** Rolled between these, inclusive. */
+    quantity: { min: number; max: number };
 };
 
 /** A chest tier: what it's called and what opening one costs. */
@@ -287,6 +288,8 @@ export type RecipeDef = {
     inputs: ItemAmount[];
     output: ItemAmount;
     skills?: { skill: string; level: number }[];
+    station?: "cooking";
+    xp?: { skill: string; amount: number };
 };
 
 /** A mayor's perk: words for the app, and the stats it changes for everyone. */

@@ -1,5 +1,5 @@
 export const FIND_PLAYER = `
-  SELECT id, display_name, coins, role, created_at FROM geo.players WHERE id = $1;
+  SELECT id, display_name, coins, bank_coins, role, created_at FROM geo.players WHERE id = $1;
 `;
 
 export const FIND_INVENTORY = `
@@ -211,6 +211,18 @@ export const ADD_SKILL_XP = `
 `;
 
 /** Takes coins only if there are enough; no row back means there weren't. */
+/** Purse → bank, only if the purse holds that much. */
+export const BANK_DEPOSIT = `
+  UPDATE geo.players SET coins = coins - $2, bank_coins = bank_coins + $2
+  WHERE id = $1 AND coins >= $2 RETURNING coins;
+`;
+
+/** Bank → purse, only if the bank holds that much. */
+export const BANK_WITHDRAW = `
+  UPDATE geo.players SET coins = coins + $2, bank_coins = bank_coins - $2
+  WHERE id = $1 AND bank_coins >= $2 RETURNING coins;
+`;
+
 export const SPEND_COINS = `
   UPDATE geo.players SET coins = coins - $2 WHERE id = $1 AND coins >= $2 RETURNING coins;
 `;

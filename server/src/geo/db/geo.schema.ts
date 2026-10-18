@@ -101,6 +101,31 @@ const STATEMENTS = [
     );`,
     // Rings went from four slots to two; the rings worn in the old 3rd and 4th go back to the bag.
     `DELETE FROM geo.equipment WHERE slot IN ('ring3', 'ring4');`,
+    // Rods moved from their own slot to the main hand (2026-10-18): a rod
+    // that was worn goes back to the bag.
+    `DELETE FROM geo.equipment WHERE slot = 'rod';`,
+
+    // The wardrobe: saved loadouts of gear and a pet. A loadout points at
+    // inventory ids rather than holding the items, so no foreign keys: an
+    // item that has left is skipped when the loadout is worn, and dropped
+    // when it's read. wardrobe_bought counts slots bought past the config's
+    // startingSlots. active_loadout is the one being worn, which gear
+    // changes keep up to date; null when none is.
+    `CREATE TABLE IF NOT EXISTS geo.loadouts (
+        player_id UUID NOT NULL REFERENCES geo.players(id) ON DELETE CASCADE,
+        slot SMALLINT NOT NULL CHECK (slot >= 0),
+        name VARCHAR(20) NOT NULL,
+        equipment JSONB NOT NULL DEFAULT '{}'::jsonb,
+        pet_id UUID,
+        auto_for VARCHAR(16) CHECK (auto_for IN ('combat', 'fishing')),
+        PRIMARY KEY (player_id, slot)
+    );`,
+    // One loadout per activity, so auto-swap always knows which to wear.
+    `CREATE UNIQUE INDEX IF NOT EXISTS loadouts_auto_for_idx ON geo.loadouts (player_id, auto_for) WHERE auto_for IS NOT NULL;`,
+    `ALTER TABLE geo.players
+        ADD COLUMN IF NOT EXISTS wardrobe_bought SMALLINT NOT NULL DEFAULT 0 CHECK (wardrobe_bought >= 0),
+        ADD COLUMN IF NOT EXISTS wardrobe_auto_swap BOOLEAN NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS active_loadout SMALLINT;`,
 
     // Talismans count only while in the bag, and only one copy of each: the
     // primary key on item_id is what stops duplicates.
@@ -191,6 +216,11 @@ const STATEMENTS = [
         ADD COLUMN IF NOT EXISTS camp_latitude DOUBLE PRECISION,
         ADD COLUMN IF NOT EXISTS camp_longitude DOUBLE PRECISION,
         ADD COLUMN IF NOT EXISTS camp_set_at TIMESTAMPTZ;`,
+    // Coins in the bank at camp: out of the purse, so a death doesn't take
+    // them. Moving coins in or out writes coin_ledger rows like any other
+    // change to `coins`; the bank's balance is the negated sum of those.
+    `ALTER TABLE geo.players ADD COLUMN IF NOT EXISTS bank_coins BIGINT NOT NULL DEFAULT 0 CHECK (bank_coins >= 0);`,
+
     // Camp was first called home.
     `ALTER TABLE geo.players
         DROP COLUMN IF EXISTS home_latitude,

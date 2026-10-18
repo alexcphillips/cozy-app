@@ -36,6 +36,7 @@ import { createRng, randomSeed } from "../../engine/rng";
 import * as chestsRepository from "../chests/geo-chests.repository";
 import * as fishingRepository from "../fishing/geo-fishing.repository";
 import * as playerRepository from "../player/geo-player.repository";
+import * as wardrobeRepository from "../wardrobe/geo-wardrobe.repository";
 import * as worldRepository from "../world/geo-world.repository";
 import { applyModifiers, globalModifiers, playerMaxHealth } from "../../world/global-effects";
 import { activePetModifiers } from "../../pets/pets";
@@ -194,6 +195,9 @@ export async function openCombatRun(tx: TxQuery, playerId: string, target: RunTa
     // Walking off from a fishing spot to fight leaves the spot.
     if (active && (active.kind as string) === "fishing") await fishingRepository.endOpenFishing(tx, active);
     else if (active) throw AppError.badRequest("You're already in a Run. Finish or flee it first.");
+    // Before the gear is read: auto-swap puts on the combat loadout (a sea
+    // creature hooked mid-cast included).
+    await wardrobeRepository.autoSwap(tx, playerId, "combat");
 
     const player = await playerRepository.findPlayer(playerId, tx);
     if (!player) throw AppError.notFound("Player not found");

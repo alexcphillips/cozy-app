@@ -24,7 +24,7 @@ Model: `Enemy` in `#geo/models` (`content/models.ts`). Hover any field in the ed
 | `moves[].weight` | number > 0 | yes | Against its other moves: 3 vs 1 = 75% / 25%. |
 | `moves[].actions` | list of [actions](../EFFECTS.md#actions) | yes | What the move does. `other` is the player. |
 | `effects` | list of [effects](../EFFECTS.md#effects-when-x-if-y-maybe-do-z) | no | Innate rules, e.g. poisons on hit, or enrages below half health. |
-| `loot` | list of `{ itemId, chance, quantity }` | no | Each rolled on its own on a win. `chance` 0–1. |
+| `loot` | list of `{ itemId, chance, quantity: { min, max } }` | no | Each rolled on its own on a win. `chance` 0–1. |
 | `coins` | `{ min, max }` | no | Coins on a kill, inclusive. |
 | `xp` | whole number ≥ 0 | yes | Combat XP for the kill. |
 | `chests` | see below | no | A chance of a chest selection in place of `loot`. |
@@ -102,7 +102,7 @@ export default {
             actions: [{ type: "guard", to: "self", amount: 5 }],
         },
     ],
-    loot: [{ itemId: "bones", chance: 1, quantity: 1 }, { itemId: "eel-gel", chance: 0.3, quantity: 2 }],
+    loot: [{ itemId: "bones", chance: 1, quantity: { min: 1, max: 1 } }, { itemId: "eel-gel", chance: 0.3, quantity: { min: 1, max: 2 } }],
     coins: { min: 2, max: 6 },
     xp: 55,
 } satisfies Enemy;

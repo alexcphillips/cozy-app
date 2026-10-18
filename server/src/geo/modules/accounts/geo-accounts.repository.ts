@@ -1,8 +1,9 @@
-import type { GeoSession } from "@cozy/shared/geo";
+import type { GeoEquipmentSlot, GeoSession } from "@cozy/shared/geo";
 import { CONTENT } from "../../content";
 import { withTransaction, type TxQuery } from "../../db/transaction";
 import { GEO_TOKENS, hashRefreshToken, newRefreshToken, signAccessToken } from "../../lib/geo-tokens";
 import * as playerRepository from "../player/geo-player.repository";
+import * as wardrobeRepository from "../wardrobe/geo-wardrobe.repository";
 import { FIND_PLAYER } from "../player/geo-player.sql";
 import type { PlayerRow } from "../player/geo-player.types";
 import { query } from "../../../db";
@@ -56,10 +57,17 @@ export async function grantStarterKit(tx: TxQuery, playerId: string) {
     const inventoryIds = await playerRepository.grantItems(tx, playerId, STARTER_KIT.items);
     const granted = await playerRepository.findInventoryByIds(playerId, inventoryIds, tx);
 
-    for (const [slot, itemId] of Object.entries(STARTER_KIT.equip)) {
-        const entry = granted.find((g) => g.item_id === itemId);
-        if (entry) await playerRepository.equip(tx, playerId, slot, entry.id);
+    // Each starter loadout is saved in the wardrobe, and the first is worn.
+    for (const [slot, loadout] of STARTER_KIT.loadouts.entries()) {
+        const equipment: Partial<Record<GeoEquipmentSlot, string>> = {};
+        for (const [kind, itemId] of Object.entries(loadout.equip)) {
+            const entry = granted.find((g) => g.item_id === itemId);
+            // A ring kind goes in the first ring slot.
+            if (entry) equipment[(kind === "ring" ? "ring1" : kind) as GeoEquipmentSlot] = entry.id;
+        }
+        await wardrobeRepository.insertLoadout(tx, playerId, slot, loadout.name, equipment, null);
     }
+    await wardrobeRepository.wearLoadout(tx, playerId, 0);
 
     for (const skill of STARTER_KIT.handSkills) {
         const hand = granted

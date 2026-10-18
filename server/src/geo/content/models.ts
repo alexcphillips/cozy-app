@@ -505,7 +505,7 @@ export type Enemy = {
     /** Innate rules, e.g. poisons on hit. */
     effects?: Effect[];
     /** Each rolled on its own on a win. chance 0–1. */
-    loot?: { itemId: string; chance: number; quantity: number }[];
+    loot?: { itemId: string; chance: number; quantity: Range }[];
     /** A chance of a chest selection instead of `loot`. Coins and XP still come. */
     chests?: { chance: number; offers: ChestOffer[] };
     /** Gone from the map once it has beaten you. */
@@ -548,6 +548,10 @@ export type Recipe = {
     output: ItemAmount;
     /** Levels needed, never spent. Max 50. */
     skills?: { skill: string; level: number }[];
+    /** Where it's made: "cooking" lists it on the Cooking menu. Omit for the crafting screen. */
+    station?: "cooking";
+    /** Skill XP per craft, e.g. `{ skill: "cooking", amount: 5 }`. */
+    xp?: { skill: string; amount: number };
 };
 
 export type ItemKind = "card" | "equipment" | "talisman" | "material" | "consumable" | "misc" | "pet" | "petItem";
@@ -642,13 +646,17 @@ export type PlayerConfig = {
     baseStats: Record<string, number>;
 };
 
-export type EquipSlot = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring" | "rod";
+/** Rods are held in the main hand, like weapons. */
+export type EquipSlot = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring";
 
 export type StarterKitConfig = {
     /** Granted to every new player. Cards are `card.<id>`. */
     items: ItemAmount[];
-    /** Equipped on arrival; each must also be in `items`. */
-    equip: Partial<Record<EquipSlot, string>>;
+    /**
+     * Saved in the wardrobe on arrival, in slot order; the first is worn.
+     * Each item must also be in `items`.
+     */
+    loadouts: { name: string; equip: Partial<Record<EquipSlot, string>> }[];
     /** Every starter card of these skills becomes that skill's first hand. */
     handSkills: string[];
     /** Packed into the lunchbox, slot by slot. */
@@ -829,6 +837,17 @@ export type FishingConfig = {
      * empty list means no sea creatures bite there at all.
      */
     seaCreatures: Record<GeoFishingTier, { enemyId: string; weight: number }[]>;
+};
+
+export type WardrobeConfig = {
+    /** Loadout slots every player starts with. */
+    startingSlots: number;
+    /** The most slots that can be bought up to. */
+    maxSlots: number;
+    /** Coins for the first slot bought past the start, then `step` more for each after. */
+    slotCost: { first: number; step: number };
+    /** Coins to unlock auto-swap, once. */
+    autoSwapCost: number;
 };
 
 export type ElectionsConfig = {

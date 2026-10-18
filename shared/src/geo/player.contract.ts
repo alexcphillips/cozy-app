@@ -3,6 +3,7 @@ import type { GeoEquipmentSlot, GeoItemStat, GeoRarity } from "./content.contrac
 import type { GeoPoint } from "./distance";
 import type { GeoPetState, GeoPetUpgrade } from "./pet.contract";
 import type { GeoLunchboxSlot } from "./run.contract";
+import type { GeoWardrobe } from "./wardrobe.contract";
 
 /** One owned copy (or stack) of an item. */
 export type GeoInventoryEntry = {
@@ -43,6 +44,7 @@ export type GeoMeResponse = {
     heldItemRemovalCost: Record<GeoRarity, number>;
     /** Every stat the player has now, for the character's Stats tab. */
     stats: GeoStatLine[];
+    wardrobe: GeoWardrobe;
 };
 
 export type GeoStatGroup = "combat" | "fishing" | "farming";
@@ -104,6 +106,16 @@ export const GEO_CAMP_MOVE_DAYS = 2;
 
 /** `PUT /geo/me/camp`: camp becomes (about) here. */
 export type GeoSetCampRequest = {
+    position: GeoPoint;
+};
+
+/**
+ * `POST /geo/me/bank/deposit` and `/withdraw`: moves whole coins between the
+ * purse and the bank. Only at camp, and not mid-Run, so coins can't be saved
+ * from a fight that's going badly. Replies with `GeoMeResponse`.
+ */
+export type GeoBankRequest = {
+    amount: number;
     position: GeoPoint;
 };
 

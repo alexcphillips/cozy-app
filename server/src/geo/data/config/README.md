@@ -19,7 +19,7 @@ What a new account gets.
 | Field | What it does |
 | --- | --- |
 | `items` | `{ itemId, quantity }` granted. Cards are `card.<id>`. |
-| `equip` | `{ slot: itemId }` equipped on arrival. The item must be in `items`. |
+| `loadouts` | `{ name, equip: { slot: itemId } }[]`, saved in the wardrobe in order; the first is worn. Each item must be in `items`. |
 | `handSkills` | Every starter card of these skills becomes that skill's first hand. |
 | `lunchbox` | Food packed into the lunchbox, slot by slot. |
 | `bait` | Bait packed into the bait slots, slot by slot. |
@@ -129,3 +129,13 @@ Pets, after Hypixel SkyBlock's (see [pets](../pets/README.md)). PLACEHOLDER numb
 | `upgradeDiscountPerLevel` | Taken off Kat's coins and hours per pet level. |
 | `heldItemRemovalCost` | Coins to take a held item off a pet, by the held item's rarity. |
 
+## wardrobe.ts
+
+Saved loadouts of gear and a pet (see `modules/wardrobe`). PLACEHOLDER prices.
+
+| Field | What it does |
+| --- | --- |
+| `startingSlots` | Loadout slots every player has. |
+| `maxSlots` | The most slots that can be bought up to. |
+| `slotCost` | `{ first, step }`: coins for the first slot bought, then `step` more for each after. |
+| `autoSwapCost` | Coins to unlock auto-swap, once: the loadout tagged for combat or fishing is worn as that starts. |

@@ -22,6 +22,7 @@ import { isStackable } from "../../content/content.types";
 import type { TxQuery } from "../../db/transaction";
 import { globalModifiers, playerMaxHealth } from "../../world/global-effects";
 import { statSheet } from "../../world/stat-sheet";
+import { findWardrobe } from "../wardrobe/geo-wardrobe.repository";
 import { currentHealth, campMovableAt } from "./geo-camp.rules";
 import {
     ADD_COINS,
@@ -83,6 +84,8 @@ import {
     LOCK_INVENTORY_ROW,
     RESTORE_INVENTORY_ROW,
     SPEND_COINS,
+    BANK_DEPOSIT,
+    BANK_WITHDRAW,
     TAKE_FROM_STACK,
 } from "./geo-player.sql";
 import type {
@@ -107,6 +110,7 @@ export function toPlayer(row: PlayerRow): GeoPlayer {
         id: row.id,
         displayName: row.display_name,
         coins: Number(row.coins),
+        bankCoins: Number(row.bank_coins),
         role: row.role,
         createdAt: row.created_at.toISOString(),
     };
@@ -169,7 +173,7 @@ export async function findMe(playerId: string): Promise<GeoMeResponse | null> {
     const player = await findPlayer(playerId);
     if (!player) return null;
 
-    const [inventory, equipment, talismanBag, bagPages, hands, xp, savedHands, lunchbox, bait, health, camp, activePet, petUpgrade, global] = await Promise.all([
+    const [inventory, equipment, talismanBag, bagPages, hands, xp, savedHands, lunchbox, bait, health, camp, activePet, petUpgrade, global, wardrobe] = await Promise.all([
         findInventory(playerId),
         findEquipment(playerId),
         findTalismanBag(playerId),
@@ -184,6 +188,7 @@ export async function findMe(playerId: string): Promise<GeoMeResponse | null> {
         findActivePet(playerId),
         findPetUpgrade(playerId),
         globalModifiers(),
+        findWardrobe(playerId),
     ]);
 
     const byId = new Map(inventory.map((row) => [row.id, row]));
@@ -219,6 +224,7 @@ export async function findMe(playerId: string): Promise<GeoMeResponse | null> {
             combatLevel: geoSkillLevel(Number(combatXp)),
             globalModifiers: global,
         }),
+        wardrobe,
     };
 }
 
@@ -492,7 +498,11 @@ export type CoinReason =
     | "market-bid-return"
     | "market-buy"
     | "market-collect"
-    | "admin-grant";
+    | "admin-grant"
+    | "bank-deposit"
+    | "bank-withdraw"
+    | "wardrobe-slot"
+    | "wardrobe-auto-swap";
 
 /** Locks one owned row, or null if the player doesn't own it. */
 export async function lockInventoryRow(tx: TxQuery, playerId: string, inventoryId: string): Promise<InventoryRow | null> {
@@ -579,6 +589,17 @@ export async function addSkillXp(tx: TxQuery, playerId: string, skill: string, a
  * Takes `amount` coins, or refuses with "Not enough coins" and takes none.
  * Every purchase goes through here before anything is handed over.
  */
+/**
+ * Moves coins between the purse and the bank at camp, or refuses with "Not
+ * enough coins" and moves none. The ledger records the purse's side.
+ */
+export async function moveBankCoins(tx: TxQuery, playerId: string, direction: "deposit" | "withdraw", amount: number) {
+    if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error(`Bad coin amount ${amount}`);
+    const [row] = await tx<{ coins: string }>(direction === "deposit" ? BANK_DEPOSIT : BANK_WITHDRAW, [playerId, amount]);
+    if (!row) throw AppError.badRequest(direction === "deposit" ? "Not enough coins" : "Not enough coins in the bank");
+    await tx(INSERT_COIN_LEDGER, [playerId, direction === "deposit" ? -amount : amount, `bank-${direction}`, null]);
+}
+
 export async function spendCoins(tx: TxQuery, playerId: string, amount: number, reason: CoinReason, reference: string) {
     if (!Number.isSafeInteger(amount) || amount < 0) throw new Error(`Bad coin amount ${amount}`);
     if (amount === 0) return;

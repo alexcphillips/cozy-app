@@ -8,11 +8,11 @@ import type { GameContent, ItemDef, ReforgeDef } from "./content.types";
  * the item's rarity, on top of the item's own.
  */
 
-/** Which reforges an item can take: weapons, or armour (off hand, head, chest, hands, legs, cloak, belt). Rings, amulets, rods and the rest take none. */
+/** Which reforges an item can take: weapons, or armour (off hand, head, chest, hands, legs, cloak, belt). Rings, amulets, rods (main hand, no weapon) and the rest take none. */
 export function reforgeTarget(item: ItemDef | undefined): "weapon" | "armour" | null {
     if (item?.kind !== "equipment") return null;
     if (item.weapon) return "weapon";
-    return item.slot === "ring" || item.slot === "amulet" || item.slot === "rod" || item.slot === "mainHand" ? null : "armour";
+    return item.slot === "ring" || item.slot === "amulet" || item.slot === "mainHand" ? null : "armour";
 }
 
 /** Every reforge this item can take. */

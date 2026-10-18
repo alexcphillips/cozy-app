@@ -18,7 +18,11 @@ export default {
         { itemId: "wheat-seeds", quantity: 12 },
         { itemId: "carrot-seeds", quantity: 6 },
     ],
-    equip: { mainHand: "bronze-dagger", rod: "twig-rod" },
+    // A loadout to fight in and one to fish in; the first is worn.
+    loadouts: [
+        { name: "Combat", equip: { mainHand: "bronze-dagger" } },
+        { name: "Fishing", equip: { mainHand: "twig-rod" } },
+    ],
     handSkills: ["combat", "fishing", "farming"],
     lunchbox: [{ itemId: "bread", quantity: 5 }],
     bait: [{ itemId: "worm-bait", quantity: 20 }],

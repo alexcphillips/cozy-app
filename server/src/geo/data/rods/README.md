@@ -1,6 +1,8 @@
 # Rods
 
-Fishing rods, worn in the rod slot. You can't fish without one. The rod
+Fishing rods, held in the main hand like a weapon (a rod is no weapon, so
+fights with one in hand are fought with fists). You can't fish without one;
+players keep one in a fishing loadout in the wardrobe. The rod
 decides which fish a cast can hook and the best quality it can land, so a
 better rod is how you move up to rarer, pricier fish.
 

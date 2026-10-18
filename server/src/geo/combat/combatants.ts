@@ -124,7 +124,7 @@ export function rollLoot(enemyId: string, rng: Rng, content: GameContent, magicF
     if (!enemy) return [];
     return enemy.loot
         .filter((entry) => rng.chance(withMagicFind(entry.chance, magicFind)))
-        .map((entry) => ({ itemId: entry.itemId, quantity: entry.quantity }));
+        .map((entry) => ({ itemId: entry.itemId, quantity: rollBetween(entry.quantity, rng) }));
 }
 
 /** A chest as won: closed, but with its contents already rolled. */

@@ -4,7 +4,7 @@ export default {
     id: "bullet-ant",
     name: "Bullet Ant",
     sprite: "bullet-ant",
-    tier: 1,
+    tier: 5,
     stats: { maxHealth: 23, attack: 22, defence: 0, speed: 12 },
     moves: [
         {
@@ -22,8 +22,8 @@ export default {
         },
     ],
     loot: [
-        { itemId: "spider-fang", chance: 1, quantity: 1 },
-        { itemId: "silk-spool", chance: 0.5, quantity: 1 },
+        { itemId: "spider-fang", chance: 1, quantity: { min: 1, max: 1 } },
+        { itemId: "silk-spool", chance: 0.5, quantity: { min: 1, max: 1 } },
     ],
     coins: { min: 1, max: 4 },
     xp: 40,

@@ -29,8 +29,8 @@ export default {
         },
     ],
     loot: [
-        { itemId: "kraken-ink", chance: 1, quantity: 1 },
-        { itemId: "eel-gel", chance: 0.5, quantity: 2 },
+        { itemId: "kraken-ink", chance: 1, quantity: { min: 1, max: 1 } },
+        { itemId: "eel-gel", chance: 0.5, quantity: { min: 2, max: 2 } },
     ],
     coins: { min: 8, max: 15 },
     xp: 120,

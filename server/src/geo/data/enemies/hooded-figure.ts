@@ -4,7 +4,7 @@ export default {
     id: "hooded-figure",
     name: "Hooded Figure",
     sprite: "hooded-figure",
-    tier: 2,
+    tier: 5,
     stats: { maxHealth: 32, attack: 16, defence: 1, speed: 14 },
     moves: [
         {
@@ -21,7 +21,7 @@ export default {
             ],
         },
     ],
-    loot: [{ itemId: "slime", chance: 1, quantity: 1 }],
+    loot: [{ itemId: "slime", chance: 1, quantity: { min: 1, max: 1 } }],
     coins: { min: 2, max: 4 },
     xp: 40,
 } satisfies Enemy;

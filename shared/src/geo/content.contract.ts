@@ -3,7 +3,8 @@ import type { GeoQualityTier } from "./fishing.contract";
 
 export type GeoRarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
-export type GeoEquipKind = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring" | "rod";
+/** Rods are held in the main hand, like weapons: fishing needs one there. */
+export type GeoEquipKind = "mainHand" | "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt" | "amulet" | "ring";
 
 /** Equipment slot ids on the character screen; rings take either of two. */
 export type GeoEquipmentSlot =
@@ -19,8 +20,7 @@ export type GeoEquipmentSlot =
     | "belt"
     | "amulet"
     | "ring1"
-    | "ring2"
-    | "rod";
+    | "ring2";
 
 export const GEO_EQUIPMENT_SLOTS: readonly GeoEquipmentSlot[] = [
     "mainHand",
@@ -36,7 +36,6 @@ export const GEO_EQUIPMENT_SLOTS: readonly GeoEquipmentSlot[] = [
     "amulet",
     "ring1",
     "ring2",
-    "rod",
 ];
 
 /** Which kind of item each slot takes. */
@@ -68,6 +67,8 @@ export type GeoItemView = {
     maxCharges?: number;
     /** Equipment. */
     slot?: GeoEquipKind;
+    /** A fishing rod: main-hand gear that isn't a weapon. */
+    rod?: true;
     /** Equipment: names of the cards it makes available while worn. */
     unlocksCards?: string[];
     /** Weapons and armour: which reforges it takes (`GeoReforgeView.appliesTo`). */
@@ -105,7 +106,8 @@ export type GeoItemSource =
           name: string;
           /** 0–1, per kill. */
           chance: number;
-          quantity: number;
+          /** Rolled between these, inclusive. */
+          quantity: { min: number; max: number };
       }
     | {
           kind: "vendor";
