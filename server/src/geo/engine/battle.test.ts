@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { BattleRuleError, canPlayCard, createBattle, eatBetweenFights, eatFood, playCard, previewIntent, type CombatantSetup } from "./battle";
+import { BattleRuleError, canPlayCard, createBattle, eatBetweenFights, eatFood, playCard, previewCard, previewIntent, type CombatantSetup } from "./battle";
 import type { EngineContent } from "./content.types";
 import type { CardDef, EffectDef, FoodDef, LogEntry, StatusDef } from "./engine.types";
 
@@ -459,6 +459,25 @@ describe("enemy intents", () => {
         // A quarter of 9 always lands.
         const preview = previewIntent(createBattle([walled, flurry], 1, content()).state, content(), "enemy:0");
         assert.deepEqual(preview?.parts[0], { kind: "attack", damage: 2, hits: 3 });
+    });
+});
+
+describe("card previews", () => {
+    const fast = player({ baseStats: { maxHealth: 100, attack: 10, defense: 0, speed: 20 } });
+    const armored = spider({ baseStats: { maxHealth: 40, attack: 12, defense: 4, speed: 12 } });
+
+    it("shows a card's hit on its target after defense, matching what lands", () => {
+        const start = createBattle([fast, armored], 1, content());
+        assert.deepEqual(previewCard(start.state, content(), "c0"), [{ kind: "attack", damage: 6, hits: 1 }]);
+        const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
+        const hit = damageTo(log, "enemy:0")[0]!;
+        if (!hit.crit) assert.equal(hit.amount, 6);
+    });
+
+    it("logs what defense stopped", () => {
+        const start = createBattle([fast, armored], 1, content());
+        const hit = damageTo(playCard(start.state, content(), { cardInstanceId: "c0" }).log, "enemy:0")[0]!;
+        assert.equal(hit.defended, 4);
     });
 });
 

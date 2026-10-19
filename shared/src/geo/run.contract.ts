@@ -22,6 +22,8 @@ export type GeoLogEntry =
           blocked: number;
           /** Soaked by barrier. */
           absorbed: number;
+          /** Stopped by the target's defense, before guard and barrier. Absent when none was. */
+          defended?: number;
           element: string;
           crit: boolean;
           isAttack: boolean;
@@ -55,6 +57,8 @@ export type GeoCombatantView = {
     /** Soaks damage after guard; the app draws it over the health bar. */
     barrier: number;
     statuses: { statusId: string; stacks: number; turnsLeft: number | null }[];
+    /** Defense now, statuses included: taken off each hit they receive. */
+    defense: number;
     /** Enemies: what they'll do on their next turn. Absent once the fight is over. */
     intent?: GeoEnemyIntent;
 };
@@ -85,6 +89,12 @@ export type GeoHandCard = {
      * (fishing, farming): playable while it has charges.
      */
     playable?: boolean;
+    /**
+     * Combat: what playing it now would do to its target, worked out like an
+     * enemy's intent (an attack's damage is per hit, after the target's
+     * defense). Absent outside combat or once the fight is over.
+     */
+    preview?: GeoIntentPart[];
 };
 
 /** One lunchbox slot: a stack of one food. */

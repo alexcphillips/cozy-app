@@ -357,7 +357,7 @@ function enemyTurn(ctx: Context, actor: Combatant): void {
     actor.intent = pickMove(ctx, moves)?.id;
 }
 
-/** One part of what an enemy's next move will do, as the app shows it. */
+/** One part of what a move or card will do, as the app shows it. */
 export type MovePreviewPart =
     | { kind: "attack"; damage: number; hits: number }
     | { kind: "guard" | "barrier" | "heal"; amount: number; self: boolean }
@@ -367,26 +367,54 @@ export type MovePreview = { moveId: string; name: string; parts: MovePreviewPart
 
 /**
  * What an enemy will do on its next turn, against the player as they stand
- * now: each hit after attack, damage bonuses and the player's defense, before
- * crits, guard, barrier and any rule that reacts to the hit. Null for an
- * enemy with no move chosen.
+ * now (see `previewActions`). Null for an enemy with no move chosen.
  */
 export function previewIntent(state: BattleState, content: EngineContent, enemyId: string): MovePreview | null {
     const enemy = state.combatants.find((c) => c.id === enemyId);
     const move = enemy?.moves?.find((m) => m.id === enemy.intent);
     const target = state.combatants.find((c) => c.side === "player");
     if (!enemy || !move || !target) return null;
+    return { moveId: move.id, name: move.name, parts: previewActions(state, content, enemy, target, move.actions) };
+}
 
+/**
+ * What playing a hand card now would do, at its default target (the first
+ * enemy standing, or the player for a self card). Null for a card not in hand.
+ */
+export function previewCard(state: BattleState, content: EngineContent, cardInstanceId: string): MovePreviewPart[] | null {
+    const player = state.combatants.find((c) => c.side === "player");
+    const instance = player?.hand?.find((card) => card.instanceId === cardInstanceId);
+    const card = instance && content.cards[instance.cardId];
+    if (!player || !card || state.outcome !== "ongoing") return null;
+    const target = card.targets === "self" ? player : state.combatants.find((c) => c.side === "enemy" && isAlive(c));
+    if (!target) return null;
+    return previewActions(state, content, player, target, card.actions ?? []);
+}
+
+/**
+ * Actions as the app previews them: each hit after attack, damage bonuses and
+ * the target's defense, before crits, guard, barrier and any rule that reacts
+ * to the hit. `other` is `target`.
+ */
+function previewActions(
+    state: BattleState,
+    content: EngineContent,
+    owner: Combatant,
+    target: Combatant,
+    actions: Action[],
+): MovePreviewPart[] {
     const ctx = makeContext(state, content);
-    const scope: ActionScope = { owner: enemy, event: { type: "cardPlayed", actor: enemy.id, target: target.id } };
+    const scope: ActionScope = { owner, event: { type: "cardPlayed", actor: owner.id, target: target.id } };
     const parts: MovePreviewPart[] = [];
-    for (const action of move.actions) {
+    for (const action of actions) {
         switch (action.type) {
             case "attack":
             case "damage": {
-                let amount = amountOf(ctx, action.amount, scope) * (1 + statOf(enemy, DAMAGE_DEALT_STAT, content));
+                const victim = action.to === "self" ? owner : target;
+                let amount = amountOf(ctx, action.amount, scope);
+                if (victim !== owner) amount *= 1 + statOf(owner, DAMAGE_DEALT_STAT, content);
                 const isAttack = action.type === "attack";
-                if (isAttack || !action.ignoreDefense) amount = defended(content, enemy, target, amount, isAttack);
+                if (isAttack || !action.ignoreDefense) amount = defended(content, owner, victim, amount, isAttack);
                 const hits = action.type === "attack" ? Math.max(1, Math.floor(action.hits ?? 1)) : 1;
                 parts.push({ kind: "attack", damage: Math.max(0, Math.round(amount)), hits });
                 break;
@@ -401,7 +429,7 @@ export function previewIntent(state: BattleState, content: EngineContent, enemyI
                 break;
         }
     }
-    return { moveId: move.id, name: move.name, parts };
+    return parts;
 }
 
 function pickMove(ctx: Context, moves: EnemyMove[]): EnemyMove | undefined {
@@ -786,8 +814,10 @@ function dealDamage(
     if (!isAlive(target)) return;
 
     let amount = before.damage.amount;
+    const raw = Math.max(0, Math.round(amount));
     if (!options.ignoreDefense) amount = defended(ctx.content, source, target, amount, options.isAttack);
     amount = Math.max(0, Math.round(amount));
+    const stoppedByDefense = raw - amount;
 
     const blocked = Math.min(target.guard, amount);
     target.guard -= blocked;
@@ -806,6 +836,7 @@ function dealDamage(
         amount,
         blocked,
         absorbed,
+        defended: stoppedByDefense > 0 ? stoppedByDefense : undefined,
         element: options.element,
         crit: options.crit,
         isAttack: options.isAttack,
