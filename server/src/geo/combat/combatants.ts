@@ -51,6 +51,7 @@ export function playerCombatant(loadout: PlayerLoadout, content: GameContent): C
     }
     const effects: EffectDef[] = [];
     let weaponTags: string[] | null = null;
+    const offHandTags: string[] = [];
 
     // A Set as well, so a duplicate talisman can never count twice.
     for (const itemId of [...loadout.equipment, ...new Set(loadout.talismans)]) {
@@ -59,6 +60,7 @@ export function playerCombatant(loadout: PlayerLoadout, content: GameContent): C
         modifiers.push(...(item.modifiers ?? []));
         effects.push(...(item.effects ?? []));
         if (item.kind === "equipment" && item.weapon) weaponTags = [item.weapon.type, item.weapon.style];
+        if (item.kind === "equipment" && item.offHand) offHandTags.push(item.offHand.type);
     }
     // No weapon: fists (`data/config/weapons.ts`).
     if (!weaponTags) {
@@ -78,6 +80,7 @@ export function playerCombatant(loadout: PlayerLoadout, content: GameContent): C
         hand: loadout.hand,
         lunchbox: loadout.lunchbox ?? [],
         weaponTags,
+        offHandTags,
     };
 }
 

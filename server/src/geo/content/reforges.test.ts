@@ -3,23 +3,23 @@ import { describe, it } from "node:test";
 import { CONTENT, reforgeModifiers, reforgesFor, reforgeTarget } from "./index";
 
 describe("reforges", () => {
-    it("weapons take weapon reforges, armour and shields armour ones, rings none", () => {
-        assert.equal(reforgeTarget(CONTENT.items.broadsword), "weapon");
-        assert.equal(reforgeTarget(CONTENT.items["iron-helm"]), "armour");
-        assert.equal(reforgeTarget(CONTENT.items["round-shield"]), "armour");
+    it("weapons take weapon reforges, armor and shields armor ones, rings none", () => {
+        assert.equal(reforgeTarget(CONTENT.items.claymore), "weapon");
+        assert.equal(reforgeTarget(CONTENT.items["cloth-tunic"]), "armor");
+        assert.equal(reforgeTarget(CONTENT.items["plank-shield"]), "armor");
         assert.equal(reforgeTarget(CONTENT.items["ember-ring"]), null);
-        assert.deepEqual(reforgesFor(CONTENT, CONTENT.items.broadsword).map((reforge) => reforge.id).sort(), ["keen", "violent"]);
+        assert.deepEqual(reforgesFor(CONTENT, CONTENT.items.claymore).map((reforge) => reforge.id).sort(), ["keen", "violent"]);
     });
 
     it("scales with the item's rarity", () => {
-        assert.deepEqual(reforgeModifiers(CONTENT, "iron-helm", "heavy"), CONTENT.reforges.heavy!.modifiers.common);
-        assert.deepEqual(reforgeModifiers(CONTENT, "iron-greaves", "heavy"), CONTENT.reforges.heavy!.modifiers.uncommon);
+        assert.deepEqual(reforgeModifiers(CONTENT, "cloth-tunic", "heavy"), CONTENT.reforges.heavy!.modifiers.common);
+        assert.deepEqual(reforgeModifiers(CONTENT, "slime-grip-wraps", "heavy"), CONTENT.reforges.heavy!.modifiers.uncommon);
     });
 
     it("gives nothing for no reforge, an unknown one, or one that doesn't fit", () => {
-        assert.deepEqual(reforgeModifiers(CONTENT, "iron-helm", null), []);
-        assert.deepEqual(reforgeModifiers(CONTENT, "iron-helm", "gone"), []);
-        assert.deepEqual(reforgeModifiers(CONTENT, "iron-helm", "keen"), []);
+        assert.deepEqual(reforgeModifiers(CONTENT, "cloth-tunic", null), []);
+        assert.deepEqual(reforgeModifiers(CONTENT, "cloth-tunic", "gone"), []);
+        assert.deepEqual(reforgeModifiers(CONTENT, "cloth-tunic", "keen"), []);
     });
 
     it("the Blacksmith reforges, with every rarity priced", () => {

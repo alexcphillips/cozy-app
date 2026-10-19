@@ -50,9 +50,9 @@ try {
     const [A, B, C] = [seller.accessToken, buyer.accessToken, adminSession.accessToken];
     await grant(seller.player.id, [
         { itemId: "bones", quantity: 31 },
-        { itemId: "pointy-sword", quantity: 1 },
-        { itemId: "iron-helm", quantity: 1 },
-        { itemId: "round-shield", quantity: 1 },
+        { itemId: "claymore", quantity: 1 },
+        { itemId: "cloth-tunic", quantity: 1 },
+        { itemId: "plank-shield", quantity: 1 },
         { itemId: "card.heavy-swing", quantity: 1, chargesLeft: 37 },
     ]);
     await grant(buyer.player.id, [{ itemId: "bones", quantity: 5 }]);
@@ -78,10 +78,7 @@ try {
     const farmer = vendors.find((vendor) => vendor.id === "farmer");
     assert.ok(farmer);
     const wheatPrice = farmer.sells.find((offer) => offer.itemId === "wheat")?.price;
-    assert.equal(farmer.buys.find((offer) => offer.itemId === "wheat")?.price, 1);
-    assert.ok(farmer.buys.every((offer) => CONTENT.items[offer.itemId]?.kind === "material"));
-    assert.ok(!farmer.buys.some((offer) => offer.itemId === "bones"), "only farming materials");
-    step(`the Farmer sells wheat for ${wheatPrice}, buys it for 1, and buys farming materials only`);
+    step(`the Farmer sells wheat for ${wheatPrice}`);
 
     const buyWheat = (quantity: number) =>
         call("POST", fill(GEO_API_PATHS.vendors.buy, { vendorId: "farmer" }), B, { itemId: "wheat", quantity });
@@ -101,9 +98,11 @@ try {
     assert.equal(await coinsOf(B), coinsBeforeSale + 4);
     expectRefusal(await sellTo(wheatRow?.id, 7), 400, "only have 6");
     const bones = (await me(B)).inventory.find((entry) => entry.itemId === "bones");
-    expectRefusal(await sellTo(bones?.id, 1), 400, "doesn't buy");
+    const coinsBeforeBones = await coinsOf(B);
+    assert.equal((await sellTo(bones?.id, 1)).status, 200, "any vendor buys anything with a sell value");
+    assert.equal(await coinsOf(B), coinsBeforeBones + sellValueOf(CONTENT.items.bones as never));
     expectRefusal(await sellTo("00000000-0000-0000-0000-000000000000", 1), 404);
-    step("sold 4 wheat for 4; refused selling more than owned, bones, and someone else's row");
+    step("sold 4 wheat for 4 and a bone to the Farmer; refused selling more than owned and someone else's row");
 
     // Market: a stack
     const sellerMe = await me(A);
@@ -149,15 +148,15 @@ try {
     step("bought 4 bones, cheapest first; a stale price and more than is for sale are refused");
 
     // Market: an auction
-    const sword = (await me(A)).inventory.find((entry) => entry.itemId === "pointy-sword");
+    const sword = (await me(A)).inventory.find((entry) => entry.itemId === "claymore");
     assert.ok(sword);
-    const swordFloor = sellValueOf(CONTENT.items["pointy-sword"] as never);
+    const swordFloor = sellValueOf(CONTENT.items["claymore"] as never);
     const coinsBeforeAuction = await coinsOf(A);
     assert.equal((await list({ inventoryId: sword.id, type: "auction", quantity: 1, startingBid: swordFloor, hours: 6 })).status, 201);
     assert.equal(await coinsOf(A), coinsBeforeAuction - geoAuctionFee(swordFloor, 6));
     assert.ok(!(await me(A)).inventory.some((entry) => entry.id === sword.id), "the sword is in escrow");
     const auction = (await call<GeoMarketResponse>("GET", GEO_API_PATHS.market.root, B)).body.listings.find(
-        (listing) => listing.type === "auction" && listing.item.itemId === "pointy-sword" && listing.seller === seller.player.displayName,
+        (listing) => listing.type === "auction" && listing.item.itemId === "claymore" && listing.seller === seller.player.displayName,
     );
     assert.ok(auction && auction.type === "auction");
     step(`auctioned the sword from ${swordFloor}; it's in escrow and the ${geoAuctionFee(swordFloor, 6)}-coin fee is paid`);
@@ -199,7 +198,7 @@ try {
     assert.equal(sold?.status, "sold");
     assert.equal(sold?.uncollected, third.minBid);
     assert.equal(sold?.bidHistory.length, 3);
-    assert.ok((await me(B)).inventory.some((entry) => entry.itemId === "pointy-sword"), "the winner has the sword");
+    assert.ok((await me(B)).inventory.some((entry) => entry.itemId === "claymore"), "the winner has the sword");
     const aBeforeCollect = await coinsOf(A);
     assert.equal((await call("POST", GEO_API_PATHS.market.collectAll, A)).status, 200);
     const stackProceeds = own.filter((l) => l.id !== auction.id).reduce((sum, l) => sum + l.uncollected, 0);
@@ -209,21 +208,27 @@ try {
     step(`the auction settled: B has the sword, A collected ${third.minBid} (+${stackProceeds} from bones)`);
 
     // Cancel: the copy comes back as it was.
-    const helm = (await me(A)).inventory.find((entry) => entry.itemId === "iron-helm");
-    assert.ok(helm);
-    assert.equal((await list({ inventoryId: helm.id, type: "bin", quantity: 1, price: 999 })).status, 201);
-    const helmListing = (await call<GeoOwnListing[]>("GET", GEO_API_PATHS.market.mine, A)).body.find(
-        (listing) => listing.item.itemId === "iron-helm" && listing.status === "active",
+    const tunic = (await me(A)).inventory.find((entry) => entry.itemId === "cloth-tunic");
+    assert.ok(tunic);
+    const coinsBeforeTunic = await coinsOf(A);
+    assert.equal((await list({ inventoryId: tunic.id, type: "bin", quantity: 1, price: 999 })).status, 201);
+    assert.equal(
+        await coinsOf(A),
+        coinsBeforeTunic - geoBinTax(sellValueOf(CONTENT.items["cloth-tunic"] as never), 1),
+        "tax from the NPC value, not the price",
     );
-    assert.ok(helmListing);
+    const tunicListing = (await call<GeoOwnListing[]>("GET", GEO_API_PATHS.market.mine, A)).body.find(
+        (listing) => listing.item.itemId === "cloth-tunic" && listing.status === "active",
+    );
+    assert.ok(tunicListing);
     expectRefusal(
-        await call("POST", fill(GEO_API_PATHS.market.buy, { listingId: helmListing.id }), B, { expectedPrice: 998 }),
+        await call("POST", fill(GEO_API_PATHS.market.buy, { listingId: tunicListing.id }), B, { expectedPrice: 998 }),
         400,
         "price has changed",
     );
-    assert.equal((await call("POST", fill(GEO_API_PATHS.market.cancel, { listingId: helmListing.id }), A)).status, 200);
-    const back = (await me(A)).inventory.find((entry) => entry.id === helm.id);
-    assert.equal(back?.obtainedAt, helm.obtainedAt, "same copy, same obtained date");
+    assert.equal((await call("POST", fill(GEO_API_PATHS.market.cancel, { listingId: tunicListing.id }), A)).status, 200);
+    const back = (await me(A)).inventory.find((entry) => entry.id === tunic.id);
+    assert.equal(back?.obtainedAt, tunic.obtainedAt, "same copy, same obtained date");
     step("a cancelled listing hands back the same copy (same id, same obtained date)");
 
     // In use: worn gear can't be listed.
@@ -234,11 +239,11 @@ try {
     step("worn gear and played cards can't be listed");
 
     // Admin removes a listing with a bid: bidder refunded, item back to seller.
-    const shield = (await me(A)).inventory.find((entry) => entry.itemId === "round-shield");
+    const shield = (await me(A)).inventory.find((entry) => entry.itemId === "plank-shield");
     assert.ok(shield);
     assert.equal((await list({ inventoryId: shield.id, type: "auction", quantity: 1, startingBid: 50, hours: 6 })).status, 201);
     const shieldListing = (await call<GeoOwnListing[]>("GET", GEO_API_PATHS.market.mine, A)).body.find(
-        (listing) => listing.item.itemId === "round-shield" && listing.status === "active",
+        (listing) => listing.item.itemId === "plank-shield" && listing.status === "active",
     );
     assert.ok(shieldListing);
     const cBeforeShield = await coinsOf(C);
@@ -251,12 +256,12 @@ try {
 
     // A seller's account deleted mid-auction: the bidder's held coins come back.
     const leaver = await registerPlayer("leaver");
-    await grant(leaver.player.id, [{ itemId: "iron-helm", quantity: 1 }]);
+    await grant(leaver.player.id, [{ itemId: "cloth-tunic", quantity: 1 }]);
     await call("POST", fill(GEO_API_PATHS.admin.playerCoins, { playerId: leaver.player.id }), C, { amount: 100 });
-    const leaverHelm = (await me(leaver.accessToken)).inventory.find((entry) => entry.itemId === "iron-helm");
-    assert.ok(leaverHelm);
+    const leaverTunic = (await me(leaver.accessToken)).inventory.find((entry) => entry.itemId === "cloth-tunic");
+    assert.ok(leaverTunic);
     assert.equal(
-        (await list({ inventoryId: leaverHelm.id, type: "auction", quantity: 1, startingBid: 40, hours: 6 }, leaver.accessToken)).status,
+        (await list({ inventoryId: leaverTunic.id, type: "auction", quantity: 1, startingBid: 40, hours: 6 }, leaver.accessToken)).status,
         201,
     );
     const leaverListing = (await call<GeoOwnListing[]>("GET", GEO_API_PATHS.market.mine, leaver.accessToken)).body[0];
@@ -339,10 +344,19 @@ try {
 
     // Put Marlon back in office for the dev server.
     if (ended.body.mayor.id !== "marlon") {
-        const restorer = await registerPlayer("restore");
-        assert.equal((await vote(restorer.accessToken, "marlon", ended.body.election.id)).status, 201);
-        const restored = await call<GeoMayorResponse>("POST", GEO_API_PATHS.admin.endElection, C);
-        assert.equal(restored.body.mayor.id, "marlon");
+        // Candidates are a random few, so close elections until Marlon stands
+        // (or a vote-less one happens to put him in office).
+        let state = ended.body;
+        for (let tries = 0; state.mayor.id !== "marlon" && !state.election.candidates.some((c) => c.id === "marlon"); tries++) {
+            assert.ok(tries < 20, "Marlon never stood");
+            state = (await call<GeoMayorResponse>("POST", GEO_API_PATHS.admin.endElection, C)).body;
+        }
+        if (state.mayor.id !== "marlon") {
+            const restorer = await registerPlayer("restore");
+            assert.equal((await vote(restorer.accessToken, "marlon", state.election.id)).status, 201);
+            const restored = await call<GeoMayorResponse>("POST", GEO_API_PATHS.admin.endElection, C);
+            assert.equal(restored.body.mayor.id, "marlon");
+        }
     }
     // The test's elections aren't news: their announcements go too.
     await pool.query(`DELETE FROM geo.announcements WHERE kind = 'mayor' AND created_at >= $1`, [clock!.now]);

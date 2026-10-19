@@ -71,8 +71,12 @@ export type ItemDef =
           effects?: EffectDef[];
           /** Cards only usable while this is equipped. */
           unlocksCards?: string[];
+          /** Skill levels needed to equip it. */
+          skills?: { skill: string; level: number }[];
           /** Main-hand weapons: their type and style, which decide what cards they can play. */
           weapon?: WeaponTags;
+          /** Off-hand gear: its type, which decides what requiresOffHand cards it can play. */
+          offHand?: { type: string };
           /** Fishing rods (the rod slot): what a cast can hook and land. */
           rod?: RodStats;
       })
@@ -243,17 +247,6 @@ export type VendorOffer = {
     tab?: string;
 };
 
-/**
- * Which items a vendor buys. An item must match every rule given: e.g.
- * `{ kinds: ["material"], skills: ["farming"] }` is farming materials only.
- */
-export type VendorBuyRule = {
-    kinds?: ItemDef["kind"][];
-    /** Cards and materials carry a skill; other kinds never match a skill rule. */
-    skills?: string[];
-    itemIds?: string[];
-};
-
 export type VendorDef = {
     id: string;
     name: string;
@@ -261,18 +254,17 @@ export type VendorDef = {
     icon: string;
     description: string;
     sells: VendorOffer[];
-    buys: VendorBuyRule;
     /** Coins per reforge by the item's rarity; unset = this vendor doesn't reforge. */
     reforge?: { cost: Record<Rarity, number> };
     /** Raises pets' rarity (Kat). */
     petUpgrades?: boolean;
 };
 
-/** A reforge (`data/reforges/`): a named bonus on one copy of a weapon or armour. */
+/** A reforge (`data/reforges/`): a named bonus on one copy of a weapon or armor. */
 export type ReforgeDef = {
     id: string;
     name: string;
-    appliesTo: ("weapon" | "armour")[];
+    appliesTo: ("weapon" | "armor")[];
     modifiers: Record<Rarity, StatModifier[]>;
 };
 
@@ -318,6 +310,21 @@ export type DungeonDef = {
     maxPlayers: number;
 };
 
+export type QuestObjectiveDef = {
+    id: string;
+    type: "kill";
+    enemy: string;
+    count: number;
+};
+
+export type QuestDef = {
+    id: string;
+    title: string;
+    giver: string | null;
+    objectives: QuestObjectiveDef[];
+    rewards: { coins: number; items: ItemAmount[] };
+};
+
 export type GameContent = {
     statuses: Record<string, StatusDef>;
     cards: Record<string, CardDef>;
@@ -345,6 +352,8 @@ export type GameContent = {
     mayors: Record<string, MayorDef>;
     /** Raid-style dungeons (`data/dungeons/`). */
     dungeons: Record<string, DungeonDef>;
+    /** Quests (`data/quests/`). */
+    quests: Record<string, QuestDef>;
     recipes: Record<string, RecipeDef>;
     chestTiers: Record<GeoChestTier, ChestTierDef>;
 };

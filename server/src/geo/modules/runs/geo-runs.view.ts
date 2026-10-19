@@ -1,6 +1,6 @@
 import type { GeoCombatantView, GeoHandCard, GeoLunchboxSlot, GeoRunView } from "@cozy/shared/geo";
 import { CONTENT } from "../../content";
-import { currentActor } from "../../engine/battle";
+import { canPlayCard, currentActor, previewIntent } from "../../engine/battle";
 import { CORE_STATS } from "../../engine/engine.types";
 import { statOf } from "../../engine/stats";
 import type { RunRow } from "./geo-runs.types";
@@ -31,6 +31,7 @@ export function toRunView(row: RunRow): GeoRunView {
             guard: c.guard,
             barrier: c.barrier ?? 0,
             statuses: c.statuses.map((s) => ({ ...s })),
+            intent: (c.side === "enemy" && row.status === "active" && previewIntent(state, CONTENT, c.id)) || undefined,
         };
     });
 
@@ -40,6 +41,7 @@ export function toRunView(row: RunRow): GeoRunView {
         itemId: itemIdForCard(card.cardId),
         cardId: card.cardId,
         chargesLeft: card.chargesLeft,
+        playable: canPlayCard(state, CONTENT, card.instanceId),
     }));
 
     const lunchbox: GeoLunchboxSlot[] = (player?.lunchbox ?? [])

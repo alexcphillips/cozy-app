@@ -5,7 +5,7 @@ export default {
     name: "Warlock",
     sprite: "warlock",
     tier: 5,
-    stats: { maxHealth: 57, attack: 42, defence: 4, speed: 18 },
+    stats: { maxHealth: 57, attack: 42, defense: 4, speed: 18 },
     moves: [
         {
             id: "bite",

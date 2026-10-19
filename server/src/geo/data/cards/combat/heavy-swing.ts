@@ -6,9 +6,19 @@ export default {
     rarity: "common",
     icon: "crossed-swords",
     description: "A slow, committed blow. Hits hard if it lands.",
-    stats: [{ label: "Damage", value: "200% of Attack" }, { label: "Requires", value: "Broadsword" }],
+    stats: [
+        { label: "Damage", value: "200% of Attack" },
+    ],
     skill: "combat",
-    maxCharges: 100,
+    requiresWeapon: ["greatsword"],
+    maxCharges: 20,
     targets: "enemy",
-    actions: [{ type: "attack", to: "other", amount: { stat: "attack", multiplier: 2 }, delivery: "melee" }],
+    actions: [
+        {
+            type: "attack",
+            to: "other",
+            amount: { stat: "attack", multiplier: 2 },
+            delivery: "melee",
+        },
+    ],
 } satisfies Card;

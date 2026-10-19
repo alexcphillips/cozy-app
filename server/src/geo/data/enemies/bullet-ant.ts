@@ -5,7 +5,7 @@ export default {
     name: "Bullet Ant",
     sprite: "bullet-ant",
     tier: 5,
-    stats: { maxHealth: 23, attack: 22, defence: 0, speed: 12 },
+    stats: { maxHealth: 23, attack: 22, defense: 0, speed: 12 },
     moves: [
         {
             id: "bite",

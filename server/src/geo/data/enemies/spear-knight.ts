@@ -5,7 +5,7 @@ export default {
     name: "Spear Knight",
     sprite: "spear-knight",
     tier: 5,
-    stats: { maxHealth: 42, attack: 28, defence: 9, speed: 14 },
+    stats: { maxHealth: 42, attack: 28, defense: 9, speed: 14 },
     moves: [
         {
             id: "bite",

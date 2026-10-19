@@ -5,7 +5,7 @@ export default {
     name: "Army Ant",
     sprite: "army-ant",
     tier: 5,
-    stats: { maxHealth: 18, attack: 17, defence: 1, speed: 11 },
+    stats: { maxHealth: 18, attack: 17, defense: 1, speed: 11 },
     moves: [
         {
             id: "bite",

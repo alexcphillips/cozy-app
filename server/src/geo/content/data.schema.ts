@@ -80,7 +80,7 @@ const ActionSchema = z.discriminatedUnion("type", [
             to: Who,
             amount: AmountSchema,
             element: z.string().optional(),
-            ignoreDefence: z.boolean().optional(),
+            ignoreDefense: z.boolean().optional(),
         }),
     z.strictObject({ type: z.literal("heal"), to: Who, amount: AmountSchema }),
     z.strictObject({ type: z.literal("guard"), to: Who, amount: AmountSchema }),
@@ -151,6 +151,9 @@ const gearRules = {
 const equipmentRules = {
     ...gearRules,
     unlocksCards: z.array(ref).optional(),
+    skills: z
+        .array(z.strictObject({ skill: z.string().min(1), level: count }))
+        .optional(),
 };
 
 /** A card: its rules and the item you own, in one file. The item's id is `card.<id>`. */
@@ -163,6 +166,8 @@ const CardFile = z.strictObject({
     requiresWeapon: z
         .array(z.string())
         .optional(),
+    requiresOffHand: z.array(z.string()).optional(),
+    playableIf: z.array(ConditionSchema).optional(),
     actions: z.array(ActionSchema).default([]),
     effects: z.array(EffectSchema).optional(),
     finesse: z.enum(["raises", "lowers"]).optional(),
@@ -177,10 +182,11 @@ const WeaponFile = z.strictObject({
     }),
 });
 
-const ArmourFile = z.strictObject({
+const ArmorFile = z.strictObject({
     ...itemBase,
     ...equipmentRules,
     slot: z.enum(["offHand", "head", "chest", "hands", "legs", "feet", "shoulders", "cloak", "belt"]),
+    offHand: z.strictObject({ type: z.string().min(1) }).optional(),
 });
 
 const RingFile = z.strictObject({ ...itemBase, ...equipmentRules });
@@ -469,12 +475,6 @@ const VendorFile = z.strictObject({
             tab: z.string().min(1).optional(),
         }),
     ),
-    buys: z
-        .strictObject({
-            kinds: z.array(z.enum(["card", "equipment", "talisman", "material", "consumable", "misc", "pet", "petItem"])).optional(),
-            skills: z.array(z.string()).optional(),
-            itemIds: z.array(ref).optional(),
-        }),
     reforge: z.strictObject({ cost: z.record(Rarity, count) }).optional(),
     petUpgrades: z.boolean().optional(),
 });
@@ -482,7 +482,7 @@ const VendorFile = z.strictObject({
 const ReforgeFile = z.strictObject({
     id,
     name: z.string().min(1),
-    appliesTo: z.array(z.enum(["weapon", "armour"])).min(1),
+    appliesTo: z.array(z.enum(["weapon", "armor"])).min(1),
     modifiers: z.record(Rarity, z.array(StatModifierSchema).min(1)),
 });
 
@@ -498,6 +498,26 @@ const MayorFile = z.strictObject({
             modifiers: z.array(StatModifierSchema),
         }),
     ),
+});
+
+const QuestFile = z.strictObject({
+    id,
+    title: z.string().min(1),
+    giver: z.string().min(1).optional(),
+    objectives: z
+        .array(
+            z.strictObject({
+                id: z.string().min(1),
+                type: z.literal("kill"),
+                enemy: ref,
+                count,
+            }),
+        )
+        .min(1),
+    rewards: z.strictObject({
+        coins: count.optional(),
+        items: z.array(ItemAmount).optional(),
+    }),
 });
 
 const DungeonFile = z.strictObject({
@@ -517,7 +537,7 @@ const DungeonFile = z.strictObject({
 export const DATA_FOLDERS = {
     cards: CardFile,
     weapons: WeaponFile,
-    armour: ArmourFile,
+    armor: ArmorFile,
     rings: RingFile,
     amulets: AmuletFile,
     rods: RodFile,
@@ -541,6 +561,7 @@ export const DATA_FOLDERS = {
     reforges: ReforgeFile,
     mayors: MayorFile,
     dungeons: DungeonFile,
+    quests: QuestFile,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -682,6 +703,7 @@ const EconomyConfig = z.strictObject({
 const WeaponsConfig = z.strictObject({
     types: z.array(z.string().min(1)),
     styles: z.array(z.string().min(1)),
+    offHandTypes: z.array(z.string().min(1)),
     unarmed: z.strictObject({
         type: z.string().min(1),
         style: z.string().min(1),
@@ -736,7 +758,7 @@ type Same<A, B> = Assignable<A, B> extends true ? Assignable<keyof A, keyof B> :
 const folderModels: { [K in DataFolder]: Same<z.input<(typeof DATA_FOLDERS)[K]>, ModelOf[K]> } = {
     cards: true,
     weapons: true,
-    armour: true,
+    armor: true,
     rings: true,
     amulets: true,
     rods: true,
@@ -760,6 +782,7 @@ const folderModels: { [K in DataFolder]: Same<z.input<(typeof DATA_FOLDERS)[K]>,
     reforges: true,
     mayors: true,
     dungeons: true,
+    quests: true,
 };
 const configModels: { [K in ConfigFile]: Same<z.input<(typeof CONFIG_FILES)[K]>, ConfigModelOf[K]> } = {
     fishing: true,
@@ -781,7 +804,7 @@ void configModels;
 export type ModelOf = {
     cards: M.Card;
     weapons: M.Weapon;
-    armour: M.Armour;
+    armor: M.Armor;
     rings: M.Ring;
     amulets: M.Amulet;
     rods: M.Rod;
@@ -805,6 +828,7 @@ export type ModelOf = {
     reforges: M.Reforge;
     mayors: M.Mayor;
     dungeons: M.Dungeon;
+    quests: M.Quest;
 };
 
 /** Each config file's model. */

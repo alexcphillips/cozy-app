@@ -73,7 +73,7 @@ export const GEO_API_PATHS = {
         buy: "/geo/vendors/:vendorId/buy",
         /** POST { inventoryId, quantity }: the player sells to the vendor. */
         sell: "/geo/vendors/:vendorId/sell",
-        /** POST { inventoryId }: pays the vendor to reroll a weapon or armour copy's reforge. */
+        /** POST { inventoryId }: pays the vendor to reroll a weapon or armor copy's reforge. */
         reforge: "/geo/vendors/:vendorId/reforge",
         /** POST { inventoryId }: leaves a pet with Kat to raise its rarity. */
         petUpgrade: "/geo/vendors/:vendorId/pet-upgrade",

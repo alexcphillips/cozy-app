@@ -5,7 +5,7 @@ export default {
     name: "Swamp Leech",
     sprite: "swamp-leech",
     tier: 5,
-    stats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
+    stats: { maxHealth: 40, attack: 12, defense: 0, speed: 12 },
     moves: [
         {
             id: "bite",

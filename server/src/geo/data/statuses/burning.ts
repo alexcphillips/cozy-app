@@ -15,7 +15,7 @@ export default {
                     to: "self",
                     amount: { flat: 3, perStack: true },
                     element: "fire",
-                    ignoreDefence: true,
+                    ignoreDefense: true,
                 },
             ],
         },

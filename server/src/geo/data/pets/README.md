@@ -49,7 +49,7 @@ export default {
     description: "Eight legs, eight eyes, and an opinion about all of it.",
     skill: "combat",
     rarities: ["common", "uncommon", "rare", "epic", "legendary"],
-    stats: [{ stat: "defence", perLevel: 0.2 }],
+    stats: [{ stat: "defense", perLevel: 0.2 }],
     abilities: [
         {
             id: "venom-sacs",

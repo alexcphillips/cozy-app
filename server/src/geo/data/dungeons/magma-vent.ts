@@ -9,7 +9,7 @@ export default {
     bossModifiers: [
         { stat: "maxHealth", kind: "percent", value: 3 },
         { stat: "attack", kind: "percent", value: 0.75 },
-        { stat: "defence", kind: "flat", value: 4 },
+        { stat: "defense", kind: "flat", value: 4 },
     ],
     requiredLevel: 12,
     maxPlayers: 4,

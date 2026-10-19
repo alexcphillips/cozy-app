@@ -5,7 +5,7 @@ export default {
     name: "Shellbreaker Crab",
     sprite: "shellbreaker-crab",
     tier: 5,
-    stats: { maxHealth: 42, attack: 9, defence: 5, speed: 9 },
+    stats: { maxHealth: 42, attack: 9, defense: 5, speed: 9 },
     moves: [
         {
             id: "bite",

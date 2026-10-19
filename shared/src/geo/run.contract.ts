@@ -55,7 +55,22 @@ export type GeoCombatantView = {
     /** Soaks damage after guard; the app draws it over the health bar. */
     barrier: number;
     statuses: { statusId: string; stacks: number; turnsLeft: number | null }[];
+    /** Enemies: what they'll do on their next turn. Absent once the fight is over. */
+    intent?: GeoEnemyIntent;
 };
+
+/**
+ * One part of an enemy's next move. An attack's `damage` is per hit, after
+ * the player's defense as it stands now, before crits, guard and barrier.
+ * `self`: it lands on the enemy, not the player.
+ */
+export type GeoIntentPart =
+    | { kind: "attack"; damage: number; hits: number }
+    | { kind: "guard" | "barrier" | "heal"; amount: number; self: boolean }
+    | { kind: "status"; statusId: string; self: boolean };
+
+/** An enemy's next move, chosen in advance: it always does this, unless its turn is skipped. */
+export type GeoEnemyIntent = { moveId: string; name: string; parts: GeoIntentPart[] };
 
 export type GeoHandCard = {
     /** The inventory entry, sent back to play it. */
@@ -63,6 +78,13 @@ export type GeoHandCard = {
     itemId: string;
     cardId: string;
     chargesLeft: number;
+    /**
+     * Combat: whether it could be played now, turn aside: it has charges, the
+     * weapon fits, and its own rule allows it (a self-buff already active
+     * can't be recast until it's removed). Grey it out when false. Absent
+     * (fishing, farming): playable while it has charges.
+     */
+    playable?: boolean;
 };
 
 /** One lunchbox slot: a stack of one food. */

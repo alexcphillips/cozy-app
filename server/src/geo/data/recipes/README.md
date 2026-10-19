@@ -4,6 +4,12 @@ Crafting and cooking. Each craft uses up the inputs and makes the output.
 Skill levels are required, never spent. Players craft from the app's
 crafting screen.
 
+Sort them into a folder per skill (`recipes/combat/`, `recipes/cooking/`,
+`recipes/farming/`, `recipes/fishing/`…). A recipe with no skill level goes
+in the folder of the skill its output belongs to (structures and farming
+cards in `farming/`). The folder is only for tidiness; the `skills` field is
+what gates it.
+
 Compact recipes (100 Silk Spool → 1 Compact Silk Spool) come from a
 material's `compact` field, so they have no file here.
 

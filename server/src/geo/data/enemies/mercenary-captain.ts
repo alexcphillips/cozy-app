@@ -8,7 +8,7 @@ export default {
     stats: {
         maxHealth: 65,
         attack: 31,
-        defence: 7,
+        defense: 7,
         speed: 14,
         counterChance: 0.35,
     },

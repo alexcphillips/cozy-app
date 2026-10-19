@@ -16,7 +16,7 @@ Plus the [fields every item has](../README.md#fields-every-item-has).
 
 | Field | Type | Required? | What it does |
 | --- | --- | --- | --- |
-| `skill` | text | yes | Its inventory sub-tab, and which vendors buy it (`buys.skills`). |
+| `skill` | text | yes | Its inventory sub-tab. |
 | `stackSize` | whole number ≥ 1 | no (default 999) | How many fit in one stack. |
 | `compact` | `{ "ratio": n }` | no | Also makes a **Compact** version, `compact-<id>`, and the recipe that presses `n` of this into one. One-way. It's worth exactly `n` × this. |
 

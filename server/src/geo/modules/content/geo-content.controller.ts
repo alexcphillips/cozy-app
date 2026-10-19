@@ -6,13 +6,16 @@ import { petPreview } from "../../pets/pets";
 
 const capitalise = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
 
-/** Rows the server works out from the rules: a weapon's type, a card's weapon requirement. */
+/** Rows the server works out from the rules: a weapon's or off-hand's type, a card's gear requirement. */
 function ruleRows(item: ItemDef): GeoItemStat[] {
     if (item.kind === "equipment" && item.weapon) {
         return [{ label: "Type", value: `${capitalise(item.weapon.type)} · ${capitalise(item.weapon.style)}` }];
     }
-    const requires = item.kind === "card" ? CONTENT.cards[item.cardId]?.requiresWeapon : undefined;
-    return requires ? [{ label: "Requires", value: requires.map(capitalise).join(" or ") }] : [];
+    if (item.kind === "equipment" && item.offHand) return [{ label: "Type", value: capitalise(item.offHand.type) }];
+    const card = item.kind === "card" ? CONTENT.cards[item.cardId] : undefined;
+    return [card?.requiresWeapon, card?.requiresOffHand].flatMap((requires) =>
+        requires ? [{ label: "Requires", value: requires.map(capitalise).join(" or ") }] : [],
+    );
 }
 
 function toItemView(item: ItemDef): GeoItemView {
@@ -46,6 +49,7 @@ function toItemView(item: ItemDef): GeoItemView {
                 slot: item.slot,
                 ...(item.rod && { rod: true as const }),
                 unlocksCards: item.unlocksCards?.map((cardId) => CONTENT.cards[cardId]?.name ?? cardId),
+                ...(item.skills && { skills: item.skills }),
                 ...(target && { reforgeTarget: target }),
             };
         }

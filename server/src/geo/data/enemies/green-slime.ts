@@ -5,7 +5,7 @@ export default {
     name: "Green Slime",
     sprite: "green-slime",
     tier: 1,
-    stats: { maxHealth: 12, attack: 7, defence: 0, speed: 9 },
+    stats: { maxHealth: 12, attack: 5, defense: 0, speed: 8 },
     moves: [
         {
             id: "bash",
@@ -22,6 +22,6 @@ export default {
         },
     ],
     loot: [{ itemId: "slime", chance: 1, quantity: { min: 1, max: 1 } }],
-    coins: { min: 1, max: 2 },
-    xp: 40,
+    coins: { min: 1, max: 1 },
+    xp: 20,
 } satisfies Enemy;

@@ -5,7 +5,7 @@ export default {
     name: "Hundredlegs",
     sprite: "hundredlegs",
     tier: 5,
-    stats: { maxHealth: 58, attack: 23, defence: 3, speed: 15 },
+    stats: { maxHealth: 58, attack: 23, defense: 3, speed: 15 },
     moves: [
         {
             id: "bash",

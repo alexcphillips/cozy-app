@@ -5,7 +5,7 @@ export default {
     name: "Sturgeon",
     rarity: "rare",
     icon: "salmon",
-    description: "Armoured in bony plates. Older than it looks.",
+    description: "Armored in bony plates. Older than it looks.",
     stamina: 10,
     strength: 1.15,
     distance: 8,

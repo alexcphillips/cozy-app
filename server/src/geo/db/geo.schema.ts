@@ -70,7 +70,7 @@ const STATEMENTS = [
         obtained_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );`,
     `CREATE INDEX IF NOT EXISTS inventory_player_idx ON geo.inventory (player_id);`,
-    // A weapon or armour copy's reforge (data/reforges/), rolled at a vendor.
+    // A weapon or armor copy's reforge (data/reforges/), rolled at a vendor.
     `ALTER TABLE geo.inventory ADD COLUMN IF NOT EXISTS reforge VARCHAR(80);`,
     // A pet copy's XP and held item, { xp, heldItem } (pets/pets.ts PetCopy); NULL for anything else.
     `ALTER TABLE geo.inventory ADD COLUMN IF NOT EXISTS pet JSONB;`,

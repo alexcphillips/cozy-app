@@ -11,7 +11,7 @@ import {
     type GeoVendorsResponse,
 } from "@cozy/shared/geo";
 import { AppError } from "../../../http/AppError";
-import { CONTENT, reforgesFor, sellValueOf, vendorBuys, type VendorDef } from "../../content";
+import { CONTENT, reforgesFor, npcBuys, sellValueOf, type VendorDef } from "../../content";
 import { withTransaction } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
 import * as playerRepository from "../player/geo-player.repository";
@@ -26,7 +26,7 @@ import { NEW_PET, petOf, petState } from "../../pets/pets";
  */
 function priceNow(itemId: string, listPrice: number, modifiers: StatModifier[]): number {
     const item = CONTENT.items[itemId];
-    const floor = item && Object.values(CONTENT.vendors).some((v) => vendorBuys(v.buys, item)) ? sellValueOf(item) : 1;
+    const floor = item && npcBuys(item) ? sellValueOf(item) : 1;
     return Math.max(floor, Math.ceil(applyModifiers(listPrice, modifiers, "vendorPrices")));
 }
 
@@ -47,9 +47,6 @@ function toVendorView(vendor: VendorDef, modifiers: StatModifier[]): GeoVendor {
             stock: offer.stock,
             ...(offer.tab && { tab: offer.tab }),
         })),
-        buys: Object.values(CONTENT.items)
-            .filter((item) => vendorBuys(vendor.buys, item))
-            .map((item) => ({ itemId: item.id, price: sellValueOf(item) })),
         ...(vendor.reforge && {
             reforgeCost: Object.fromEntries(
                 Object.keys(vendor.reforge.cost).map((rarity) => [
@@ -120,7 +117,7 @@ export async function sell(req: Request, res: Response) {
         const [owned] = await playerRepository.findInventoryByIds(playerId, [inventoryId], tx);
         if (!owned) throw AppError.notFound("You don't own that item");
         const item = CONTENT.items[owned.item_id];
-        if (!item || !vendorBuys(vendor.buys, item)) throw AppError.badRequest(`The ${vendor.name} doesn't buy that`);
+        if (!item || !npcBuys(item)) throw AppError.badRequest("Vendors don't buy that");
         if (item.kind === "card" && owned.charges_left !== item.maxCharges) {
             throw AppError.badRequest("Only cards at full charge can be sold");
         }
@@ -138,7 +135,7 @@ export async function sell(req: Request, res: Response) {
 }
 
 /**
- * The player pays a vendor to reroll one weapon or armour copy's reforge: a
+ * The player pays a vendor to reroll one weapon or armor copy's reforge: a
  * random one that fits the item, never the one it has. Worn gear can be
  * reforged in place. The copy is locked, so two rerolls can't cross.
  */
@@ -155,7 +152,7 @@ export async function reforge(req: Request, res: Response) {
         if (!owned) throw AppError.notFound("You don't own that item");
         const item = CONTENT.items[owned.item_id];
         const choices = reforgesFor(CONTENT, item).filter((candidate) => candidate.id !== owned.reforge);
-        if (!item || choices.length === 0) throw AppError.badRequest("Only weapons and armour can be reforged");
+        if (!item || choices.length === 0) throw AppError.badRequest("Only weapons and armor can be reforged");
 
         const picked = choices[randomInt(choices.length)]!;
         const cost = reforgeCostNow(costs, item.rarity, await globalModifiers(tx));

@@ -7,7 +7,7 @@ there's no `id`. Hover a field in VS Code for what it does.
 
 | Field | What it does |
 | --- | --- |
-| `baseStats` | A player's stats before gear and talismans: `maxHealth`, `attack`, `defence`, `speed`, `critChance`, `critMultiplier`. |
+| `baseStats` | A player's stats before gear and talismans: `maxHealth`, `attack`, `defense`, `speed`, `critChance`, `critMultiplier`. |
 
 Skill levels (max 50, the XP curve, +1% damage per combat level) are in
 `shared/src/geo/skills.ts`, not here, because the app uses them too.
@@ -107,6 +107,7 @@ Enemy spawns around each player.
 | --- | --- |
 | `types` | Weapon types (`dagger`, `sword`…). A weapon's `weapon.type` and a card's `requiresWeapon` must use these. Add a type here first. |
 | `styles` | How weapons fight (`melee`…). Same rules. |
+| `offHandTypes` | Off-hand types (`shield`…). Off-hand armor's `offHand.type` and a card's `requiresOffHand` must use these. |
 | `unarmed` | `{ type, style, modifiers }`: what the player fights with when no weapon is equipped (fists, +1 attack). Its type and style must be in the lists above. |
 
 ## chest-tiers.ts

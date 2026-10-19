@@ -5,7 +5,7 @@ export default {
     name: "Fungal Slime",
     sprite: "fungal-slime",
     tier: 5,
-    stats: { maxHealth: 26, attack: 12, defence: 1, speed: 10 },
+    stats: { maxHealth: 26, attack: 12, defense: 1, speed: 10 },
     barrier: 8,
     moves: [
         {

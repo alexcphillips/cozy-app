@@ -5,7 +5,7 @@ export default {
     name: "Exiled Knight",
     sprite: "exiled-knight",
     tier: 5,
-    stats: { maxHealth: 48, attack: 36, defence: 14, speed: 15 },
+    stats: { maxHealth: 48, attack: 36, defense: 14, speed: 15 },
     moves: [
         {
             id: "bite",

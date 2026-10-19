@@ -5,7 +5,7 @@ export default {
     name: "Hooded Figure",
     sprite: "hooded-figure",
     tier: 5,
-    stats: { maxHealth: 32, attack: 16, defence: 1, speed: 14 },
+    stats: { maxHealth: 32, attack: 16, defense: 1, speed: 14 },
     moves: [
         {
             id: "bash",

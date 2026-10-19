@@ -1,13 +1,10 @@
 import type { Request, Response } from "express";
-import { GEO_CRAFT_MAX_QUANTITY, type GeoCraftRequest } from "@cozy/shared/geo";
+import { GEO_CRAFT_MAX_QUANTITY, geoSkillName, geoUnmetSkill, type GeoCraftRequest } from "@cozy/shared/geo";
 import { AppError } from "../../../http/AppError";
 import { CONTENT } from "../../content";
 import { withTransaction } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
 import * as playerRepository from "../player/geo-player.repository";
-
-/** "combat" → "Combat", for refusals the player reads. */
-const skillName = (skill: string) => skill.charAt(0).toUpperCase() + skill.slice(1);
 
 function readQuantity(value: unknown): number {
     if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1 || value > GEO_CRAFT_MAX_QUANTITY) {
@@ -29,10 +26,8 @@ export async function craft(req: Request, res: Response) {
     const times = readQuantity(quantity);
 
     await withTransaction(async (tx) => {
-        const levels = await playerRepository.findSkillLevels(tx, playerId);
-        for (const { skill, level } of recipe.skills ?? []) {
-            if ((levels[skill] ?? 1) < level) throw AppError.badRequest(`Needs ${skillName(skill)} level ${level}`);
-        }
+        const unmet = geoUnmetSkill(await playerRepository.findSkillLevels(tx, playerId), recipe.skills);
+        if (unmet) throw AppError.badRequest(`Needs ${geoSkillName(unmet.skill)} level ${unmet.level}`);
         for (const input of recipe.inputs) {
             await playerRepository.takeItems(tx, playerId, input.itemId, input.quantity * times);
         }

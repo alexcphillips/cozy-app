@@ -40,7 +40,7 @@ export default {
                     to: "self",
                     amount: { flat: 2, perStack: true },
                     element: "poison",
-                    ignoreDefence: true,
+                    ignoreDefense: true,
                 },
             ],
         },
@@ -58,6 +58,6 @@ export default {
     name: "Stone Skin",
     duration: 3,
     maxStacks: 1,
-    modifiers: [{ stat: "defence", kind: "flat", value: 5 }, { stat: "speed", kind: "percent", value: -0.2 }],
+    modifiers: [{ stat: "defense", kind: "flat", value: 5 }, { stat: "speed", kind: "percent", value: -0.2 }],
 } satisfies Status;
 ```

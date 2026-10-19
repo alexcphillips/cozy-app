@@ -5,7 +5,7 @@ export default {
     name: "Wizard Crab",
     sprite: "wizard-crab",
     tier: 5,
-    stats: { maxHealth: 22, attack: 8, defence: 3, speed: 10 },
+    stats: { maxHealth: 22, attack: 8, defense: 3, speed: 10 },
     moves: [
         {
             id: "bite",

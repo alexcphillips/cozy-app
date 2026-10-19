@@ -5,7 +5,7 @@ export default {
     name: "Dark Wizard",
     sprite: "dark-wizard",
     tier: 5,
-    stats: { maxHealth: 32, attack: 26, defence: 1, speed: 15 },
+    stats: { maxHealth: 32, attack: 26, defense: 1, speed: 15 },
     moves: [
         {
             id: "bite",

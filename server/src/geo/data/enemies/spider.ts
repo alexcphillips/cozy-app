@@ -5,7 +5,7 @@ export default {
     name: "Giant Spider",
     sprite: "spider",
     tier: 1,
-    stats: { maxHealth: 18, attack: 10, defence: 0, speed: 13 },
+    stats: { maxHealth: 16, attack: 9, defense: 0, speed: 11 },
     moves: [
         {
             id: "bite",
@@ -24,9 +24,7 @@ export default {
     loot: [
         { itemId: "spider-fang", chance: 1, quantity: { min: 1, max: 1 } },
         { itemId: "silk-spool", chance: 0.5, quantity: { min: 1, max: 1 } },
-        // PLACEHOLDER rate: the rare drop that starts a Tarantula.
-        { itemId: "pet.tarantula.common", chance: 0.01, quantity: { min: 1, max: 1 } },
     ],
-    coins: { min: 1, max: 4 },
+    coins: { min: 1, max: 2 },
     xp: 40,
 } satisfies Enemy;

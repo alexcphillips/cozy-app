@@ -18,7 +18,7 @@ export type InventoryRow = {
     item_id: string;
     quantity: number;
     charges_left: number | null;
-    /** Weapons and armour: its reforge id (`data/reforges/`), if reforged. */
+    /** Weapons and armor: its reforge id (`data/reforges/`), if reforged. */
     reforge: string | null;
     /** Pets: the copy's XP and held item; null for anything else. */
     pet: PetCopy | null;

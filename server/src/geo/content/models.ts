@@ -8,7 +8,7 @@ import type { Action, Amount, Condition, EffectDef, StatModifier } from "../engi
  *     import type { Weapon } from "#geo/models";
  *
  *     export default {
- *         id: "broadsword",
+ *         id: "claymore",
  *         …
  *     } satisfies Weapon;
  *
@@ -70,6 +70,11 @@ export type GearRules = {
 export type EquipmentRules = GearRules & {
     /** Card ids (no `card.`) only usable while this is equipped. */
     unlocksCards?: string[];
+    /**
+     * Skill levels needed to equip it, e.g. `[{ skill: "combat", level: 5 }]`,
+     * however it was got (crafted, bought, looted). Default none.
+     */
+    skills?: { skill: string; level: number }[];
 };
 
 /**
@@ -94,6 +99,19 @@ export type Card = ItemBase & {
      * one, e.g. ["dagger"] or ["melee"]. Omit = playable with anything.
      */
     requiresWeapon?: string[];
+    /**
+     * Off-hand types (config/weapons offHandTypes); the off-hand must be one,
+     * e.g. ["shield"]. Omit = no off-hand needed. With requiresWeapon, both
+     * must hold.
+     */
+    requiresOffHand?: string[];
+    /**
+     * Conditions that must all hold to play it, e.g.
+     * `[{ type: "lacksStatus", who: "self", status: "venom-coat" }]` for a
+     * self-buff that can't be recast while it lasts. The app greys it out
+     * meanwhile. `self` is the player, `other` the target.
+     */
+    playableIf?: Condition[];
     /** Fishing cards only: whether it raises or lowers catch quality. */
     finesse?: "raises" | "lowers";
 };
@@ -109,10 +127,12 @@ export type Weapon = ItemBase &
         };
     };
 
-/** Shields (offHand), helmets, shoulders, chest pieces, gloves, leg armour, boots, cloaks, belts. */
-export type Armour = ItemBase &
+/** Shields (offHand), helmets, shoulders, chest pieces, gloves, leg armor, boots, cloaks, belts. */
+export type Armor = ItemBase &
     EquipmentRules & {
         slot: "offHand" | "head" | "chest" | "hands" | "legs" | "feet" | "shoulders" | "cloak" | "belt";
+        /** Off-hand slot only: its type, from config/weapons offHandTypes, e.g. "shield". Cards' requiresOffHand names these. */
+        offHand?: { type: string };
     };
 
 export type Ring = ItemBase & EquipmentRules;
@@ -493,7 +513,7 @@ export type Enemy = {
      * `tierUnlockLevels`).
      */
     tier: number;
-    /** maxHealth, attack, defence, speed, critChance… Missing = 0. */
+    /** maxHealth, attack, defense, speed, critChance… Missing = 0. */
     stats: Record<string, number>;
     /**
      * A barrier it spawns with: soaks this much damage (after guard, before
@@ -564,18 +584,12 @@ export type Vendor = {
     icon: string;
     description: string;
     /**
-     * Coins each, unlimited stock. Never under what any vendor pays back.
+     * Coins each, unlimited stock. Never under what vendors pay back (every
+     * vendor buys anything with a sellValue that isn't Soulbound).
      * `tab` sorts it into a named buy tab ("Weapons"); untabbed offers go
      * under "Buy".
      */
     sells: { itemId: string; price: number; stock?: null; tab?: string }[];
-    /** Buys items matching every rule given, paying their sellValue. {} = anything not Soulbound. */
-    buys: {
-        kinds?: ItemKind[];
-        /** Matches cards and materials of these skills. */
-        skills?: string[];
-        itemIds?: string[];
-    };
     /**
      * Gives the vendor a Reforge tab: pay this many coins, by the item's
      * rarity, for a random reforge from `data/reforges/` (never the one it has).
@@ -585,10 +599,10 @@ export type Vendor = {
     petUpgrades?: boolean;
 };
 
-/** Which gear a reforge can land on. Armour is the off hand, head, chest, hands, legs, cloak and belt; never rings or amulets. */
-export type ReforgeTarget = "weapon" | "armour";
+/** Which gear a reforge can land on. Armor is the off hand, head, chest, hands, legs, cloak and belt; never rings or amulets. */
+export type ReforgeTarget = "weapon" | "armor";
 
-/** A reforge: a named bonus a vendor rolls onto one copy of a weapon or armour, e.g. "Heavy". */
+/** A reforge: a named bonus a vendor rolls onto one copy of a weapon or armor, e.g. "Heavy". */
 export type Reforge = {
     /** Must match the file name. */
     id: string;
@@ -638,11 +652,43 @@ export type Mayor = {
     perks: MayorPerk[];
 };
 
+/**
+ * Something to do: "Kill 1 Green Slime". The server counts progress, and the
+ * app's label is written from it ("Kill Green Slime"), so a new kind here
+ * needs no app change.
+ */
+export type QuestObjective = {
+    /** Unique within the quest, e.g. "kill". */
+    id: string;
+    type: "kill";
+    /** The enemy to defeat. */
+    enemy: string;
+    /** How many. */
+    count: number;
+};
+
+/** What turning in a finished quest pays. */
+export type QuestRewards = {
+    coins?: number;
+    items?: ItemAmount[];
+};
+
+export type Quest = {
+    /** Must match the file name. */
+    id: string;
+    title: string;
+    /** Who gives it, as the app shows it: "The Angler". Leave out for none. */
+    giver?: string;
+    /** All must be met before it can be turned in. */
+    objectives: QuestObjective[];
+    rewards: QuestRewards;
+};
+
 // ---------------------------------------------------------------------------
 // config/
 
 export type PlayerConfig = {
-    /** A player's stats before gear: maxHealth, attack, defence, speed, critChance, critMultiplier. */
+    /** A player's stats before gear: maxHealth, attack, defense, speed, critChance, critMultiplier. */
     baseStats: Record<string, number>;
 };
 
@@ -869,6 +915,8 @@ export type WeaponsConfig = {
     types: string[];
     /** How weapons fight, e.g. "melee". */
     styles: string[];
+    /** Off-hand types, e.g. "shield". Off-hand armor and requiresOffHand use these. */
+    offHandTypes: string[];
     /**
      * What the player fights with when no weapon is equipped: its type and
      * style (for `requiresWeapon`) and its stats, e.g. +1 attack for fists.

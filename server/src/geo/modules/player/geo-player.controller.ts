@@ -9,6 +9,8 @@ import {
     GEO_TALISMAN_BAG_FULL,
     GEO_TALISMAN_BAG_PAGE_SIZE,
     geoSlotKind,
+    geoSkillName,
+    geoUnmetSkill,
     isValidPoint,
     GEO_CAMP_MOVE_DAYS,
     type GeoEquipmentSlot,
@@ -56,6 +58,8 @@ export async function setEquipment(req: Request, res: Response) {
             const item = CONTENT.items[row.item_id];
             if (item?.kind !== "equipment") throw AppError.badRequest("That item can't be equipped");
             if (item.slot !== geoSlotKind(slot)) throw AppError.badRequest(`That goes in a ${item.slot} slot`);
+            const unmet = geoUnmetSkill(await playerRepository.findSkillLevels(tx, playerId), item.skills);
+            if (unmet) throw AppError.badRequest(`Needs ${geoSkillName(unmet.skill)} level ${unmet.level} to equip`);
 
             await playerRepository.equip(tx, playerId, slot, inventoryId);
         }

@@ -5,7 +5,7 @@ export default {
     name: "Grotto Crab",
     sprite: "grotto-crab",
     tier: 5,
-    stats: { maxHealth: 42, attack: 9, defence: 5, speed: 9, counterChance: 0.2 },
+    stats: { maxHealth: 42, attack: 9, defense: 5, speed: 9, counterChance: 0.2 },
     moves: [
         {
             id: "bite",

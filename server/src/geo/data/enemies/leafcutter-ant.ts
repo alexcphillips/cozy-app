@@ -5,7 +5,7 @@ export default {
     name: "Leafcutter Ant",
     sprite: "leafcutter-ant",
     tier: 5,
-    stats: { maxHealth: 18, attack: 15, defence: 1, speed: 11 },
+    stats: { maxHealth: 18, attack: 15, defense: 1, speed: 11 },
     moves: [
         {
             id: "bite",

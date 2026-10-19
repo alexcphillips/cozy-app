@@ -5,7 +5,7 @@ export default {
     name: "Lance Knight",
     sprite: "lance-knight",
     tier: 5,
-    stats: { maxHealth: 42, attack: 31, defence: 7, speed: 14 },
+    stats: { maxHealth: 42, attack: 31, defense: 7, speed: 14 },
     moves: [
         {
             id: "bite",

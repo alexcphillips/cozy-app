@@ -1,13 +1,23 @@
 import type { Card } from "#geo/models";
 
-// PLACEHOLDER: crafted from Spider Fangs. What it does is still to be designed.
+// Crafted from Spider Fangs. One charge a fight: the coat lasts until it ends.
 export default {
     id: "envenom",
     name: "Envenom",
     rarity: "rare",
     icon: "poison-bottle",
-    description: "Spider venom, worked into a technique. What it does is still a secret.",
+    description:
+        "Spider venom, worked into the edge. Every cut leaves some behind.",
+    stats: [
+        { label: "Venom Coat", value: "Rest of the fight" },
+        { label: "Each hit", value: "+1 Poisoned (max 5)" },
+        { label: "Poisoned", value: "1 per stack each turn, ignores Defense" },
+    ],
     skill: "combat",
     maxCharges: 10,
-    targets: "enemy",
+    targets: "self",
+    requiresWeapon: ["melee"],
+    // Greyed out while coated; playable again if something strips the coat.
+    playableIf: [{ type: "lacksStatus", who: "self", status: "venom-coat" }],
+    actions: [{ type: "applyStatus", to: "self", status: "venom-coat" }],
 } satisfies Card;

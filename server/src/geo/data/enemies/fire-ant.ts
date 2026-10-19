@@ -5,7 +5,7 @@ export default {
     name: "Fire Ant",
     sprite: "fire-ant",
     tier: 5,
-    stats: { maxHealth: 16, attack: 14, defence: 0, speed: 11 },
+    stats: { maxHealth: 16, attack: 14, defense: 0, speed: 11 },
     moves: [
         {
             id: "bite",

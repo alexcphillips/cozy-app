@@ -28,9 +28,9 @@ export default {
         {
             id: "iron-will",
             name: "Iron Will",
-            description: "+5 defence in Runs.",
+            description: "+5 defense in Runs.",
             icon: "checked-shield",
-            modifiers: [{ stat: "defence", kind: "flat", value: 5 }],
+            modifiers: [{ stat: "defense", kind: "flat", value: 5 }],
         },
         {
             id: "tax-break",

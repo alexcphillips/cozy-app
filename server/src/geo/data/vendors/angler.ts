@@ -4,7 +4,7 @@ export default {
     id: "angler",
     name: "Angler",
     icon: "fishing-pole",
-    description: "Bait, tackle and a lot of opinions. Buys any fish that isn't Soulbound.",
+    description: "Bait, tackle and a lot of opinions.",
     sells: [
         { itemId: "worm-bait", price: 3 },
         { itemId: "bloody-bait", price: 25 },
@@ -24,5 +24,4 @@ export default {
         { itemId: "card.fish.twitch", price: 120 },
         { itemId: "card.fish.patient", price: 300 },
     ],
-    buys: { kinds: ["material"], skills: ["fishing"] },
 } satisfies Vendor;

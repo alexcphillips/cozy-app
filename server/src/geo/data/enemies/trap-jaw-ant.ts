@@ -5,7 +5,7 @@ export default {
     name: "Trap-Jaw Ant",
     sprite: "trap-jaw-ant",
     tier: 5,
-    stats: { maxHealth: 20, attack: 14, defence: 2, speed: 10 },
+    stats: { maxHealth: 20, attack: 14, defense: 2, speed: 10 },
     moves: [
         {
             id: "bite",

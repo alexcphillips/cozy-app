@@ -5,7 +5,7 @@ export default {
     name: "Knight",
     sprite: "knight",
     tier: 5,
-    stats: { maxHealth: 39, attack: 24, defence: 7, speed: 14 },
+    stats: { maxHealth: 39, attack: 24, defense: 7, speed: 14 },
     moves: [
         {
             id: "bite",

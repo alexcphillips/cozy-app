@@ -5,7 +5,7 @@ export default {
     name: "Tomb Rat",
     sprite: "tomb-rat",
     tier: 5,
-    stats: { maxHealth: 16, attack: 9, defence: 0, speed: 11 },
+    stats: { maxHealth: 16, attack: 9, defense: 0, speed: 11 },
     moves: [
         {
             id: "bite",

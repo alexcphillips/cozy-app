@@ -5,7 +5,7 @@ export default {
     name: "Cave Salamander",
     sprite: "cave-salamander",
     tier: 5,
-    stats: { maxHealth: 12, attack: 7, defence: 0, speed: 9 },
+    stats: { maxHealth: 12, attack: 7, defense: 0, speed: 9 },
     moves: [
         {
             id: "bash",

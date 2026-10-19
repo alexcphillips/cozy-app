@@ -6,5 +6,6 @@ export default {
     rarity: "common",
     icon: "fangs",
     description: "placeholder",
+    sellValue: 2,
     skill: "combat",
 } satisfies Material;

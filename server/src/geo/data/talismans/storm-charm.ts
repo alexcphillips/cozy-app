@@ -12,7 +12,7 @@ export default {
             id: "storm-charm.lightning",
             trigger: { event: "attacked", as: "target" },
             chance: 0.3,
-            actions: [{ type: "damage", to: "other", amount: 10, element: "lightning", ignoreDefence: true }],
+            actions: [{ type: "damage", to: "other", amount: 10, element: "lightning", ignoreDefense: true }],
         },
     ],
 } satisfies Talisman;

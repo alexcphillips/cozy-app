@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { BattleRuleError, createBattle, eatBetweenFights, eatFood, playCard, type CombatantSetup } from "./battle";
+import { BattleRuleError, canPlayCard, createBattle, eatBetweenFights, eatFood, playCard, previewIntent, type CombatantSetup } from "./battle";
 import type { EngineContent } from "./content.types";
 import type { CardDef, EffectDef, FoodDef, LogEntry, StatusDef } from "./engine.types";
 
@@ -18,7 +18,7 @@ const BURNING: StatusDef = {
         {
             id: "burning.tick",
             trigger: { event: "attackFinished", as: "actor" },
-            actions: [{ type: "damage", to: "self", amount: { flat: 3, perStack: true }, element: "fire", ignoreDefence: true }],
+            actions: [{ type: "damage", to: "self", amount: { flat: 3, perStack: true }, element: "fire", ignoreDefense: true }],
         },
     ],
 };
@@ -88,6 +88,15 @@ const CARDS: Record<string, CardDef> = {
         requiresWeapon: ["dagger"],
         actions: [{ type: "attack", to: "other", amount: { stat: "attack" } }],
     },
+    "shield-bash": {
+        id: "shield-bash",
+        name: "Shield Bash",
+        skill: "combat",
+        targets: "enemy",
+        requiresWeapon: ["melee"],
+        requiresOffHand: ["shield"],
+        actions: [{ type: "attack", to: "other", amount: { stat: "attack" } }],
+    },
     brace: {
         id: "brace",
         name: "Brace",
@@ -140,7 +149,7 @@ function player(overrides: Partial<CombatantSetup> = {}): CombatantSetup {
         id: "player",
         side: "player",
         name: "You",
-        baseStats: { maxHealth: 100, attack: 10, defence: 0, speed: 10 },
+        baseStats: { maxHealth: 100, attack: 10, defense: 0, speed: 10 },
         modifiers: [],
         effects: [],
         hand: hand("slash", "fireball", "freeze", "brace"),
@@ -153,7 +162,7 @@ function spider(overrides: Partial<CombatantSetup> = {}): CombatantSetup {
         id: "enemy:0",
         side: "enemy",
         name: "Spider",
-        baseStats: { maxHealth: 40, attack: 12, defence: 0, speed: 12 },
+        baseStats: { maxHealth: 40, attack: 12, defense: 0, speed: 12 },
         modifiers: [],
         effects: [],
         moves: [{ id: "bite", name: "Bite", weight: 1, actions: [{ type: "attack", to: "other", amount: { stat: "attack" } }] }],
@@ -223,6 +232,17 @@ describe("cards and charges", () => {
         const { state } = playCard(withWeapon(["dagger", "melee"]), content(), { cardInstanceId: "c0" });
         assert.equal(healthOf(state, "enemy:0"), 30);
     });
+
+    it("plays an off-hand card only with a fitting weapon and off-hand", () => {
+        const withGear = (weaponTags: string[], offHandTags?: string[]) =>
+            createBattle([player({ hand: hand("shield-bash"), weaponTags, offHandTags }), spider()], 1, content()).state;
+        for (const tags of [undefined, []]) {
+            assert.throws(() => playCard(withGear(["sword", "melee"], tags), content(), { cardInstanceId: "c0" }), /needs a shield in your off-hand/);
+        }
+        assert.throws(() => playCard(withGear([], ["shield"]), content(), { cardInstanceId: "c0" }), /needs a melee weapon/);
+        const { state } = playCard(withGear(["sword", "melee"], ["shield"]), content(), { cardInstanceId: "c0" });
+        assert.equal(healthOf(state, "enemy:0"), 30);
+    });
 });
 
 describe("statuses", () => {
@@ -258,7 +278,7 @@ describe("gear and talisman effects", () => {
         id: "storm.lightning",
         trigger: { event: "attacked", as: "target" },
         chance,
-        actions: [{ type: "damage", to: "other", amount: 10, element: "lightning", ignoreDefence: true }],
+        actions: [{ type: "damage", to: "other", amount: 10, element: "lightning", ignoreDefense: true }],
     });
 
     it("strikes an attacker with lightning when the proc lands", () => {
@@ -284,7 +304,7 @@ describe("gear and talisman effects", () => {
         const thorns: EffectDef = {
             id: "thorns",
             trigger: { event: "damageTaken", as: "target" },
-            actions: [{ type: "damage", to: "other", amount: 1, ignoreDefence: true }],
+            actions: [{ type: "damage", to: "other", amount: 1, ignoreDefense: true }],
         };
         const big = { maxHealth: 10_000, attack: 1, speed: 1 };
         const start = createBattle(
@@ -360,12 +380,94 @@ describe("barrier", () => {
     });
 });
 
+describe("defense", () => {
+    const fast = player({ baseStats: { maxHealth: 100, attack: 10, defense: 0, speed: 20 } });
+    const armored = (defense: number) => spider({ baseStats: { maxHealth: 40, attack: 12, defense, speed: 12 } });
+
+    it("takes its amount off each hit", () => {
+        const { state } = playCard(createBattle([fast, armored(6)], 1, content()).state, content(), { cardInstanceId: "c0" });
+        assert.equal(healthOf(state, "enemy:0"), 36);
+    });
+
+    it("never stops more than three quarters of a hit", () => {
+        const { state } = playCard(createBattle([fast, armored(50)], 1, content()).state, content(), { cardInstanceId: "c0" });
+        // 25% of 10, rounded.
+        assert.equal(healthOf(state, "enemy:0"), 37);
+    });
+});
+
+describe("enemy intents", () => {
+    const fast = (overrides: Partial<CombatantSetup> = {}) =>
+        player({ baseStats: { maxHealth: 100, attack: 10, defense: 0, speed: 20 }, ...overrides });
+    const twoMoves = spider({
+        moves: [
+            { id: "bite", name: "Bite", weight: 1, actions: [{ type: "attack", to: "other", amount: { stat: "attack" } }] },
+            { id: "shell", name: "Shell", weight: 1, actions: [{ type: "guard", to: "self", amount: 5 }] },
+        ],
+    });
+    const intentOf = (state: { combatants: { id: string; intent?: string }[] }) =>
+        state.combatants.find((c) => c.id === "enemy:0")!.intent;
+
+    it("makes the move it showed, then shows the next", () => {
+        const seen = new Set<string>();
+        for (let seed = 1; seed <= 20; seed++) {
+            const start = createBattle([fast(), twoMoves], seed, content());
+            const shown = intentOf(start.state)!;
+            seen.add(shown);
+            const { state, log } = playCard(start.state, content(), { cardInstanceId: "c0" });
+            const made = log.find((e) => e.type === "enemyMove");
+            assert.equal(made?.type === "enemyMove" && made.moveId, shown);
+            assert.ok(intentOf(state));
+        }
+        assert.equal(seen.size, 2, "both moves come up across seeds");
+    });
+
+    it("keeps the move through a skipped turn", () => {
+        const c = content(0);
+        const start = createBattle([fast(), twoMoves], 3, c);
+        const { state, log } = playCard(start.state, c, { cardInstanceId: "c2" });
+        assert.ok(log.some((e) => e.type === "turnSkipped" && e.actor === "enemy:0"));
+        assert.equal(intentOf(state), intentOf(start.state));
+    });
+
+    it("previews each hit after the player's defense, and what lands on the enemy itself", () => {
+        const flurry = spider({
+            moves: [
+                {
+                    id: "flurry",
+                    name: "Flurry",
+                    weight: 1,
+                    actions: [
+                        { type: "attack", to: "other", amount: { stat: "attack", multiplier: 0.75 }, hits: 3 },
+                        { type: "guard", to: "self", amount: 4 },
+                    ],
+                },
+            ],
+        });
+        const armored = fast({ baseStats: { maxHealth: 100, attack: 10, defense: 5, speed: 20 } });
+        const { state } = createBattle([armored, flurry], 1, content());
+        // 12 × 0.75 = 9, less 5 defense.
+        assert.deepEqual(previewIntent(state, content(), "enemy:0"), {
+            moveId: "flurry",
+            name: "Flurry",
+            parts: [
+                { kind: "attack", damage: 4, hits: 3 },
+                { kind: "guard", amount: 4, self: true },
+            ],
+        });
+        const walled = fast({ baseStats: { maxHealth: 100, attack: 10, defense: 50, speed: 20 } });
+        // A quarter of 9 always lands.
+        const preview = previewIntent(createBattle([walled, flurry], 1, content()).state, content(), "enemy:0");
+        assert.deepEqual(preview?.parts[0], { kind: "attack", damage: 2, hits: 3 });
+    });
+});
+
 describe("multi-hit attacks", () => {
     const fast = (overrides: Partial<CombatantSetup> = {}) =>
-        player({ baseStats: { maxHealth: 100, attack: 10, defence: 0, speed: 20 }, hand: hand("flurry"), ...overrides });
+        player({ baseStats: { maxHealth: 100, attack: 10, defense: 0, speed: 20 }, hand: hand("flurry"), ...overrides });
 
-    it("lands each hit separately, each meeting defence alone", () => {
-        const start = createBattle([fast(), spider({ baseStats: { maxHealth: 40, attack: 12, defence: 2, speed: 12 } })], 1, content());
+    it("lands each hit separately, each meeting defense alone", () => {
+        const start = createBattle([fast(), spider({ baseStats: { maxHealth: 40, attack: 12, defense: 2, speed: 12 } })], 1, content());
         const { state, log } = playCard(start.state, content(), { cardInstanceId: "c0" });
         assert.deepEqual(damageTo(log, "enemy:0").map((d) => d.amount), [4, 4]);
         // 40 − 2 × (6 − 2)
@@ -376,7 +478,7 @@ describe("multi-hit attacks", () => {
         const zap: EffectDef = {
             id: "zap",
             trigger: { event: "attacked", as: "target" },
-            actions: [{ type: "damage", to: "other", amount: 1, ignoreDefence: true }],
+            actions: [{ type: "damage", to: "other", amount: 1, ignoreDefense: true }],
         };
         const start = createBattle([fast(), spider({ effects: [zap] })], 1, content());
         const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
@@ -387,7 +489,7 @@ describe("multi-hit attacks", () => {
         const after: EffectDef = {
             id: "after",
             trigger: { event: "attackFinished", as: "actor" },
-            actions: [{ type: "damage", to: "other", amount: 1, ignoreDefence: true }],
+            actions: [{ type: "damage", to: "other", amount: 1, ignoreDefense: true }],
         };
         const start = createBattle([fast({ effects: [after] }), spider()], 1, content());
         const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
@@ -406,10 +508,10 @@ describe("multi-hit attacks", () => {
 describe("counters", () => {
     const counters = (log: LogEntry[], target: string) => damageTo(log, target).filter((d) => d.counter);
     const crab = (overrides: Partial<CombatantSetup> = {}) =>
-        spider({ baseStats: { maxHealth: 40, attack: 12, defence: 0, speed: 1, counterChance: 1 }, ...overrides });
+        spider({ baseStats: { maxHealth: 40, attack: 12, defense: 0, speed: 1, counterChance: 1 }, ...overrides });
 
-    it("strikes back once per attack, not per hit, for half its attack against defence", () => {
-        const you = player({ baseStats: { maxHealth: 100, attack: 10, defence: 2, speed: 20 }, hand: hand("flurry") });
+    it("strikes back once per attack, not per hit, for half its attack against defense", () => {
+        const you = player({ baseStats: { maxHealth: 100, attack: 10, defense: 2, speed: 20 }, hand: hand("flurry") });
         const start = createBattle([you, crab()], 1, content());
         const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
         // 12 × 0.5 − 2
@@ -426,7 +528,7 @@ describe("counters", () => {
     });
 
     it("never counters a counter", () => {
-        const you = player({ baseStats: { maxHealth: 100, attack: 10, defence: 0, speed: 20, counterChance: 1 } });
+        const you = player({ baseStats: { maxHealth: 100, attack: 10, defense: 0, speed: 20, counterChance: 1 } });
         const start = createBattle([you, crab()], 1, content());
         const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
         // Your slash is countered, then the crab's bite is: one each way.
@@ -444,6 +546,71 @@ describe("counters", () => {
         const start = createBattle([player(), spider()], 1, content());
         const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
         assert.equal(counters(log, "player").length + counters(log, "enemy:0").length, 0);
+    });
+});
+
+describe("armor pen", () => {
+    const pen = (value: number) => [{ stat: "armorPen", kind: "flat" as const, value }];
+    const shell = (defense: number) => spider({ baseStats: { maxHealth: 100, attack: 1, defense, speed: 1 } });
+
+    it("ignores that much defense on an attack", () => {
+        const start = createBattle([player({ hand: hand("slash"), modifiers: pen(2) }), shell(4)], 1, content());
+        const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
+        // 10 − (4 − 2)
+        assert.deepEqual(damageTo(log, "enemy:0").map((d) => d.amount), [8]);
+    });
+
+    it("never takes defense below 0", () => {
+        const start = createBattle([player({ hand: hand("slash"), modifiers: pen(10) }), shell(4)], 1, content());
+        const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
+        assert.deepEqual(damageTo(log, "enemy:0").map((d) => d.amount), [10]);
+    });
+
+    it("applies to each hit of a multi-hit attack", () => {
+        const start = createBattle([player({ hand: hand("flurry"), modifiers: pen(2) }), shell(4)], 1, content());
+        const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
+        // 6 − (4 − 2), twice
+        assert.deepEqual(damageTo(log, "enemy:0").map((d) => d.amount), [4, 4]);
+    });
+
+    it("doesn't apply to proc damage", () => {
+        const after: EffectDef = {
+            id: "after",
+            trigger: { event: "attackFinished", as: "actor" },
+            actions: [{ type: "damage", to: "other", amount: 6 }],
+        };
+        const you = player({ hand: hand("slash"), modifiers: pen(4), effects: [after] });
+        const start = createBattle([you, shell(4)], 1, content());
+        const { log } = playCard(start.state, content(), { cardInstanceId: "c0" });
+        assert.equal(damageTo(log, "enemy:0").find((d) => d.effectId === "after")!.amount, 2);
+    });
+
+    it("stacks with a status that grants it, as a Pierce card would", () => {
+        const PIERCING: StatusDef = { id: "piercing", name: "Piercing", duration: 1, maxStacks: 1, modifiers: pen(2) };
+        const c: EngineContent = {
+            ...content(),
+            statuses: { ...content().statuses, piercing: PIERCING },
+            cards: {
+                ...CARDS,
+                pierce: {
+                    id: "pierce",
+                    name: "Pierce",
+                    skill: "combat",
+                    targets: "enemy",
+                    actions: [
+                        { type: "applyStatus", to: "self", status: "piercing" },
+                        { type: "attack", to: "other", amount: { stat: "attack" } },
+                    ],
+                },
+            },
+        };
+        const start = createBattle([player({ hand: hand("pierce", "slash"), modifiers: pen(1) }), shell(4)], 1, c);
+        const first = playCard(start.state, c, { cardInstanceId: "c0" });
+        // Gear 1 + status 2: 10 − (4 − 3)
+        assert.deepEqual(damageTo(first.log, "enemy:0").map((d) => d.amount), [9]);
+        const second = playCard(first.state, c, { cardInstanceId: "c1" });
+        // The status is gone after one turn: gear only, 10 − (4 − 1)
+        assert.deepEqual(damageTo(second.log, "enemy:0").map((d) => d.amount), [7]);
     });
 });
 
@@ -479,7 +646,7 @@ describe("condition combinators and on-kill", () => {
                 { type: "not", condition: { type: "hasStatus", who: "self", status: "frozen" } },
                 { type: "any", conditions: [{ type: "healthBelow", who: "self", fraction: 0.1 }, { type: "lacksStatus", who: "other", status: "burning" }] },
             ],
-            actions: [{ type: "damage", to: "other", amount: 2, ignoreDefence: true }],
+            actions: [{ type: "damage", to: "other", amount: 2, ignoreDefense: true }],
         };
         const { state } = createBattle([player({ effects: [notFrozen] }), spider()], 1, content());
         assert.equal(healthOf(state, "enemy:0"), 38);
@@ -580,7 +747,7 @@ describe("eating from the lunchbox", () => {
             id: "bitter",
             name: "Bitter Root",
             actions: [
-                { type: "damage", to: "self", amount: 30, ignoreDefence: true },
+                { type: "damage", to: "self", amount: 30, ignoreDefense: true },
                 { type: "applyStatus", to: "self", status: "well-fed" },
             ],
         };
@@ -646,7 +813,7 @@ describe("damage dealt bonus", () => {
         const recoil: EffectDef = {
             id: "recoil",
             trigger: { event: "cardPlayed", as: "actor" },
-            actions: [{ type: "damage", to: "self", amount: 10, ignoreDefence: true }],
+            actions: [{ type: "damage", to: "self", amount: 10, ignoreDefense: true }],
         };
         const { log } = playCard(
             createBattle([player({ modifiers: boosted(0.5), effects: [recoil] }), target()], 1, content()).state,
@@ -703,5 +870,45 @@ describe("status damage", () => {
         assert.equal(hits[0]!.amount, 8);
         // The burn: 3, × 1.5 from oil only (the player's bonus never applies).
         assert.equal(hits.find((d) => d.effectId === "burning.tick")!.amount, 5);
+    });
+});
+
+describe("playableIf", () => {
+    const COATED: StatusDef = { id: "coated", name: "Coated", maxStacks: 1 };
+    const coatContent = (): EngineContent => ({
+        ...content(),
+        statuses: { ...content().statuses, coated: COATED },
+        cards: {
+            ...CARDS,
+            coat: {
+                id: "coat",
+                name: "Coat",
+                skill: "combat",
+                targets: "self",
+                playableIf: [{ type: "lacksStatus", who: "self", status: "coated" }],
+                actions: [{ type: "applyStatus", to: "self", status: "coated" }],
+            },
+        },
+    });
+    const slow = (actions: CombatantSetup["moves"]) =>
+        spider({ baseStats: { maxHealth: 200, attack: 1, speed: 1 }, moves: actions });
+
+    it("greys out and refuses a self-buff while it lasts", () => {
+        const c = coatContent();
+        const bite = [{ id: "bite", name: "Bite", weight: 1, actions: [{ type: "attack" as const, to: "other" as const, amount: 1 }] }];
+        const start = createBattle([player({ hand: hand("coat") }), slow(bite)], 1, c);
+        assert.equal(canPlayCard(start.state, c, "c0"), true);
+        const { state } = playCard(start.state, c, { cardInstanceId: "c0" });
+        assert.equal(canPlayCard(state, c, "c0"), false);
+        assert.throws(() => playCard(state, c, { cardInstanceId: "c0" }), /can't be played right now/);
+    });
+
+    it("allows it again once an enemy strips the buff", () => {
+        const c = coatContent();
+        const strip = [{ id: "strip", name: "Strip", weight: 1, actions: [{ type: "removeStatus" as const, from: "other" as const, status: "coated" }] }];
+        const start = createBattle([player({ hand: hand("coat") }), slow(strip)], 1, c);
+        const { state } = playCard(start.state, c, { cardInstanceId: "c0" });
+        assert.equal(state.combatants[0]!.statuses.length, 0);
+        assert.equal(canPlayCard(state, c, "c0"), true);
     });
 });

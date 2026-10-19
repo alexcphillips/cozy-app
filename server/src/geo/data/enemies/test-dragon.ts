@@ -8,7 +8,7 @@ export default {
     sprite: "placeholder-red",
     tier: 5,
     leavesAfterWinning: true,
-    stats: { maxHealth: 999, attack: 999, defence: 0, speed: 99 },
+    stats: { maxHealth: 999, attack: 999, defense: 0, speed: 99 },
     moves: [
         {
             id: "crush",

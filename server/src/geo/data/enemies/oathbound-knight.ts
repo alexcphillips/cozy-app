@@ -5,7 +5,7 @@ export default {
     name: "Oathbound Knight",
     sprite: "oathbound-knight",
     tier: 5,
-    stats: { maxHealth: 81, attack: 47, defence: 21, speed: 18 },
+    stats: { maxHealth: 81, attack: 47, defense: 21, speed: 18 },
     moves: [
         {
             id: "bite",

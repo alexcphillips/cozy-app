@@ -11,8 +11,8 @@ import type { Weapon } from "#geo/models";
 
 // Comments are fine anywhere: notes for yourself.
 export default {
-    id: "broadsword",
-    name: "Broadsword",
+    id: "claymore",
+    name: "Claymore",
     ...
 } satisfies Weapon;
 ```
@@ -20,9 +20,9 @@ export default {
 `satisfies Weapon` is what makes the editor help: autocomplete for every
 field, its explanation on hover, and a red underline on a mistake (a typo'd
 field, a string where a number goes) as you type. The models are in
-`content/models.ts`, one per folder: `Card`, `Weapon`, `Armour`, `Ring`, `Amulet`,
+`content/models.ts`, one per folder: `Card`, `Weapon`, `Armor`, `Ring`, `Amulet`,
 `Talisman`, `Material`, `Food`, `Bait`, `MiscItem`, `Fish`, `Enemy`,
-`Status`, `Recipe`, `Vendor`, `Reforge`, `Mayor`, plus a `…Config` for each file in
+`Status`, `Recipe`, `Vendor`, `Reforge`, `Mayor`, `Quest`, plus a `…Config` for each file in
 `config/`. Keep data files to plain values: no imports but the model, no
 logic.
 
@@ -48,15 +48,15 @@ loads, and so does `npm run geo:data`.
 
 ## Folders
 
-One entry per file, named by its id: `data/weapons/broadsword.ts` has
-`id: "broadsword"`. Subfolders are only for sorting, e.g.
+One entry per file, named by its id: `data/weapons/claymore.ts` has
+`id: "claymore"`. Subfolders are only for sorting, e.g.
 `cards/combat/`, `materials/mining/`.
 
 | Folder | What | Guide |
 | --- | --- | --- |
 | `cards/` | Cards: their rules and the item you own, in one file | [cards](cards/README.md) |
 | `weapons/` | Main-hand weapons | [weapons](weapons/README.md) |
-| `armour/` | Shields (off hand), head, shoulders, chest, hands, legs, feet, cloak, belt — a subfolder per slot | [armour](armour/README.md) |
+| `armor/` | Shields (off hand), head, shoulders, chest, hands, legs, feet, cloak, belt — a subfolder per slot | [armor](armor/README.md) |
 | `rings/` | Rings | [rings](rings/README.md) |
 | `amulets/` | Amulets | [amulets](amulets/README.md) |
 | `rods/` | Fishing rods: what a cast can hook and land | [rods](rods/README.md) |
@@ -77,17 +77,18 @@ One entry per file, named by its id: `data/weapons/broadsword.ts` has
 | `statuses/` | Burning, Frozen, Well Fed… | [statuses](statuses/README.md) |
 | `recipes/` | Crafting and cooking recipes | [recipes](recipes/README.md) |
 | `vendors/` | NPC shops | [vendors](vendors/README.md) |
-| `reforges/` | Reforges a vendor rolls onto weapons and armour | [reforges](reforges/README.md) |
+| `reforges/` | Reforges a vendor rolls onto weapons and armor | [reforges](reforges/README.md) |
 | `mayors/` | Mayors and their perks | [mayors](mayors/README.md) |
 | `dungeons/` | Raid-style bosses fought from lobbies | [dungeons](dungeons/README.md) |
 | `config/` | Tuning numbers: player stats, spawns, fishing, starter kit… | [config](config/README.md) |
+| `quests/` | Quests: objectives and turn-in rewards | [quests](quests/README.md) |
 
 Rules (attacks, heals, procs, conditions) work the same everywhere they
 appear: see [EFFECTS.md](EFFECTS.md).
 
 ## Ids and references
 
-Ids use lower-case letters, digits, dots and dashes: `iron-helm`,
+Ids use lower-case letters, digits, dots and dashes: `leather-belt`,
 `fish.reel`. Files point at each other by id, and every reference is checked
 when the server starts.
 
@@ -105,7 +106,7 @@ selling Reel sells `card.fish.reel`.
 
 ## Fields every item has
 
-Cards, weapons, armour, rings, amulets, rods, talismans, materials, food, bait and misc all
+Cards, weapons, armor, rings, amulets, rods, talismans, materials, food, bait and misc all
 start with these:
 
 | Field | Type | Required? | What it does |

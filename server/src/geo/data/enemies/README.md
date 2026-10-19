@@ -17,7 +17,7 @@ Model: `Enemy` in `#geo/models` (`content/models.ts`). Hover any field in the ed
 | `name` | text | yes | Shown in the app. |
 | `sprite` | text | yes | The app's sprite name. |
 | `tier` | whole number ≥ 1 | yes | How far into the game it belongs. It spawns on the map only once the player's combat level opens its tier ([`tierUnlockLevels`](../config/README.md#spawnsts)), and more rarely once they're past it. |
-| `stats` | `{ stat: number }` | yes | e.g. `maxHealth`, `attack`, `defence`, `speed`, `critChance`. Missing stats are 0. See [stats](../EFFECTS.md#stats). |
+| `stats` | `{ stat: number }` | yes | e.g. `maxHealth`, `attack`, `defense`, `speed`, `critChance`. Missing stats are 0. See [stats](../EFFECTS.md#stats). |
 | `barrier` | whole number ≥ 1 | no | A barrier it spawns with: soaks that much damage (after guard, before health) until broken. Moves can cast more with the [`barrier` action](../EFFECTS.md#actions). |
 | `moves` | list of moves (at least 1) | yes | Each turn it picks one by weight. |
 | `moves[].id`, `.name` | text | yes | `name` is shown when it's used. |
@@ -39,7 +39,7 @@ and farming hubs) or `landmark` (POIs). `weight` is against the other enemies
 living there: 30 vs 10 = 75% / 25%. A water habitat's `waters` limits it to
 those kinds of water (`pond`, `lake`, `river`, `dock`, `ocean`).
 
-```ts
+```
 habitats: [{ near: "mining", weight: 20 }, { near: "landmark", weight: 5 }],
 ```
 
@@ -71,7 +71,7 @@ export default {
     name: "Bog Toad",
     sprite: "toad",
     tier: 2,
-    stats: { maxHealth: 60, attack: 9, defence: 2, speed: 6 },
+    stats: { maxHealth: 60, attack: 9, defense: 2, speed: 6 },
     moves: [
         {
             id: "slam",

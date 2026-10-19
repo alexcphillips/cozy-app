@@ -1,6 +1,6 @@
 # Reforges
 
-A reforge is a named bonus on one copy of a weapon or piece of armour, e.g. a
+A reforge is a named bonus on one copy of a weapon or piece of armor, e.g. a
 **Heavy** Iron Helm. A vendor with a `reforge` cost (the Blacksmith) rolls
 one at random onto a copy for coins, never the one it already has. The bonus
 is added to the item's own stats and goes with the copy if it's sold on the
@@ -13,11 +13,11 @@ Model: `Reforge` in `#geo/models` (`content/models.ts`). Hover any field in the 
 | Field | Type | Required? | What it does |
 | --- | --- | --- | --- |
 | `id`, `name` | text | yes | The name goes before the item's: "Heavy Iron Helm". |
-| `appliesTo` | list of `weapon` `armour` | yes | Armour is the off hand, head, chest, hands and legs. Rings take none. |
+| `appliesTo` | list of `weapon` `armor` | yes | Armor is the off hand, head, chest, hands and legs. Rings take none. |
 | `modifiers` | `{ common, uncommon, rare, epic, legendary }`, each a list of modifiers | yes | Its stat changes on an item of that rarity. See [EFFECTS.md](../EFFECTS.md) for stats. |
 
 A vendor that reforges needs at least two reforges for each of weapons and
-armour, so a reroll always has somewhere to go.
+armor, so a reroll always has somewhere to go.
 
 ## Example
 

@@ -11,11 +11,12 @@ Plus the [fields every item has](../README.md#fields-every-item-has).
 
 | Field | Type | Required? | What it does |
 | --- | --- | --- | --- |
-| `weapon.type` | text | yes | e.g. `dagger`, `sword`. Must be in `config/weapons.ts` `types`. Add new ones there. |
+| `weapon.type` | text | yes | e.g. `dagger`, `sword`, `greatsword`. Must be in `config/weapons.ts` `types`. Add new ones there. |
 | `weapon.style` | text | yes | e.g. `melee`. Must be in `config/weapons.ts` `styles`. |
 | `modifiers` | list of [modifiers](../EFFECTS.md#modifiers) | no | Stats while equipped, e.g. +8 attack. |
 | `effects` | list of [effects](../EFFECTS.md#effects-when-x-if-y-maybe-do-z) | no | Procs and passives while equipped. |
 | `unlocksCards` | list of card ids | no | Cards only usable while this is equipped. Ids without `card.`, e.g. `heavy-swing`. |
+| `skills` | list of `{ skill, level }` | no | Skill levels needed to equip it, e.g. `[{ skill: "combat", level: 5 }]`. Checked on equip however it was got (crafted, bought, looted); a saved loadout skips it until then. |
 
 A card's `requiresWeapon` matches the weapon's type **or** style: a card
 needing `["melee"]` works with every melee weapon, and one needing

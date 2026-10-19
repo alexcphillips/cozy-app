@@ -6,5 +6,6 @@ export default {
     rarity: "common",
     icon: "fangs",
     description: "Still faintly venomous. Handle by the base.",
+    sellValue: 3,
     skill: "combat",
 } satisfies Material;

@@ -31,13 +31,22 @@ describe("player combatant", () => {
         assert.equal(attack(fists), 1);
         assert.equal(attack(dagger), 2);
     });
+
+    it("carries the off-hand's type, so shield cards need a shield", () => {
+        const bare = playerCombatant({ name: "You", equipment: [], talismans: [], hand: [] }, CONTENT);
+        const shielded = playerCombatant({ name: "You", equipment: ["plank-shield"], talismans: [], hand: [] }, CONTENT);
+        assert.deepEqual(bare.offHandTags, []);
+        assert.deepEqual(shielded.offHandTags, ["shield"]);
+        assert.ok(!canWield(CONTENT.cards.guard!, bare.weaponTags, bare.offHandTags));
+        assert.ok(canWield(CONTENT.cards.guard!, shielded.weaponTags, shielded.offHandTags));
+    });
 });
 
 describe("reforges", () => {
     it("adds a worn copy's reforge, for the item's rarity", () => {
-        const plain = playerCombatant({ name: "You", equipment: ["broadsword"], talismans: [], hand: [] }, CONTENT);
+        const plain = playerCombatant({ name: "You", equipment: ["claymore"], talismans: [], hand: [] }, CONTENT);
         const violent = playerCombatant(
-            { name: "You", equipment: ["broadsword"], reforges: [{ itemId: "broadsword", reforgeId: "violent" }], talismans: [], hand: [] },
+            { name: "You", equipment: ["claymore"], reforges: [{ itemId: "claymore", reforgeId: "violent" }], talismans: [], hand: [] },
             CONTENT,
         );
         const extra = violent.modifiers.slice(plain.modifiers.length);
@@ -46,10 +55,10 @@ describe("reforges", () => {
 
     it("ignores a reforge that doesn't fit the item", () => {
         const odd = playerCombatant(
-            { name: "You", equipment: ["broadsword"], reforges: [{ itemId: "broadsword", reforgeId: "heavy" }], talismans: [], hand: [] },
+            { name: "You", equipment: ["claymore"], reforges: [{ itemId: "claymore", reforgeId: "heavy" }], talismans: [], hand: [] },
             CONTENT,
         );
-        const plain = playerCombatant({ name: "You", equipment: ["broadsword"], talismans: [], hand: [] }, CONTENT);
+        const plain = playerCombatant({ name: "You", equipment: ["claymore"], talismans: [], hand: [] }, CONTENT);
         assert.deepEqual(odd.modifiers, plain.modifiers);
     });
 });

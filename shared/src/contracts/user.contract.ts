@@ -7,5 +7,5 @@ export type PublicUser = {
     username: string;
     email: string;
     createdAt: string;
-    is_admin: string;
+    is_admin: boolean;
 };

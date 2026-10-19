@@ -77,18 +77,18 @@ try {
     assert.equal(wrongSlot.status, 400);
     step(`equipment rejects the wrong slot: "${wrongSlot.body.error}"`);
 
-    // Weapon requirements: Double Slash is daggers only, so a sword can't fight with it alone.
+    // Weapon requirements: Double Slash is daggers only, so a rod (fists) can't fight with it alone.
     const starterHand = me.body.hands.combat!;
     const doubleSlash = me.body.inventory.find((entry) => entry.itemId === "card.double-slash")!;
-    const [swordId] = await withTransaction((tx) => grantItems(tx, signUp.body.player.id, [{ itemId: "pointy-sword", quantity: 1 }]));
-    assert.equal((await call("PUT", slotPath("mainHand"), accessToken, { inventoryId: swordId })).status, 200);
+    const [rodId] = await withTransaction((tx) => grantItems(tx, signUp.body.player.id, [{ itemId: "twig-rod", quantity: 1 }]));
+    assert.equal((await call("PUT", slotPath("mainHand"), accessToken, { inventoryId: rodId })).status, 200);
     assert.equal((await call("PUT", handPath, accessToken, { inventoryIds: [doubleSlash.id] })).status, 200);
     const noWeapon = await call<{ error: string }>("POST", GEO_API_PATHS.runs.start, accessToken, { kind: "combat", enemyId: "spider" });
     assert.equal(noWeapon.status, 400);
     assert.match(noWeapon.body.error, /weapon/);
     assert.equal((await call("PUT", slotPath("mainHand"), accessToken, { inventoryId: dagger.id })).status, 200);
     assert.equal((await call("PUT", handPath, accessToken, { inventoryIds: starterHand })).status, 200);
-    step(`a sword with only Double Slash in hand can't start a fight: "${noWeapon.body.error}"`);
+    step(`a rod with only Double Slash in hand can't start a fight: "${noWeapon.body.error}"`);
 
     // Talisman Bag
     const [charmId] = await withTransaction((tx) => grantItems(tx, signUp.body.player.id, [{ itemId: "storm-charm", quantity: 1 }]));

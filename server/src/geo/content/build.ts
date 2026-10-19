@@ -1,7 +1,7 @@
 import { GEO_QUALITY_TIERS, type GeoChestTier, type GeoQualityTier } from "@cozy/shared/geo";
 import type { CardDef, FoodDef, StatusDef } from "../engine/engine.types";
 import type { GameData } from "./data.schema";
-import type { ChestTierDef, DungeonDef, EnemyDef, GameContent, ItemDef, MayorDef, PetDef, Rarity, RecipeDef, ReforgeDef, VendorDef } from "./content.types";
+import type { ChestTierDef, DungeonDef, EnemyDef, GameContent, ItemDef, MayorDef, PetDef, QuestDef, Rarity, RecipeDef, ReforgeDef, VendorDef } from "./content.types";
 import { structureItemId, type CropDef, type FarmEventDef, type MutationDef, type PestDef, type StructureDef } from "./farming";
 import { fishItemId, qualityFishItemId, type FishDef } from "./fishing";
 
@@ -51,21 +51,26 @@ export function buildContent(data: GameData): BuiltContent {
         actions: card.actions,
         effects: card.effects,
         requiresWeapon: card.requiresWeapon,
+        requiresOffHand: card.requiresOffHand,
+        playableIf: card.playableIf,
     }));
 
     const items: ItemDef[] = [];
     for (const card of data.cards) {
         items.push({ ...itemBase(card), id: `card.${card.id}`, kind: "card", cardId: card.id, maxCharges: card.maxCharges, finesse: card.finesse });
     }
-    const gear = (entry: GameData["weapons"][number] | GameData["armour"][number] | GameData["rings"][number] | GameData["amulets"][number] | GameData["rods"][number]) => ({
+    const gear = (entry: GameData["weapons"][number] | GameData["armor"][number] | GameData["rings"][number] | GameData["amulets"][number] | GameData["rods"][number]) => ({
         modifiers: entry.modifiers,
         effects: entry.effects,
         unlocksCards: entry.unlocksCards,
+        skills: entry.skills,
     });
     for (const weapon of data.weapons) {
         items.push({ ...itemBase(weapon), kind: "equipment", slot: "mainHand", weapon: weapon.weapon, ...gear(weapon) });
     }
-    for (const armour of data.armour) items.push({ ...itemBase(armour), kind: "equipment", slot: armour.slot, ...gear(armour) });
+    for (const armor of data.armor) {
+        items.push({ ...itemBase(armor), kind: "equipment", slot: armor.slot, offHand: armor.offHand, ...gear(armor) });
+    }
     for (const ring of data.rings) items.push({ ...itemBase(ring), kind: "equipment", slot: "ring", ...gear(ring) });
     for (const amulet of data.amulets) items.push({ ...itemBase(amulet), kind: "equipment", slot: "amulet", ...gear(amulet) });
     for (const rod of data.rods) {
@@ -205,6 +210,14 @@ export function buildContent(data: GameData): BuiltContent {
         dungeons: byId<DungeonDef>(
             data.dungeons.map((dungeon) => ({ ...dungeon, bossModifiers: dungeon.bossModifiers ?? [] })),
             "dungeon",
+        ),
+        quests: byId<QuestDef>(
+            data.quests.map((quest) => ({
+                ...quest,
+                giver: quest.giver ?? null,
+                rewards: { coins: quest.rewards.coins ?? 0, items: quest.rewards.items ?? [] },
+            })),
+            "quest",
         ),
         recipes: byId(recipes, "recipe"),
         chestTiers: byId<ChestTierDef>(data.config["chest-tiers"].tiers, "chest tier") as Record<GeoChestTier, ChestTierDef>,

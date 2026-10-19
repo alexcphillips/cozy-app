@@ -5,7 +5,7 @@ export default {
     name: "Rune Knight",
     sprite: "rune-knight",
     tier: 5,
-    stats: { maxHealth: 53, attack: 35, defence: 15, speed: 14 },
+    stats: { maxHealth: 53, attack: 35, defense: 15, speed: 14 },
     moves: [
         {
             id: "bite",

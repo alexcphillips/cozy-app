@@ -7,7 +7,7 @@ export default {
     name: "Test Hoarder",
     sprite: "placeholder-red",
     tier: 5,
-    stats: { maxHealth: 30, attack: 4, defence: 0, speed: 5 },
+    stats: { maxHealth: 30, attack: 4, defense: 0, speed: 5 },
     moves: [
         {
             id: "swipe",

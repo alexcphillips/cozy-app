@@ -5,7 +5,7 @@ export default {
     name: "Necromancer",
     sprite: "necromancer",
     tier: 5,
-    stats: { maxHealth: 88, attack: 62, defence: 8, speed: 21 },
+    stats: { maxHealth: 88, attack: 62, defense: 8, speed: 21 },
     moves: [
         {
             id: "bite",

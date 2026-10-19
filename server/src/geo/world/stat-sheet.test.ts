@@ -30,13 +30,13 @@ describe("statSheet", () => {
     it("lists every source of a stat, base first", () => {
         const sheet = statSheet(
             input({
-                worn: [{ itemId: "iron-helm", reforge: null }],
-                pet: { stats: [{ stat: "defence", kind: "flat", value: 1 }], abilities: [{ stat: "defence", kind: "flat", value: 2 }], heldItem: [] },
+                worn: [{ itemId: "cloth-tunic", reforge: null }],
+                pet: { stats: [{ stat: "defense", kind: "flat", value: 1 }], abilities: [{ stat: "defense", kind: "flat", value: 2 }], heldItem: [] },
             }),
         );
-        const defence = line(sheet, "defence");
-        assert.deepEqual(defence.sources.map((row) => row.label), ["Base", "Equipment", "Pet", "Pet Ability"]);
-        assert.equal(defence.value, "8");
+        const defense = line(sheet, "defense");
+        assert.deepEqual(defense.sources.map((row) => row.label), ["Base", "Equipment", "Pet", "Pet Ability"]);
+        assert.equal(defense.value, "4");
     });
 
     it("counts fists only when no weapon is worn", () => {
@@ -45,7 +45,7 @@ describe("statSheet", () => {
     });
 
     it("matches the fight's combatant for combat stats", () => {
-        const loadout = { worn: [{ itemId: "iron-helm", reforge: null }], talismans: ["four-leaf-clover"], combatLevel: 7 };
+        const loadout = { worn: [{ itemId: "cloth-tunic", reforge: null }], talismans: ["four-leaf-clover"], combatLevel: 7 };
         const mayor: StatModifier[] = [{ stat: "maxHealth", kind: "percent", value: 0.1 }];
         const sheet = statSheet(input({ ...loadout, globalModifiers: mayor }));
         const fighter = playerCombatant(

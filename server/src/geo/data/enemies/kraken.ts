@@ -7,7 +7,7 @@ export default {
     name: "Kraken",
     sprite: "placeholder-red",
     tier: 5,
-    stats: { maxHealth: 65, attack: 11, defence: 0, speed: 7 },
+    stats: { maxHealth: 65, attack: 11, defense: 0, speed: 7 },
     moves: [
         {
             id: "tentacle-lash",

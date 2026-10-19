@@ -15,7 +15,7 @@ const PET: PetDef = {
     description: "",
     skill: "combat",
     rarities: ["common", "rare", "legendary"],
-    stats: [{ stat: "defence", kind: "flat", perLevel: 0.5 }],
+    stats: [{ stat: "defense", kind: "flat", perLevel: 0.5 }],
     abilities: [
         { id: "a", name: "A", from: "common", description: "", modifiers: [{ stat: "speed", kind: "flat", perLevel: { common: 1, rare: 2, legendary: 3 } }] },
         { id: "b", name: "B", from: "rare", description: "", modifiers: [{ stat: "attack", kind: "percent", perLevel: 0.01 }] },
@@ -50,14 +50,14 @@ describe("pet stats", () => {
     it("grow with level, per rarity where a stat says so", () => {
         const level10 = { xp: xpFor(10, "common"), heldItem: null };
         assert.deepEqual(petModifiers(PET, "common", level10), [
-            { stat: "defence", kind: "flat", value: 5 },
+            { stat: "defense", kind: "flat", value: 5 },
             { stat: "speed", kind: "flat", value: 10 },
         ]);
     });
 
     it("unlock abilities by rarity", () => {
         const stats = petModifiers(PET, "rare", { xp: xpFor(10, "rare"), heldItem: null }).map((modifier) => modifier.stat);
-        assert.deepEqual(stats, ["defence", "speed", "attack"]);
+        assert.deepEqual(stats, ["defense", "speed", "attack"]);
         const state = petState("pet.tarantula.common", { xp: 0, heldItem: null });
         assert.ok(state?.abilities.some((ability) => !ability.unlocked && ability.stats.length === 0));
     });

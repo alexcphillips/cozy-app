@@ -3,16 +3,16 @@ import type { GameContent, ItemDef, ReforgeDef } from "./content.types";
 
 /**
  * Reforges: a named bonus a vendor rolls onto one copy of a weapon or piece
- * of armour (`data/reforges/`). The copy keeps its reforge id in
+ * of armor (`data/reforges/`). The copy keeps its reforge id in
  * `geo.inventory.reforge`; its stats come from the reforge's modifiers for
  * the item's rarity, on top of the item's own.
  */
 
-/** Which reforges an item can take: weapons, or armour (off hand, head, chest, hands, legs, cloak, belt). Rings, amulets, rods (main hand, no weapon) and the rest take none. */
-export function reforgeTarget(item: ItemDef | undefined): "weapon" | "armour" | null {
+/** Which reforges an item can take: weapons, or armor (off hand, head, chest, hands, legs, cloak, belt). Rings, amulets, rods (main hand, no weapon) and the rest take none. */
+export function reforgeTarget(item: ItemDef | undefined): "weapon" | "armor" | null {
     if (item?.kind !== "equipment") return null;
     if (item.weapon) return "weapon";
-    return item.slot === "ring" || item.slot === "amulet" || item.slot === "mainHand" ? null : "armour";
+    return item.slot === "ring" || item.slot === "amulet" || item.slot === "mainHand" ? null : "armor";
 }
 
 /** Every reforge this item can take. */

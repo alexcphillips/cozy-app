@@ -16,12 +16,14 @@ import type {
     Who,
 } from "./engine.types";
 import {
+    ARMOR_PEN_STAT,
     CORE_STATS,
     COUNTER_CHANCE_STAT,
     COUNTER_DAMAGE_STAT,
     DAMAGE_DEALT_STAT,
     DEFAULT_COUNTER_DAMAGE,
     MENDING_STAT,
+    MIN_DAMAGE_SHARE,
 } from "./engine.types";
 import { createRng, type Rng } from "./rng";
 import { statOf } from "./stats";
@@ -91,6 +93,9 @@ export function createBattle(
     };
 
     const ctx = makeContext(state, content);
+    for (const combatant of state.combatants) {
+        if (combatant.side === "enemy") combatant.intent = pickMove(ctx, combatant.moves ?? [])?.id;
+    }
     // Logged so the app shows a starting barrier arriving, like any other.
     for (const combatant of state.combatants) {
         if (combatant.barrier > 0) ctx.log.push({ type: "barrier", target: combatant.id, amount: combatant.barrier });
@@ -113,17 +118,43 @@ export function playCard(
     return playerTurn(previous, content, (ctx, actor) => {
         const instance = actor.hand?.find((card) => card.instanceId === play.cardInstanceId);
         if (!instance) throw new BattleRuleError("That card isn't in your hand.");
-        if (instance.chargesLeft <= 0) throw new BattleRuleError("That card has no charges left.");
-
         const card = content.cards[instance.cardId];
         if (!card) throw new BattleRuleError(`Unknown card ${instance.cardId}.`);
-        if (!canWield(card, actor.weaponTags)) {
-            throw new BattleRuleError(`${card.name} needs a ${card.requiresWeapon!.join(" or ")} weapon.`);
-        }
 
         const target = resolveCardTarget(ctx.state, actor, card, play.targetId);
+        const refusal = cardRefusal(ctx, actor, target, card, instance);
+        if (refusal) throw new BattleRuleError(refusal);
         resolveCard(ctx, actor, target, card, instance);
     });
+}
+
+/**
+ * Whether the player could play this hand card now, whoever's turn it is:
+ * charges, weapon and the card's `playableIf`. The app greys out the rest.
+ */
+export function canPlayCard(state: BattleState, content: EngineContent, cardInstanceId: string): boolean {
+    const actor = state.combatants.find((c) => c.side === "player");
+    const instance = actor?.hand?.find((card) => card.instanceId === cardInstanceId);
+    const card = instance && content.cards[instance.cardId];
+    if (!actor || !instance || !card || state.outcome !== "ongoing") return false;
+    const ctx = makeContext(state, content);
+    try {
+        return !cardRefusal(ctx, actor, resolveCardTarget(state, actor, card, undefined), card, instance);
+    } catch {
+        return false;
+    }
+}
+
+/** Why this card can't be played now, or null if it can. */
+function cardRefusal(ctx: Context, actor: Combatant, target: Combatant, card: CardDef, instance: CardInstance): string | null {
+    if (instance.chargesLeft <= 0) return "That card has no charges left.";
+    if (!fitsWeapon(card, actor.weaponTags)) return `${card.name} needs a ${card.requiresWeapon!.join(" or ")} weapon.`;
+    if (!fitsOffHand(card, actor.offHandTags)) return `${card.name} needs a ${card.requiresOffHand!.join(" or ")} in your off-hand.`;
+    const event: BattleEvent = { type: "cardPlayed", actor: actor.id, target: target.id, card };
+    if (!(card.playableIf ?? []).every((condition) => conditionHolds(ctx, condition, actor, event))) {
+        return `${card.name} can't be played right now.`;
+    }
+    return null;
 }
 
 /**
@@ -189,9 +220,15 @@ function playerTurn(
     return finish(ctx);
 }
 
-/** Whether a weapon with these tags can play `card`. */
-export function canWield(card: CardDef, weaponTags: string[] = []): boolean {
-    return !card.requiresWeapon || card.requiresWeapon.some((tag) => weaponTags.includes(tag));
+const fitsWeapon = (card: CardDef, weaponTags: string[] = []) =>
+    !card.requiresWeapon || card.requiresWeapon.some((tag) => weaponTags.includes(tag));
+
+const fitsOffHand = (card: CardDef, offHandTags: string[] = []) =>
+    !card.requiresOffHand || card.requiresOffHand.some((tag) => offHandTags.includes(tag));
+
+/** Whether a weapon and off-hand with these tags can play `card`. */
+export function canWield(card: CardDef, weaponTags: string[] = [], offHandTags: string[] = []): boolean {
+    return fitsWeapon(card, weaponTags) && fitsOffHand(card, offHandTags);
 }
 
 /** Whose turn it is, or null when the battle is over. */
@@ -306,7 +343,8 @@ function endTurn(ctx: Context, actor: Combatant): void {
 }
 
 function enemyTurn(ctx: Context, actor: Combatant): void {
-    const move = pickMove(ctx, actor.moves ?? []);
+    const moves = actor.moves ?? [];
+    const move = moves.find((m) => m.id === actor.intent) ?? pickMove(ctx, moves);
     const target = ctx.state.combatants.find((c) => c.side === "player" && isAlive(c));
     if (!move || !target) return;
 
@@ -315,6 +353,55 @@ function enemyTurn(ctx: Context, actor: Combatant): void {
         owner: actor,
         event: { type: "cardPlayed", actor: actor.id, target: target.id },
     });
+    // The next move, chosen now so the app can show it coming.
+    actor.intent = pickMove(ctx, moves)?.id;
+}
+
+/** One part of what an enemy's next move will do, as the app shows it. */
+export type MovePreviewPart =
+    | { kind: "attack"; damage: number; hits: number }
+    | { kind: "guard" | "barrier" | "heal"; amount: number; self: boolean }
+    | { kind: "status"; statusId: string; self: boolean };
+
+export type MovePreview = { moveId: string; name: string; parts: MovePreviewPart[] };
+
+/**
+ * What an enemy will do on its next turn, against the player as they stand
+ * now: each hit after attack, damage bonuses and the player's defense, before
+ * crits, guard, barrier and any rule that reacts to the hit. Null for an
+ * enemy with no move chosen.
+ */
+export function previewIntent(state: BattleState, content: EngineContent, enemyId: string): MovePreview | null {
+    const enemy = state.combatants.find((c) => c.id === enemyId);
+    const move = enemy?.moves?.find((m) => m.id === enemy.intent);
+    const target = state.combatants.find((c) => c.side === "player");
+    if (!enemy || !move || !target) return null;
+
+    const ctx = makeContext(state, content);
+    const scope: ActionScope = { owner: enemy, event: { type: "cardPlayed", actor: enemy.id, target: target.id } };
+    const parts: MovePreviewPart[] = [];
+    for (const action of move.actions) {
+        switch (action.type) {
+            case "attack":
+            case "damage": {
+                let amount = amountOf(ctx, action.amount, scope) * (1 + statOf(enemy, DAMAGE_DEALT_STAT, content));
+                const isAttack = action.type === "attack";
+                if (isAttack || !action.ignoreDefense) amount = defended(content, enemy, target, amount, isAttack);
+                const hits = action.type === "attack" ? Math.max(1, Math.floor(action.hits ?? 1)) : 1;
+                parts.push({ kind: "attack", damage: Math.max(0, Math.round(amount)), hits });
+                break;
+            }
+            case "guard":
+            case "barrier":
+            case "heal":
+                parts.push({ kind: action.type, amount: Math.round(amountOf(ctx, action.amount, scope)), self: action.to === "self" });
+                break;
+            case "applyStatus":
+                parts.push({ kind: "status", statusId: action.status, self: action.to === "self" });
+                break;
+        }
+    }
+    return { moveId: move.id, name: move.name, parts };
 }
 
 function pickMove(ctx: Context, moves: EnemyMove[]): EnemyMove | undefined {
@@ -555,7 +642,7 @@ function runAction(ctx: Context, action: Action, scope: ActionScope): void {
                 element: action.element ?? "physical",
                 isAttack: false,
                 crit: false,
-                ignoreDefence: action.ignoreDefence ?? false,
+                ignoreDefense: action.ignoreDefense ?? false,
                 effectId: scope.effectId,
                 fromStatus: scope.status?.statusId,
             });
@@ -640,7 +727,7 @@ function attack(
             element: action.element ?? "physical",
             isAttack: true,
             crit,
-            ignoreDefence: false,
+            ignoreDefense: false,
             delivery: action.delivery ?? "melee",
             counter: isCounter || undefined,
         });
@@ -676,7 +763,7 @@ function dealDamage(
         element: string;
         isAttack: boolean;
         crit: boolean;
-        ignoreDefence: boolean;
+        ignoreDefense: boolean;
         delivery?: "melee" | "projectile";
         /** A counterattack (`COUNTER_CHANCE_STAT`). */
         counter?: boolean;
@@ -699,7 +786,7 @@ function dealDamage(
     if (!isAlive(target)) return;
 
     let amount = before.damage.amount;
-    if (!options.ignoreDefence) amount -= statOf(target, CORE_STATS.defence, ctx.content);
+    if (!options.ignoreDefense) amount = defended(ctx.content, source, target, amount, options.isAttack);
     amount = Math.max(0, Math.round(amount));
 
     const blocked = Math.min(target.guard, amount);
@@ -737,6 +824,16 @@ function dealDamage(
     }
 
     if (target.health <= 0) defeat(ctx, target, source);
+}
+
+/**
+ * A hit after the target's defense. Armor pen only on attacks, and never takes
+ * defense below 0; defense never stops a whole hit (`MIN_DAMAGE_SHARE`).
+ */
+function defended(content: EngineContent, source: Combatant, target: Combatant, amount: number, isAttack: boolean): number {
+    const pen = isAttack ? Math.max(0, statOf(source, ARMOR_PEN_STAT, content)) : 0;
+    const defense = Math.max(0, statOf(target, CORE_STATS.defense, content) - pen);
+    return Math.max(amount - defense, amount * MIN_DAMAGE_SHARE);
 }
 
 function defeat(ctx: Context, target: Combatant, killer: Combatant): void {

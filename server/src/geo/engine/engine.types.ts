@@ -23,7 +23,7 @@ export type StatId = string;
 export const CORE_STATS = {
     maxHealth: "maxHealth",
     attack: "attack",
-    defence: "defence",
+    defense: "defense",
     speed: "speed",
     /** 0–1. */
     critChance: "critChance",
@@ -39,6 +39,20 @@ export const CORE_STATS = {
  * Combat level gives the player some (`combat/combatants.ts`).
  */
 export const DAMAGE_DEALT_STAT: StatId = "damageDealt";
+
+/**
+ * Flat defense an attack ignores: 2 against defense 4 meets 2. Per hit, never
+ * below 0 defense, attacks only (counters too). Damage that already ignores
+ * defense (status ticks, `ignoreDefense` procs) is unaffected.
+ */
+export const ARMOR_PEN_STAT: StatId = "armorPen";
+
+/**
+ * The share of a hit that defense can never stop: 0.25 = at least a quarter
+ * of it lands, however high the defense. Per hit, before guard and barrier
+ * (which still soak it). Damage that ignores defense is unaffected.
+ */
+export const MIN_DAMAGE_SHARE = 0.25;
 
 /**
  * More crops from every harvest: a flat +100 = 100% more (×2), so 1000 is
@@ -72,7 +86,7 @@ export const MENDING_STAT: StatId = "mending";
  * 0–1: the chance to strike back after being attacked. Rolled once per
  * attack however many hits it had, and only while both sides still stand.
  * The counter is a blow for `COUNTER_DAMAGE_STAT` × the counterer's attack:
- * it can crit and meets defence like any attack, but is never countered.
+ * it can crit and meets defense like any attack, but is never countered.
  */
 export const COUNTER_CHANCE_STAT: StatId = "counterChance";
 
@@ -199,9 +213,9 @@ export type Amount =
 export type Action =
     /**
      * A weapon blow: fires `attacked` and `attackFinished`, can crit, is
-     * reduced by defence. `delivery` is for the app's animation only.
+     * reduced by defense. `delivery` is for the app's animation only.
      * `hits` (default 1) repeats the blow: each hit fires `attacked`, rolls
-     * its own crit and meets defence alone; `attackFinished` fires once after
+     * its own crit and meets defense alone; `attackFinished` fires once after
      * the last. `amount` is per hit.
      */
     | {
@@ -216,7 +230,7 @@ export type Action =
      * Damage that isn't an attack (lightning from a talisman, a burn): no
      * `attacked` event, so procs can't loop off each other, no crit.
      */
-    | { type: "damage"; to: Who; amount: Amount; element?: string; ignoreDefence?: boolean }
+    | { type: "damage"; to: Who; amount: Amount; element?: string; ignoreDefense?: boolean }
     | { type: "heal"; to: Who; amount: Amount }
     /** Absorbs the next hits until used up. */
     | { type: "guard"; to: Who; amount: Amount }
@@ -283,6 +297,14 @@ export type CardDef = {
      * this, e.g. ["dagger"] or ["melee"]. Omitted = playable with anything.
      */
     requiresWeapon?: string[];
+    /** Off-hand types, any one of which the player's off-hand must be, e.g. ["shield"]. */
+    requiresOffHand?: string[];
+    /**
+     * All must hold for it to be played, judged as if playing it now: `self`
+     * is the player, `other` its target. e.g. a self-buff with
+     * `lacksStatus self <its status>` can't be recast while it lasts.
+     */
+    playableIf?: Condition[];
 };
 
 /**
@@ -349,12 +371,20 @@ export type Combatant = {
     statuses: StatusInstance[];
     /** Enemies only. */
     moves?: EnemyMove[];
+    /**
+     * Enemies only: the id of the move it makes on its next turn, chosen in
+     * advance so the app can show it. Kept through a skipped turn. Battles
+     * saved before intents choose on the spot.
+     */
+    intent?: string;
     /** Players only. */
     hand?: CardInstance[];
     /** Players only: food packed for this Run. */
     lunchbox?: LunchboxSlot[];
     /** Players only: the wielded weapon's tags, e.g. ["dagger", "melee"]. */
     weaponTags?: string[];
+    /** Players only: the off-hand's type, e.g. ["shield"]; empty with nothing (or untyped gear) there. */
+    offHandTags?: string[];
 };
 
 export type BattleState = {

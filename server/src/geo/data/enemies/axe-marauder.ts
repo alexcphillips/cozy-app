@@ -5,7 +5,7 @@ export default {
     name: "Axe Marauder",
     sprite: "axe-marauder",
     tier: 5,
-    stats: { maxHealth: 33, attack: 19, defence: 2, speed: 13 },
+    stats: { maxHealth: 33, attack: 19, defense: 2, speed: 13 },
     moves: [
         {
             id: "bite",

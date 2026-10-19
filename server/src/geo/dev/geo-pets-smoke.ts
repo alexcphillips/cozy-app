@@ -54,8 +54,8 @@ try {
     const share = GAME_CONFIG.pets.otherSkillShare * (GAME_CONFIG.pets.skillMultiplier.foraging ?? 1);
     assert.equal(petEntry(body, petId)?.pet?.xp, Math.floor(300 + 300 * share));
     assert.ok((petEntry(body, petId)?.pet?.level ?? 0) > 1);
-    const defence = (await ownModifiers(playerId)).filter((m) => m.stat === "defence").reduce((sum, m) => sum + m.value, 0);
-    assert.ok(defence > 0, "the active pet adds its defence");
+    const defense = (await ownModifiers(playerId)).filter((m) => m.stat === "defense").reduce((sum, m) => sum + m.value, 0);
+    assert.ok(defense > 0, "the active pet adds its defense");
     step("the active pet levels from its own skill and a share of others, and gives stats");
 
     response = await call<GeoMeResponse>("PUT", petItemPath(petId), token, { inventoryId: silk });

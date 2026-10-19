@@ -22,6 +22,8 @@ Plus the [fields every item has](../README.md#fields-every-item-has).
 | `effects` | list of [effects](../EFFECTS.md#effects-when-x-if-y-maybe-do-z) | no | Card-only rules, heard only when this card is played (e.g. free against Burning). |
 | `tags` | list of text | no | e.g. `fire`, for `cardHasTag` conditions on gear and statuses. |
 | `requiresWeapon` | list of weapon types/styles | no | The wielded weapon must carry one of these, e.g. `["dagger"]` or `["melee"]`. Listed in `config/weapons.ts`. Omit = playable with anything. |
+| `requiresOffHand` | list of off-hand types | no | The off-hand must be one of these, e.g. `["shield"]`. Listed in `config/weapons.ts` (`offHandTypes`). With `requiresWeapon` too, both must hold. Omit = no off-hand needed. |
+| `playableIf` | list of [conditions](../EFFECTS.md#conditions) | no | All must hold to play it; the app greys it out otherwise. `self` is you, `other` the target. e.g. `[{ type: "lacksStatus", who: "self", status: "venom-coat" }]` stops a self-buff being recast while it lasts, and frees it again if an enemy strips it. |
 | `finesse` | `raises` / `lowers` | no | Fishing cards only: shown on the card. |
 
 Weapon-exclusive cards: list the card in the weapon's `unlocksCards`

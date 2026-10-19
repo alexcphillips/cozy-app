@@ -5,7 +5,7 @@ export default {
     name: "Ornate Knight",
     sprite: "ornate-knight",
     tier: 5,
-    stats: { maxHealth: 56, attack: 34, defence: 13, speed: 15 },
+    stats: { maxHealth: 56, attack: 34, defense: 13, speed: 15 },
     moves: [
         {
             id: "bite",

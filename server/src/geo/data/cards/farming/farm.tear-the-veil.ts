@@ -11,6 +11,7 @@ export default {
         { label: "Does", value: "2 Labor. Aim at a Portal: elite pests come through it on the next cycle." },
     ],
     skill: "farming",
+    sellValue: 100,
     maxCharges: 10,
     targets: "self",
 } satisfies Card;

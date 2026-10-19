@@ -5,7 +5,7 @@ export default {
     name: "Angry Bullfrog",
     sprite: "angry-bullfrog",
     tier: 5,
-    stats: { maxHealth: 22, attack: 8, defence: 1, speed: 7 },
+    stats: { maxHealth: 22, attack: 8, defense: 1, speed: 7 },
     moves: [
         {
             id: "bite",

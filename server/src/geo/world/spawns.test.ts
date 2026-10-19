@@ -169,13 +169,14 @@ describe("spawns", () => {
         });
 
         it("make lower tiers rarer by lowerTierWeights, and drop none", () => {
+            const enemyOfTier = (tier: number) => Object.values(CONTENT.enemies).find((enemy) => enemy.tier === tier)!.id;
             const table = [
-                { enemyId: "green-slime", weight: 10 },
-                { enemyId: "magma-slime", weight: 10 },
+                { enemyId: enemyOfTier(1), weight: 10 },
+                { enemyId: enemyOfTier(2), weight: 10 },
             ];
             assert.deepEqual(tableForTier(table, 1), [table[0]]);
             const [oneBelow] = SPAWN_RULES.lowerTierWeights;
-            assert.deepEqual(tableForTier(table, 2), [{ enemyId: "green-slime", weight: 10 * oneBelow! }, table[1]]);
+            assert.deepEqual(tableForTier(table, 2), [{ enemyId: table[0]!.enemyId, weight: 10 * oneBelow! }, table[1]]);
             assert.equal(tableForTier(table, TOP + 5).length, 2, "far past both");
         });
     });

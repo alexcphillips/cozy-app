@@ -1,7 +1,7 @@
 import { GEO_CHEST_TIERS, GEO_FARM_SIZE, GEO_MAX_SKILL_LEVEL } from "@cozy/shared/geo";
-import type { Action, EffectDef } from "../engine/engine.types";
+import type { Action, Condition, EffectDef } from "../engine/engine.types";
 import { buildContent } from "./build";
-import type { GameContent, ItemDef, VendorBuyRule } from "./content.types";
+import type { GameContent, ItemDef } from "./content.types";
 import { GameDataError, loadGameData } from "./data";
 import type { GameData } from "./data.schema";
 import { FARMING_CARD_IDS, isFarmingCardId } from "./farming";
@@ -19,27 +19,33 @@ function sellValueIn(content: GameContent, config: GameConfig, item: ItemDef): n
     return config.economy.placeholderSellValue[item.rarity];
 }
 
-/** Whether a vendor with this rule buys this item. Cards and materials carry a skill. */
-function vendorBuysIn(content: GameContent, rule: VendorBuyRule, item: ItemDef): boolean {
-    if (item.soulbound) return false;
-    if (rule.kinds && !rule.kinds.includes(item.kind)) return false;
-    if (rule.itemIds && !rule.itemIds.includes(item.id)) return false;
-    if (rule.skills) {
-        const skill = item.kind === "material" ? item.skill : item.kind === "card" ? content.cards[item.cardId]?.skill : undefined;
-        if (!skill || !rule.skills.includes(skill)) return false;
-    }
-    return true;
+/** Whether vendors buy this item: every vendor buys anything with an NPC sell value that isn't Soulbound. */
+function npcBuysIn(content: GameContent, config: GameConfig, item: ItemDef): boolean {
+    return !item.soulbound && sellValueIn(content, config, item) > 0;
 }
 
 /** Status ids an action list applies, removes or asks about, effects included. */
 function statusesUsed(actions: Action[] = [], effects: EffectDef[] = []): string[] {
     const fromActions = (list: Action[]) =>
         list.flatMap((action) => (action.type === "applyStatus" ? [action.status] : action.type === "removeStatus" ? [action.status] : []));
-    const fromConditions = (effect: EffectDef) =>
-        (effect.conditions ?? []).flatMap((condition) =>
-            condition.type === "hasStatus" || condition.type === "lacksStatus" ? [condition.status] : [],
-        );
-    return [...fromActions(actions), ...effects.flatMap((effect) => [...fromActions(effect.actions), ...fromConditions(effect)])];
+    return [...fromActions(actions), ...effects.flatMap((effect) => [...fromActions(effect.actions), ...statusesIn(effect.conditions)])];
+}
+
+/** Statuses named in conditions, inside `not` and `any` too. */
+function statusesIn(conditions: Condition[] = []): string[] {
+    return conditions.flatMap((condition) => {
+        switch (condition.type) {
+            case "hasStatus":
+            case "lacksStatus":
+                return [condition.status];
+            case "not":
+                return statusesIn([condition.condition]);
+            case "any":
+                return statusesIn(condition.conditions);
+            default:
+                return [];
+        }
+    });
 }
 
 const isRange = ({ min, max }: { min: number; max: number }) => max >= min;
@@ -70,8 +76,16 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
     }
     for (const card of Object.values(content.cards)) {
         needStatuses(`Card "${card.id}"`, card.actions, card.effects);
+        for (const id of statusesIn(card.playableIf)) {
+            if (!content.statuses[id]) problems.push(`Card "${card.id}" playableIf uses unknown status "${id}"`);
+        }
         for (const tag of card.requiresWeapon ?? []) {
             if (!weaponTags.has(tag)) problems.push(`Card "${card.id}" requires unknown weapon tag "${tag}" (config/weapons.ts)`);
+        }
+        for (const type of card.requiresOffHand ?? []) {
+            if (!config.weapons.offHandTypes.includes(type)) {
+                problems.push(`Card "${card.id}" requires unknown off-hand type "${type}" (config/weapons.ts)`);
+            }
         }
         if (card.skill === "fishing" && !isFishingCardId(card.id)) {
             problems.push(`Fishing card "${card.id}" has no rules in fishing/fishing-run.ts (known: ${FISHING_CARD_IDS.join(", ")})`);
@@ -167,11 +181,18 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
             for (const cardId of entry.unlocksCards ?? []) {
                 if (!content.cards[cardId]) problems.push(`Item "${entry.id}" unlocks unknown card "${cardId}"`);
             }
+            for (const { skill, level } of entry.skills ?? []) {
+                if (level > GEO_MAX_SKILL_LEVEL) problems.push(`Item "${entry.id}" needs ${skill} ${level}, past the max of ${GEO_MAX_SKILL_LEVEL}`);
+            }
             if (entry.weapon && !config.weapons.types.includes(entry.weapon.type)) {
                 problems.push(`Weapon "${entry.id}" has unknown type "${entry.weapon.type}" (config/weapons.ts)`);
             }
             if (entry.weapon && !config.weapons.styles.includes(entry.weapon.style)) {
                 problems.push(`Weapon "${entry.id}" has unknown style "${entry.weapon.style}" (config/weapons.ts)`);
+            }
+            if (entry.offHand && entry.slot !== "offHand") problems.push(`Item "${entry.id}" has an off-hand type but isn't worn in the off-hand`);
+            if (entry.offHand && !config.weapons.offHandTypes.includes(entry.offHand.type)) {
+                problems.push(`Item "${entry.id}" has unknown off-hand type "${entry.offHand.type}" (config/weapons.ts)`);
             }
         }
     }
@@ -244,15 +265,13 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
                 continue;
             }
             // Buying from one vendor and selling to another must never profit.
-            const buyer = vendors.find((other) => vendorBuysIn(content, other.buys, sold));
             const value = sellValueIn(content, config, sold);
-            if (buyer && offer.price < value) {
-                problems.push(`Vendor "${vendor.id}" sells "${offer.itemId}" for ${offer.price}, under the ${value} "${buyer.id}" pays`);
+            if (npcBuysIn(content, config, sold) && offer.price < value) {
+                problems.push(`Vendor "${vendor.id}" sells "${offer.itemId}" for ${offer.price}, under the ${value} vendors pay`);
             }
         }
-        for (const itemId of vendor.buys.itemIds ?? []) needItem(`Vendor "${vendor.id}" buys`, itemId);
         if (vendor.reforge) {
-            for (const target of ["weapon", "armour"] as const) {
+            for (const target of ["weapon", "armor"] as const) {
                 const count = Object.values(content.reforges).filter((reforge) => reforge.appliesTo.includes(target)).length;
                 if (count < 2) problems.push(`Vendor "${vendor.id}" reforges, but there are under 2 ${target} reforges to roll between`);
             }
@@ -281,6 +300,18 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
     }
     for (const dungeon of Object.values(content.dungeons)) {
         if (!content.enemies[dungeon.boss]) problems.push(`Dungeon "${dungeon.id}" has unknown boss "${dungeon.boss}"`);
+    }
+    for (const quest of Object.values(content.quests)) {
+        if (new Set(quest.objectives.map((objective) => objective.id)).size !== quest.objectives.length) {
+            problems.push(`Quest "${quest.id}" uses an objective id twice`);
+        }
+        for (const objective of quest.objectives) {
+            if (!content.enemies[objective.enemy]) problems.push(`Quest "${quest.id}" has unknown enemy "${objective.enemy}"`);
+        }
+        for (const { itemId } of quest.rewards.items) {
+            if (!content.items[itemId]) problems.push(`Quest "${quest.id}" rewards unknown item "${itemId}"`);
+        }
+        if (quest.rewards.coins === 0 && quest.rewards.items.length === 0) problems.push(`Quest "${quest.id}" has no reward`);
     }
     for (const { enemyId } of spawns.enemies) {
         if (!content.enemies[enemyId]) problems.push(`config/spawns.ts spawns unknown enemy "${enemyId}"`);
@@ -347,7 +378,7 @@ const problems = checkContent(CONTENT, GAME_CONFIG);
 if (problems.length > 0) throw new GameDataError(problems);
 
 export const sellValueOf = (item: ItemDef) => sellValueIn(CONTENT, GAME_CONFIG, item);
-export const vendorBuys = (rule: VendorBuyRule, item: ItemDef) => vendorBuysIn(CONTENT, rule, item);
+export const npcBuys = (item: ItemDef) => npcBuysIn(CONTENT, GAME_CONFIG, item);
 
 /** Bait that draws sea creatures and makes the bite come sooner. */
 export const CHUM_BAIT_IDS = built.chumBaitIds;
@@ -369,4 +400,4 @@ export const ELECTION_RULES = elections;
 export const FIRST_MAYOR_ID = elections.firstMayor;
 
 export { reforgeModifiers, reforgesFor, reforgeTarget } from "./reforges";
-export type { DungeonDef, EnemyDef, GameContent, ItemDef, MayorDef, RecipeDef, ReforgeDef, VendorDef } from "./content.types";
+export type { DungeonDef, EnemyDef, GameContent, ItemDef, MayorDef, QuestDef, RecipeDef, ReforgeDef, VendorDef } from "./content.types";

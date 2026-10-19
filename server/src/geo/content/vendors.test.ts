@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CONTENT, sellValueOf, vendorBuys } from "./index";
+import { CONTENT, npcBuys, sellValueOf } from "./index";
 
 describe("vendors", () => {
     const farmer = CONTENT.vendors.farmer;
@@ -11,16 +11,15 @@ describe("vendors", () => {
         assert.equal(wheat?.price, 5);
         assert.equal(wheat?.stock, null);
         const item = CONTENT.items.wheat;
-        assert.ok(item && vendorBuys(farmer.buys, item));
+        assert.ok(item && npcBuys(item));
         assert.equal(sellValueOf(item), 1);
     });
 
-    it("the Farmer buys farming materials and nothing else", () => {
-        assert.ok(farmer);
+    it("vendors buy anything with a sell value that isn't Soulbound", () => {
         for (const item of Object.values(CONTENT.items)) {
-            const isFarmingMaterial = item.kind === "material" && item.skill === "farming";
-            assert.equal(vendorBuys(farmer.buys, item), isFarmingMaterial, item.id);
+            assert.equal(npcBuys(item), !item.soulbound && sellValueOf(item) > 0, item.id);
         }
+        assert.ok(CONTENT.items.bones && npcBuys(CONTENT.items.bones), "not only farming materials");
     });
 
     it("never sell anything for less than a vendor pays back for it", () => {
@@ -28,8 +27,7 @@ describe("vendors", () => {
             for (const offer of vendor.sells) {
                 const item = CONTENT.items[offer.itemId];
                 assert.ok(item);
-                const boughtBack = Object.values(CONTENT.vendors).some((other) => vendorBuys(other.buys, item));
-                if (boughtBack) assert.ok(offer.price >= sellValueOf(item), `${vendor.id} ${offer.itemId}`);
+                if (npcBuys(item)) assert.ok(offer.price >= sellValueOf(item), `${vendor.id} ${offer.itemId}`);
             }
         }
     });

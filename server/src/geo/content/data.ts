@@ -28,7 +28,7 @@ export class GameDataError extends Error {
     }
 }
 
-/** offHand → off-hand: an armour slot as its folder name. */
+/** offHand → off-hand: an armor slot as its folder name. */
 const slotFolderName = (slot: string) => slot.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 
 const isDataFile = (name: string) => name.endsWith(".ts") && !name.endsWith(".d.ts") && !name.endsWith(".test.ts");
@@ -103,11 +103,11 @@ export async function loadGameData(dir: string = DATA_DIR): Promise<GameData> {
                 problems.push(`${show(file)}: id "${entry.id}" doesn't match the file name (rename it ${expected})`);
                 return;
             }
-            // Armour is sorted into a folder per slot: armour/head/, armour/off-hand/…
-            if (folder === "armour" && "slot" in entry) {
+            // Armor is sorted into a folder per slot: armor/head/, armor/off-hand/…
+            if (folder === "armor" && "slot" in entry) {
                 const slotFolder = slotFolderName(String(entry.slot));
                 if (basename(dirname(file)) !== slotFolder) {
-                    problems.push(`${show(file)}: a ${entry.slot} piece goes in armour/${slotFolder}/`);
+                    problems.push(`${show(file)}: a ${entry.slot} piece goes in armor/${slotFolder}/`);
                     return;
                 }
             }

@@ -5,7 +5,7 @@ export default {
     name: "Mercenary Archer",
     sprite: "mercenary-archer",
     tier: 5,
-    stats: { maxHealth: 42, attack: 26, defence: 2, speed: 13 },
+    stats: { maxHealth: 42, attack: 26, defense: 2, speed: 13 },
     moves: [
         {
             id: "bite",

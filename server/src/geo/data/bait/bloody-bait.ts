@@ -10,5 +10,6 @@ export default {
     stats: [{ label: "Scent", value: "+3" }],
     effectText: ["Rare fish more likely for 2 casts"],
     scent: 3,
+    sellValue: 8,
     chum: true,
 } satisfies Bait;

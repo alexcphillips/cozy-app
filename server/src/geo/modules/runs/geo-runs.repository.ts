@@ -212,8 +212,8 @@ export async function openCombatRun(tx: TxQuery, playerId: string, target: RunTa
     // Carried from the last fight, unless this one is fought at full.
     if (!target.keepsHealth) you.health = (await playerRepository.findHealth(playerId, tx)).current;
     // Else the fight could only be fled.
-    if (!loadout.hand.some((card) => canWield(CONTENT.cards[card.cardId]!, you.weaponTags))) {
-        throw AppError.badRequest("None of the cards in your hand can be used with your weapon");
+    if (!loadout.hand.some((card) => canWield(CONTENT.cards[card.cardId]!, you.weaponTags, you.offHandTags))) {
+        throw AppError.badRequest("None of the cards in your hand can be used with your gear");
     }
 
     const enemyIds = [enemyId];

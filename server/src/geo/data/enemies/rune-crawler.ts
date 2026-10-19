@@ -5,7 +5,7 @@ export default {
     name: "Rune Crawler",
     sprite: "rune-crawler",
     tier: 5,
-    stats: { maxHealth: 51, attack: 16, defence: 5, speed: 13 },
+    stats: { maxHealth: 51, attack: 16, defense: 5, speed: 13 },
     moves: [
         {
             id: "bite",

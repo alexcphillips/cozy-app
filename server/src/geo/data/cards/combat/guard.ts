@@ -6,9 +6,12 @@ export default {
     rarity: "uncommon",
     icon: "checked-shield",
     description: "Raise your shield and take the hit.",
-    stats: [{ label: "Guard", value: "10" }, { label: "Requires", value: "Round Shield" }],
+    stats: [
+        { label: "Guard", value: "10" },
+    ],
+    requiresOffHand: ["shield"],
     skill: "combat",
-    maxCharges: 80,
+    maxCharges: 40,
     targets: "self",
     actions: [{ type: "guard", to: "self", amount: 10 }],
 } satisfies Card;

@@ -5,7 +5,7 @@ export default {
     name: "Executioner",
     sprite: "executioner",
     tier: 5,
-    stats: { maxHealth: 53, attack: 38, defence: 16, speed: 17 },
+    stats: { maxHealth: 53, attack: 38, defense: 16, speed: 17 },
     moves: [
         {
             id: "bite",

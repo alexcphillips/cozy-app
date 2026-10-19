@@ -8,5 +8,5 @@ export default {
     icon: "spider-web",
     description: "Soft, strong, and slightly sticky. A pet wearing it learns faster in a fight.",
     xpBoost: { multiplier: 1.2, skill: "combat" },
-    modifiers: [{ stat: "defence", kind: "flat", value: 2 }],
+    modifiers: [{ stat: "defense", kind: "flat", value: 2 }],
 } satisfies PetItem;

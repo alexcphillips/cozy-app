@@ -4,7 +4,7 @@ export default {
     id: "farmer",
     name: "Farmer",
     icon: "farmer",
-    description: "Sells seeds and a few tricks of the trade, and buys back anything grown or sown.",
+    description: "Sells seeds and a few tricks of the trade.",
     sells: [
         { itemId: "wheat-seeds", price: 2 },
         { itemId: "carrot-seeds", price: 3 },
@@ -36,5 +36,4 @@ export default {
         { itemId: "card.farm.controlled-leak", price: 250 },
         { itemId: "card.farm.tear-the-veil", price: 400 },
     ],
-    buys: { kinds: ["material"], skills: ["farming"] },
 } satisfies Vendor;

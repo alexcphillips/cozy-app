@@ -4,7 +4,7 @@ import type { Reforge } from "#geo/models";
 export default {
     id: "snazzy",
     name: "Snazzy",
-    appliesTo: ["armour"],
+    appliesTo: ["armor"],
     modifiers: {
         common: [{ stat: "magicFind", kind: "flat", value: 0.5 }],
         uncommon: [{ stat: "magicFind", kind: "flat", value: 0.75 }],

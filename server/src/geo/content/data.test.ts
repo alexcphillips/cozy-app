@@ -52,7 +52,7 @@ describe("game data files", () => {
 
     it("rejects a file whose id isn't its name", async () => {
         const dir = copyOfData();
-        edit(join(dir, "weapons/broadsword.ts"), 'id: "broadsword"', 'id: "big-sword"');
+        edit(join(dir, "weapons/claymore.ts"), 'id: "claymore"', 'id: "big-sword"');
         assert.ok((await problemsIn(dir)).some((line) => line.includes("rename it big-sword.ts")));
     });
 
@@ -69,7 +69,7 @@ describe("game data files", () => {
 
     it("catches references to things that don't exist", async () => {
         const dir = copyOfData();
-        edit(join(dir, "recipes/envenom.ts"), 'itemId: "spider-fang"', 'itemId: "spider-fangs"');
+        edit(join(dir, "recipes/combat/envenom.ts"), 'itemId: "spider-fang"', 'itemId: "spider-fangs"');
         edit(join(dir, "config/spawns.ts"), 'enemyId: "spider"', 'enemyId: "dragon"');
         const problems = await problemsIn(dir);
         assert.ok(problems.includes(`Recipe "envenom" uses unknown item "spider-fangs"`), problems.join("\n"));

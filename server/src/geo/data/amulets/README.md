@@ -14,6 +14,7 @@ Plus the [fields every item has](../README.md#fields-every-item-has).
 | `modifiers` | list of [modifiers](../EFFECTS.md#modifiers) | no | Stats while worn. |
 | `effects` | list of [effects](../EFFECTS.md#effects-when-x-if-y-maybe-do-z) | no | Procs and passives while worn. |
 | `unlocksCards` | list of card ids | no | Cards only usable while this is worn. |
+| `skills` | list of `{ skill, level }` | no | Skill levels needed to equip it, e.g. `[{ skill: "combat", level: 5 }]`. Checked on equip however it was got (crafted, bought, looted); a saved loadout skips it until then. |
 
 ## Example
 

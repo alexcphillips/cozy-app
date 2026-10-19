@@ -6,5 +6,6 @@ export default {
     rarity: "common",
     icon: "crossed-bones",
     description: "Picked clean. Necromancers and crafters both want them.",
+    sellValue: 4,
     skill: "combat",
 } satisfies Material;

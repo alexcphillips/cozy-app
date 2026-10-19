@@ -5,7 +5,7 @@ export default {
     name: "Shield Fighter",
     sprite: "shield-fighter",
     tier: 5,
-    stats: { maxHealth: 24, attack: 12, defence: 1, speed: 9 },
+    stats: { maxHealth: 24, attack: 12, defense: 1, speed: 9 },
     moves: [
         {
             id: "bite",

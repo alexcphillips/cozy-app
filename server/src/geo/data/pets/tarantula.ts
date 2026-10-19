@@ -10,7 +10,7 @@ export default {
     skill: "combat",
     rarities: ["common", "uncommon", "rare", "epic", "legendary"],
     stats: [
-        { stat: "defence", perLevel: 0.2 },
+        { stat: "defense", perLevel: 0.2 },
         { stat: "critChance", perLevel: 0.0005 },
     ],
     abilities: [

@@ -6,6 +6,5 @@ export default {
     icon: "cat",
     description: "Leave a pet with her for a while and it comes back a cut above. She's never said how.",
     sells: [{ itemId: "silk-collar", price: 2_000, tab: "Pet Items" }],
-    buys: { kinds: ["pet", "petItem"] },
     petUpgrades: true,
 } satisfies Vendor;

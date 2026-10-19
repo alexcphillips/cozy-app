@@ -1,6 +1,8 @@
 import {
     GEO_EQUIPMENT_SLOTS,
+    geoSkillLevel,
     geoSlotKind,
+    geoUnmetSkill,
     type GeoEquipmentSlot,
     type GeoLoadout,
     type GeoLoadoutActivity,
@@ -10,7 +12,8 @@ import { query } from "../../../db";
 import { AppError } from "../../../http/AppError";
 import { CONTENT, GAME_CONFIG } from "../../content";
 import type { TxQuery } from "../../db/transaction";
-import { CLEAR_ACTIVE_PET, SET_ACTIVE_PET, UNEQUIP_INVENTORY, UPSERT_EQUIPMENT } from "../player/geo-player.sql";
+import { CLEAR_ACTIVE_PET, FIND_SKILL_XP, SET_ACTIVE_PET, UNEQUIP_INVENTORY, UPSERT_EQUIPMENT } from "../player/geo-player.sql";
+import type { SkillXpRow } from "../player/geo-player.types";
 import {
     ADD_BOUGHT_SLOT,
     CLEAR_AUTO_FOR,
@@ -146,20 +149,23 @@ export async function syncActiveLoadout(tx: TxQuery, playerId: string) {
 
 /**
  * Wears a saved loadout: everything worn comes off, then each of its items
- * that's still owned and still fits goes on, and its pet comes out (or
- * none). Anything that has left the inventory is skipped, not refused. The
- * caller checks the player isn't mid-Run (or is starting one).
+ * that's still owned, still fits and whose skill levels the player has goes
+ * on, and its pet comes out (or none). Anything else is skipped, not
+ * refused. The caller checks the player isn't mid-Run (or is starting one).
  */
 export async function wearLoadout(tx: TxQuery, playerId: string, slot: number) {
     const [row] = await tx<LoadoutRow>(FIND_LOADOUT, [playerId, slot]);
     if (!row) throw AppError.notFound("Nothing saved in that loadout slot");
     const owned = await findOwned(tx, playerId, referencedIds([row]));
+    const xp = await tx<SkillXpRow>(FIND_SKILL_XP, [playerId]);
+    const levels = Object.fromEntries(xp.map((entry) => [entry.skill, geoSkillLevel(Number(entry.xp))]));
 
     await tx(CLEAR_EQUIPMENT, [playerId]);
     for (const [equipSlot, inventoryId] of Object.entries(row.equipment)) {
         if (!GEO_EQUIPMENT_SLOTS.includes(equipSlot as GeoEquipmentSlot)) continue;
         const item = CONTENT.items[owned.get(inventoryId) ?? ""];
         if (item?.kind !== "equipment" || item.slot !== geoSlotKind(equipSlot as GeoEquipmentSlot)) continue;
+        if (geoUnmetSkill(levels, item.skills)) continue;
         await tx(UNEQUIP_INVENTORY, [playerId, inventoryId]);
         await tx(UPSERT_EQUIPMENT, [playerId, equipSlot, inventoryId]);
     }
