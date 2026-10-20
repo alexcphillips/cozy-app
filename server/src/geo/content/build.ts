@@ -1,7 +1,8 @@
 import { GEO_QUALITY_TIERS, type GeoChestTier, type GeoQualityTier } from "@cozy/shared/geo";
 import type { CardDef, FoodDef, StatusDef } from "../engine/engine.types";
 import type { GameData } from "./data.schema";
-import type { ChestTierDef, DungeonDef, EnemyDef, GameContent, ItemDef, MayorDef, PetDef, QuestDef, Rarity, RecipeDef, ReforgeDef, VendorDef } from "./content.types";
+import { parseLayoutMap, type DungeonLayoutDef, type DungeonRoomRef, type DungeonRoomSpecDef } from "../dungeons/dungeon-map";
+import type { ChestTierDef, DungeonDef, EnemyDef, GameContent, ItemDef, MayorDef, PetDef, QuestDef, Rarity, RecipeDef, ReforgeDef, RoomStyleDef, VendorDef } from "./content.types";
 import { structureItemId, type CropDef, type FarmEventDef, type MutationDef, type PestDef, type StructureDef } from "./farming";
 import { fishItemId, qualityFishItemId, type FishDef } from "./fishing";
 
@@ -39,6 +40,25 @@ function byId<T extends { id: string }>(list: T[], kind: string): Record<string,
         map[entry.id] = entry;
     }
     return map;
+}
+
+type RoomEntry = GameData["dungeons"][number]["rooms"][string];
+type RoomRefEntry = GameData["dungeon-layouts"][number]["rooms"][string];
+
+const roomSpec = (room: RoomEntry): DungeonRoomSpecDef => ({ kind: room.kind, name: room.name ?? null, style: room.style ?? null, lock: room.lock ?? null });
+const roomRef = (ref: RoomRefEntry): DungeonRoomRef => (typeof ref === "string" ? ref : roomSpec(ref));
+
+/** Each layout with its drawing parsed; the drawing's mistakes ride along for `checkContent`. */
+function buildLayouts(data: GameData): DungeonLayoutDef[] {
+    return data["dungeon-layouts"].map((layout) => ({
+        id: layout.id,
+        dungeon: layout.dungeon,
+        map: parseLayoutMap(layout.map),
+        legend: Object.fromEntries(Object.entries(layout.rooms).map(([key, ref]) => [key, roomRef(ref)])),
+        place: layout.place.map((rule) => ({ room: roomRef(rule.room), at: rule.at.map(String), chance: rule.chance })),
+        roomStyle: layout.roomStyle ?? null,
+        mirror: layout.mirror,
+    }));
 }
 
 export function buildContent(data: GameData): BuiltContent {
@@ -170,7 +190,12 @@ export function buildContent(data: GameData): BuiltContent {
     const fish: FishDef[] = data.fish;
     for (const entry of fish) {
         const base = { kind: "material", skill: "fishing", stackSize: 999, name: entry.name, icon: entry.icon, rarity: entry.rarity } as const;
-        items.push({ ...base, id: fishItemId(entry.id), description: entry.description });
+        items.push({
+            ...base,
+            id: fishItemId(entry.id),
+            description: entry.description,
+            sellValue: data.config.fishing.sellValue[entry.rarity],
+        });
         for (const tier of GEO_QUALITY_TIERS) {
             items.push({
                 ...base,
@@ -187,6 +212,8 @@ export function buildContent(data: GameData): BuiltContent {
     const foods: FoodDef[] = items.flatMap((item) =>
         item.kind === "consumable" && item.food ? [{ id: item.id, name: item.name, ...item.food }] : [],
     );
+
+    const layouts = buildLayouts(data);
 
     const content: GameContent = {
         statuses: byId<StatusDef>(data.statuses, "status"),
@@ -208,13 +235,25 @@ export function buildContent(data: GameData): BuiltContent {
         reforges: byId<ReforgeDef>(data.reforges, "reforge"),
         mayors: byId<MayorDef>(data.mayors, "mayor"),
         dungeons: byId<DungeonDef>(
-            data.dungeons.map((dungeon) => ({ ...dungeon, bossModifiers: dungeon.bossModifiers ?? [] })),
+            data.dungeons.map((dungeon) => ({
+                ...dungeon,
+                bossModifiers: dungeon.bossModifiers ?? [],
+                stars: dungeon.stars ?? null,
+                roomStyle: dungeon.roomStyle ?? null,
+                rooms: Object.fromEntries(Object.entries(dungeon.rooms).map(([key, room]) => [key, roomSpec(room)])),
+                pool: dungeon.pool.map((entry) => ({ room: roomRef(entry.room), weight: entry.weight, max: entry.max ?? null })),
+                layouts: layouts.filter((layout) => layout.dungeon === dungeon.id),
+            })),
             "dungeon",
         ),
+        dungeonLayouts: byId(layouts, "dungeon layout"),
+        roomStyles: byId<RoomStyleDef>(data["room-styles"], "room style"),
         quests: byId<QuestDef>(
             data.quests.map((quest) => ({
                 ...quest,
                 giver: quest.giver ?? null,
+                after: quest.after ?? [],
+                unlocksTier: quest.unlocksTier ?? null,
                 rewards: { coins: quest.rewards.coins ?? 0, items: quest.rewards.items ?? [] },
             })),
             "quest",

@@ -26,6 +26,8 @@
         "smoke:geo-bank": "tsx --env-file ../.env src/geo/dev/geo-bank-smoke.ts",
         "smoke:geo-wardrobe": "tsx --env-file ../.env src/geo/dev/geo-wardrobe-smoke.ts",
         "smoke:geo-inbox": "tsx --env-file ../.env src/geo/dev/geo-inbox-smoke.ts",
+        "smoke:geo-quests": "tsx --env-file ../.env src/geo/dev/geo-quests-smoke.ts",
+        "smoke:geo-dungeons": "tsx --env-file ../.env src/geo/dev/geo-dungeons-smoke.ts",
         "geo:admin": "tsx --env-file ../.env src/geo/dev/geo-make-admin.ts",
         "geo:sell-values": "tsx src/geo/dev/geo-sell-values.ts",
         "geo:data": "tsx src/geo/dev/geo-data.ts",

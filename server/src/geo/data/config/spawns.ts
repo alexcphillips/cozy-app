@@ -2,6 +2,8 @@ import type { SpawnsConfig } from "#geo/models";
 
 export default {
     reachMetres: 60,
+    // 10 m short of reach, so GPS drift doesn't put a fresh spawn out of reach.
+    maxSpawnMetres: 50,
     minSpawnMetres: 10,
     outOfReachSeconds: 45,
     respawnAfterWinSeconds: 60,
@@ -15,6 +17,9 @@ export default {
     tierUnlockLevels: [1, 5, 12, 22, 35],
     // One tier below is 40% as common as your own, two below 15%, any lower 5%.
     lowerTierWeights: [0.4, 0.15, 0.05],
+    // PLACEHOLDER. Half as strong as the anywhere pool: a quest's target
+    // (the Trial's river crab) turns up every few spawns, even far from water.
+    questTargetWeight: 0.5,
     // NOTE: enemies array is the "everywhere" pool.
     enemies: [
         { enemyId: "spider", weight: 10 },
@@ -27,7 +32,7 @@ export default {
     // it, fading to nothing at `influenceMetres`. Who lives where is on each
     // enemy, as `habitats`.
     habitats: {
-        // Kept within reachMetres, so water creatures always land on the shore.
+        // Kept within maxSpawnMetres, so water creatures always land on the shore.
         water: { influenceMetres: 50, weight: 0.7 },
         mining: { influenceMetres: 100, weight: 1.5 },
         foraging: { influenceMetres: 100, weight: 1 },

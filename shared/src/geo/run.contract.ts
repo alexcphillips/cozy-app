@@ -145,10 +145,12 @@ export type GeoRunView = {
     lunchbox: GeoLunchboxSlot[];
     /** Set once the Run is won. */
     rewards: GeoRewards | null;
-    /** Set once the Run is lost: defeat costs every coin you carry. */
+    /** Set once the Run is lost: defeat costs every coin you carry (never in a dungeon: 0 there). */
     coinsLost: number | null;
     /** True once an enemy that leaves after winning has won: no fighting it again. */
     enemyLeft: boolean;
+    /** The dungeon run this is a room fight of: back to its map once it's over. Null outside dungeons. */
+    dungeonRunId: string | null;
 };
 
 /**

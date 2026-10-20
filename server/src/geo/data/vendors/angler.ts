@@ -6,7 +6,7 @@ export default {
     icon: "fishing-pole",
     description: "Bait, tackle and a lot of opinions.",
     sells: [
-        { itemId: "worm-bait", price: 3 },
+        { itemId: "worm-bait", price: 1 },
         { itemId: "bloody-bait", price: 25 },
         { itemId: "ashwood-rod", price: 250 },
         { itemId: "greenheart-rod", price: 1500 },

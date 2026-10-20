@@ -21,12 +21,14 @@ try {
     await grant(session.player.id, [
         { itemId: "silk-spool", quantity: 250 },
         { itemId: "spider-fang", quantity: 16 },
+        { itemId: "sturdy-shell", quantity: 1 },
     ]);
 
     const content = await call<GeoContentResponse>("GET", GEO_API_PATHS.content);
     assert.ok(content.body.recipes.some((recipe) => recipe.id === "compact-silk-spool"));
-    const silkDrop = content.body.sources.find((source) => source.kind === "enemy" && source.itemId === "silk-spool");
-    assert.equal(silkDrop?.name, "Giant Spider");
+    // Several enemies drop silk; the spider is one of them.
+    const silkDroppers = content.body.sources.filter((source) => source.kind === "enemy" && source.itemId === "silk-spool");
+    assert.ok(silkDroppers.some((source) => source.name === "Giant Spider"), JSON.stringify(silkDroppers));
     assert.ok(content.body.sources.some((source) => source.kind === "vendor" && source.itemId === "wheat"));
     step(`the content carries ${content.body.recipes.length} recipes and ${content.body.sources.length} item sources`);
 
@@ -62,9 +64,10 @@ try {
     const dagger = await call<GeoMeResponse>("POST", craftPath("venomfang-dagger"), token, { quantity: 1 });
     assert.equal(dagger.status, 200, JSON.stringify(dagger.body));
     assert.equal(quantityOf(dagger.body, "venomfang-dagger"), 1);
-    assert.equal(quantityOf(dagger.body, "spider-fang"), fangs - 1);
-    assert.equal(quantityOf(dagger.body, "silk-spool"), silk - 206);
-    step("at Combat 5, a Venomfang Dagger took 6 Silk Spool and 1 Spider Fang");
+    assert.equal(quantityOf(dagger.body, "spider-fang"), fangs - 5);
+    assert.equal(quantityOf(dagger.body, "silk-spool"), silk - 215);
+    assert.equal(quantityOf(dagger.body, "sturdy-shell"), 0);
+    step("at Combat 5, a Venomfang Dagger took 15 Silk Spool, 5 Spider Fang and 1 Sturdy Shell");
 
     const envenom = await call<GeoMeResponse>("POST", craftPath("envenom"), token, { quantity: 1 });
     assert.equal(envenom.status, 200, JSON.stringify(envenom.body));

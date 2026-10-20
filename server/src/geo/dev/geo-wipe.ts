@@ -8,7 +8,7 @@ import { grantStarterKit } from "../modules/accounts/geo-accounts.repository";
  * Wipes every player's progress back to a fresh start, keeping their account:
  * email, password, name, role, ban, sessions, friends and inbox stay.
  * Everything earned goes (items, hands, lunchbox, bait, seeds, farm, contest scores, camp, XP, coins, Runs,
- * Market, chests, travel, dungeon lobbies), then each player gets the starter kit again, as
+ * Market, chests, travel, dungeon lobbies, quests), then each player gets the starter kit again, as
  * if they'd just signed up. World content (places, suggestions, elections,
  * announcements, feedback) is untouched.
  *
@@ -22,6 +22,7 @@ if (IS_PRODUCTION) throw new Error("geo-wipe refuses to run in production");
 
 /** Player progress, children before parents so no row is left pointing at a deleted one. */
 const PROGRESS_TABLES = [
+    "player_quests",
     "dungeon_lobby_members",
     "dungeon_lobbies",
     "market_sales",
@@ -29,6 +30,7 @@ const PROGRESS_TABLES = [
     "market_listings",
     "chest_selections",
     "runs",
+    "dungeon_runs",
     "spawns",
     "player_travel",
     "coin_ledger",

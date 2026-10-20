@@ -33,7 +33,8 @@ Enemy spawns around each player.
 
 | Field | What it does |
 | --- | --- |
-| `reachMetres` | How far away a fight can start. New spawns land within it. |
+| `reachMetres` | How far away a fight can start. |
+| `maxSpawnMetres` | New spawns land at most this far away. Keep it under `reachMetres` (by ~10 m) so GPS drift doesn't leave a fresh spawn out of reach. |
 | `minSpawnMetres` | New spawns land at least this far away. |
 | `outOfReachSeconds` | How long a spawn lingers once you walk out of reach. |
 | `respawnAfterWinSeconds` | A beaten spawn holds its slot this long. |
@@ -41,10 +42,11 @@ Enemy spawns around each player.
 | `windowMinutes` | How long one roll of `countWeights` holds. |
 | `spawnGapSeconds` | At most one new spawn this often. |
 | `lifetimeMinutes` | `{ min, max }` a spawn lasts. |
-| `tierUnlockLevels` | The combat level that opens each enemy tier: `[1, 5, 12…]` is tier 1 from level 1, tier 2 from 5, tier 3 from 12. Must start at 1 and go up. An enemy whose [`tier`](../enemies/README.md#fields) the player hasn't opened never spawns for them. |
+| `tierUnlockLevels` | The combat level that opens each enemy tier: `[1, 5, 12…]` is tier 1 from level 1, tier 2 from 5, tier 3 from 12. Must start at 1 and go up. An enemy whose [`tier`](../enemies/README.md#fields) the player hasn't opened never spawns for them. A tier with a [Trial](../quests/README.md#trials) also needs it turned in. |
 | `lowerTierWeights` | How common enemies of tiers below the player's are, against their own tier's (1): one tier below, two below… The last carries on for any lower. Above 0, so old materials still turn up. |
+| `questTargetWeight` | How hard a quest pulls new spawns toward the enemies its kill objectives still need, against the anywhere pool's 1. They spawn anywhere, whatever their habitat or tier. |
 | `enemies` | `{ enemyId, weight }`: which enemies spawn anywhere, how often. Enemies with no `habitats` spawn only from here. |
-| `habitats` | Per kind of place (`water`, `mining`, `foraging`, `farming`, `landmark`): `{ influenceMetres, weight }`. Each new spawn picks where it's from by weight: `enemies` has 1, and each kind of place nearby has its `weight` when the player is on it, fading to nothing at `influenceMetres` (at most 250). Who lives there is each enemy's [`habitats`](../enemies/README.md#habitats). A place within reach gets its spawns beside it; farther, they land on the player's side facing it. Keep `water` within `reachMetres`, so water creatures land on the shore. |
+| `habitats` | Per kind of place (`water`, `mining`, `foraging`, `farming`, `landmark`): `{ influenceMetres, weight }`. Each new spawn picks where it's from by weight: `enemies` has 1, and each kind of place nearby has its `weight` when the player is on it, fading to nothing at `influenceMetres` (at most 250). Who lives there is each enemy's [`habitats`](../enemies/README.md#habitats). A place within reach gets its spawns beside it; farther, they land on the player's side facing it. Keep `water` within `maxSpawnMetres`, so water creatures land on the shore. |
 
 ## fishing.ts
 
@@ -55,6 +57,7 @@ Enemy spawns around each player.
 | `waterRarities` | Which rarities can bite in `puddle`, `pond`, `lake`, `open` water. |
 | `rarityDifficulty` | Quality thresholds × this: rarer fish need more Finesse. |
 | `parTurns` | Turns a clean fight should take, per rarity. Past par, each turn costs 1 Finesse. |
+| `sellValue` | NPC sell value of a regular fish, per rarity. Quality fish are Soulbound and never sell. |
 | `tuning.zoneLow`, `zoneHigh` | The sweet Tension zone, as a share of the line's cap. |
 | `tuning.tierThresholds` | Finesse needed for bronze, silver, gold, ruby. |
 | `tuning.maxTurns` | A fight this long is lost. |

@@ -111,6 +111,11 @@ export async function loadGameData(dir: string = DATA_DIR): Promise<GameData> {
                     return;
                 }
             }
+            // Layouts are sorted into a folder per dungeon: dungeon-layouts/slime-pits/…
+            if (folder === "dungeon-layouts" && "dungeon" in entry && basename(dirname(file)) !== entry.dungeon) {
+                problems.push(`${show(file)}: a ${entry.dungeon} layout goes in dungeon-layouts/${entry.dungeon}/`);
+                return;
+            }
             folders[folder].push(entry);
         });
     }

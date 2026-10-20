@@ -22,7 +22,7 @@ field, its explanation on hover, and a red underline on a mistake (a typo'd
 field, a string where a number goes) as you type. The models are in
 `content/models.ts`, one per folder: `Card`, `Weapon`, `Armor`, `Ring`, `Amulet`,
 `Talisman`, `Material`, `Food`, `Bait`, `MiscItem`, `Fish`, `Enemy`,
-`Status`, `Recipe`, `Vendor`, `Reforge`, `Mayor`, `Quest`, plus a `…Config` for each file in
+`Status`, `Recipe`, `Vendor`, `Reforge`, `Mayor`, `Dungeon`, `DungeonLayout`, `RoomStyle`, `Quest`, plus a `…Config` for each file in
 `config/`. Keep data files to plain values: no imports but the model, no
 logic.
 
@@ -80,6 +80,8 @@ One entry per file, named by its id: `data/weapons/claymore.ts` has
 | `reforges/` | Reforges a vendor rolls onto weapons and armor | [reforges](reforges/README.md) |
 | `mayors/` | Mayors and their perks | [mayors](mayors/README.md) |
 | `dungeons/` | Raid-style bosses fought from lobbies | [dungeons](dungeons/README.md) |
+| `dungeon-layouts/` | Hand-drawn dungeon maps, a subfolder per dungeon | [dungeon layouts](dungeon-layouts/README.md) |
+| `room-styles/` | How dungeon room outlines are drawn | [room styles](room-styles/README.md) |
 | `config/` | Tuning numbers: player stats, spawns, fishing, starter kit… | [config](config/README.md) |
 | `quests/` | Quests: objectives and turn-in rewards | [quests](quests/README.md) |
 

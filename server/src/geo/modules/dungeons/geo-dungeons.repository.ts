@@ -9,6 +9,7 @@ import { AppError } from "../../../http/AppError";
 import { CONTENT, type DungeonDef } from "../../content";
 import { withTransaction, type TxQuery } from "../../db/transaction";
 import { hasArt } from "../../world";
+import * as dungeonRunsRepository from "../dungeon-runs/geo-dungeon-runs.repository";
 import * as playerRepository from "../player/geo-player.repository";
 import * as runsRepository from "../runs/geo-runs.repository";
 import { isOpen, requiredLevelProblem } from "./geo-dungeons.rules";
@@ -163,9 +164,10 @@ export async function leaveLobby(playerId: string, lobbyId: string): Promise<Geo
 }
 
 /**
- * The host starts the lobby: everyone in it goes in at once, each into their
- * own Run against the boss for now (made bigger by the dungeon's
- * `bossModifiers`), and the lobby is done. Everyone fights at full health,
+ * The host starts the lobby: everyone in it goes in at once, and the lobby is
+ * done. A dungeon with layouts gives each member their own rolled map for now
+ * (party maps come later); one without is a lone boss fight, each in their
+ * own Run (made bigger by the dungeon's `bossModifiers`). Everyone fights at full health,
  * and leaves with their own health as it was. A member who can't fight right now
  * (already in a Run, an empty hand…) is left out rather than holding everyone
  * back; the host can't be.
@@ -180,20 +182,30 @@ export async function startLobby(playerId: string, lobbyId: string): Promise<Geo
         const dungeon = CONTENT.dungeons[lobby.dungeon_id];
         if (!dungeon) throw AppError.badRequest("That dungeon no longer exists");
         // Fought at full health; each player's own health is as it was after.
-        const target = { enemyId: dungeon.boss, spawnId: null, enemyModifiers: dungeon.bossModifiers, keepsHealth: true };
+        const target = {
+            enemyId: dungeon.boss,
+            spawnId: null,
+            enemyModifiers: dungeon.bossModifiers,
+            keepsHealth: true,
+            dungeonId: dungeon.id,
+        };
+        const enter = (memberId: string) =>
+            dungeon.layouts.length > 0
+                ? dungeonRunsRepository.openDungeonRun(tx, memberId, dungeon, lobbyId).then((view) => ({ opened: null, dungeonRun: view }))
+                : runsRepository.openCombatRun(tx, memberId, target).then((run) => ({ opened: run, dungeonRun: null }));
 
-        // The host first: if they can't fight, nothing starts.
+        // The host first: if they can't go in, nothing starts.
         await playerRepository.lockPlayer(tx, playerId);
-        const opened = await runsRepository.openCombatRun(tx, playerId, target);
+        const hosts = await enter(playerId);
 
         const leftOut: string[] = [];
         const members = (await tx<MemberRow>(FIND_MEMBERS, [lobbyId])).filter((member) => member.player_id !== playerId);
         for (const member of members.sort((a, b) => a.player_id.localeCompare(b.player_id))) {
             await playerRepository.lockPlayer(tx, member.player_id);
-            // A savepoint per member, so one who can't fight is undone alone.
+            // A savepoint per member, so one who can't go in is undone alone.
             await tx("SAVEPOINT dungeon_member");
             try {
-                await runsRepository.openCombatRun(tx, member.player_id, target);
+                await enter(member.player_id);
                 await tx("RELEASE SAVEPOINT dungeon_member");
             } catch (error) {
                 if (!(error instanceof AppError)) throw error;
@@ -203,6 +215,6 @@ export async function startLobby(playerId: string, lobbyId: string): Promise<Geo
             }
         }
         await tx(START_LOBBY, [lobbyId]);
-        return { opened, leftOut };
+        return { ...hosts, leftOut };
     });
 }

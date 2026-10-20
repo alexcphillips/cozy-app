@@ -10,7 +10,7 @@ import { type FishingSetup, type FishingState } from "../../fishing/fishing-run"
  */
 export function toFishingView(id: string, state: FishingState, setup: FishingSetup): GeoFishingRunView {
     const fish = state.fishId ? CONTENT.fish[state.fishId] : undefined;
-    const showFish = state.phase === "fight" || state.phase === "outclassed";
+    const showFish = state.phase === "fight";
     const fight = state.fight && state.phase === "fight" ? state.fight : null;
 
     return {

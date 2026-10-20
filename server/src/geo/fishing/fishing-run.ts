@@ -82,7 +82,11 @@ export type FishingSetup = {
     fish: Record<string, FishDef>;
 };
 
-/** What casting needs from the bait slots: the bait used, or none packed. */
+/**
+ * What casting needs from the bait slots: the bait used, or null for a bare
+ * hook. Bait is optional: a bare hook only hooks commons, never a sea
+ * creature, and never lands a quality catch.
+ */
 export type CastBait = { itemId: string; chum: boolean } | null;
 
 export function newFishingState(tier: GeoFishingTier, hand: FishingHandCard[], seed: number): FishingState {
@@ -103,8 +107,6 @@ export function newFishingState(tier: GeoFishingTier, hand: FishingHandCard[], s
         chum: false,
     };
 }
-
-export const isOutclassed = (fish: FishDef, power: number) => power >= 2 * fish.stamina;
 
 const INTENT_VERBS: Record<GeoFishIntent, string> = { run: "runs", thrash: "thrashes", dive: "dives", rest: "rests", jump: "jumps" };
 
@@ -145,13 +147,6 @@ function applyAction(state: FishingState, action: GeoFishingAction, setup: Fishi
             return cast(state, bait);
         case "strike":
             return strike(state, setup, rng);
-        case "quickLand": {
-            if (state.phase !== "outclassed" || !state.fishId) throw new FishingRuleError("Nothing to land");
-            return over(state, { kind: "landed", fishId: state.fishId, tier: null, how: "Quick land", turns: 0 });
-        }
-        case "playOut":
-            if (state.phase !== "outclassed") throw new FishingRuleError("Nothing to play out");
-            return startFight(state, setup, rng);
         case "cutLine":
             if (state.phase !== "creature") throw new FishingRuleError("Nothing to cut loose");
             return over(state, { kind: "lost", reason: "You cut the line. The bait's gone, but you're safe.", turns: 0 });
@@ -169,7 +164,6 @@ function over(state: FishingState, result: FishingResult): FishingState {
 
 function cast(state: FishingState, bait: CastBait): FishingState {
     if (state.phase !== "ready" && state.phase !== "over") throw new FishingRuleError("Your line's already in the water");
-    if (!bait) throw new FishingRuleError("Pack some bait first: one goes on the hook each cast");
     return {
         ...state,
         phase: "waiting",
@@ -177,8 +171,8 @@ function cast(state: FishingState, bait: CastBait): FishingState {
         creatureId: null,
         fight: null,
         result: null,
-        baitItemId: bait.itemId,
-        chum: bait.chum,
+        baitItemId: bait?.itemId ?? null,
+        chum: bait?.chum ?? false,
         message: "The bobber plunges under!",
     };
 }
@@ -187,28 +181,26 @@ function strike(state: FishingState, setup: FishingSetup, rng: Rng): FishingStat
     if (state.phase !== "waiting") throw new FishingRuleError("Nothing to strike at");
     const creatures = SEA_CREATURES[state.tier];
     const creatureChance = Math.min(1, setup.seaCreatureChance * (state.chum ? 3 : 1));
-    if (creatures.length > 0 && rng.next() < creatureChance) {
+    if (state.baitItemId && creatures.length > 0 && rng.next() < creatureChance) {
         const weights = Object.fromEntries(creatures.map((c) => [c.enemyId, c.weight])) as Record<string, number>;
         const creatureId = pickWeighted(weights, rng.next());
         return { ...state, phase: "creature", creatureId, message: "The water goes still. The line pulls sideways…" };
     }
 
-    const fish = randomFish(state.tier, setup, rng);
-    if (isOutclassed(fish, setup.power)) {
-        return { ...state, fishId: fish.id, phase: "outclassed", message: "Hooked, and it's no match for you." };
-    }
+    const fish = randomFish(state.tier, state.baitItemId ? setup.rod.maxRarity : "common", setup, rng);
     return startFight({ ...state, fishId: fish.id }, setup, rng);
 }
 
 /** The rarities that can bite: the water's, up to the rod's rarest. Every rod hooks commons. */
+/** Rarities that can bite: the water's, capped by the rod (or "common" for a bare hook). */
 export function biteRarities(tier: GeoFishingTier, maxRarity: Rarity): Rarity[] {
     const cap = RARITIES.indexOf(maxRarity);
     const allowed = WATER_RARITIES[tier].filter((rarity) => RARITIES.indexOf(rarity) <= cap);
     return allowed.length > 0 ? allowed : ["common"];
 }
 
-function randomFish(tier: GeoFishingTier, setup: FishingSetup, rng: Rng): FishDef {
-    const allowed = biteRarities(tier, setup.rod.maxRarity);
+function randomFish(tier: GeoFishingTier, maxRarity: Rarity, setup: FishingSetup, rng: Rng): FishDef {
+    const allowed = biteRarities(tier, maxRarity);
     const weights = Object.fromEntries(allowed.map((rarity) => [rarity, RARITY_WEIGHT[rarity]])) as Record<Rarity, number>;
     const rarity = pickWeighted(weights, rng.next());
     const pool = Object.values(setup.fish).filter((fish) => fish.rarity === rarity);
@@ -446,7 +438,8 @@ function rerollIntents(f: FishingFight, fish: FishDef, rng: Rng) {
 
 function land(state: FishingState, fish: FishDef, setup: FishingSetup, rng: Rng, how: string): FishingState {
     const f = state.fight!;
-    const tier = rollTier(f.finesse, fish.rarity, setup.rod.maxTier, rng.next());
+    // A bare hook never lands a quality catch.
+    const tier = state.baitItemId ? rollTier(f.finesse, fish.rarity, setup.rod.maxTier, rng.next()) : null;
     return over(state, { kind: "landed", fishId: fish.id, tier, how, turns: f.turn });
 }
 

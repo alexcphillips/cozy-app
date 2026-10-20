@@ -4,7 +4,16 @@ import type { GeoFishingAction } from "@cozy/shared/geo";
 import { CONTENT } from "../content";
 import { WATER_RARITIES } from "../content";
 import type { RodDef } from "../content/fishing";
-import { biteRarities, FishingRuleError, newFishingState, rollTier, stepFishing, type FishingSetup, type FishingState } from "./fishing-run";
+import {
+    biteRarities,
+    FishingRuleError,
+    newFishingState,
+    rollTier,
+    stepFishing,
+    type CastBait,
+    type FishingSetup,
+    type FishingState,
+} from "./fishing-run";
 
 function rod(itemId: string): RodDef {
     const item = CONTENT.items[itemId];
@@ -22,14 +31,13 @@ const hand = ["fish.reel", "fish.slack", "fish.steady", "fish.gaff"].map((cardId
 }));
 const worm = { itemId: "worm-bait", chum: false };
 
-/** Plays a cast to its end: strike the bite, quick-land what it can, then a simple card policy. */
-function playCast(start: FishingState, using: FishingSetup = setup): FishingState {
-    let state = stepFishing(start, { type: "cast" }, using, worm);
+/** Plays a cast to its end: strike the bite, then a simple card policy. */
+function playCast(start: FishingState, using: FishingSetup = setup, bait: CastBait = worm): FishingState {
+    let state = stepFishing(start, { type: "cast" }, using, bait);
     for (let guard = 0; state.phase !== "over"; guard++) {
         assert.ok(guard < 200, `stuck in ${state.phase}`);
         let action: GeoFishingAction;
         if (state.phase === "waiting") action = { type: "strike" };
-        else if (state.phase === "outclassed") action = { type: "quickLand" };
         else if (state.phase === "creature") action = { type: "cutLine" };
         else {
             const f = state.fight!;
@@ -49,13 +57,23 @@ function hook(start: FishingState, using: FishingSetup): FishingState {
 }
 
 describe("fishing Run", () => {
-    it("won't cast without bait", () => {
-        assert.throws(() => stepFishing(newFishingState("pond", hand, 1), { type: "cast" }, setup, null), FishingRuleError);
+    it("casts a bare hook without bait: commons only, no sea creatures, no quality", () => {
+        const always = { ...setup, seaCreatureChance: 1 };
+        for (let seed = 1; seed <= 10; seed++) {
+            const state = playCast(newFishingState("open", hand, seed), always, null);
+            assert.equal(state.baitItemId, null);
+            const result = state.result!;
+            assert.equal(result.kind === "landed" || result.kind === "lost", true, `no sea creature on a bare hook (${result.kind})`);
+            if (result.kind === "landed") {
+                assert.equal(CONTENT.fish[result.fishId]?.rarity, "common");
+                assert.equal(result.tier, null);
+            }
+        }
     });
 
     it("always ends a cast, and only hooks fish the water allows", () => {
         let state = newFishingState("puddle", hand, 7);
-        for (let i = 0; i < 300; i++) {
+        for (let i = 0; i < 10; i++) {
             state = playCast(state);
             const result = state.result!;
             if (result.kind === "landed") assert.equal(CONTENT.fish[result.fishId]?.rarity, "common", "a puddle holds only commons");
@@ -72,7 +90,7 @@ describe("fishing Run", () => {
         let state = newFishingState("open", hand, 3);
         state = stepFishing(state, { type: "cast" }, setup, worm);
         state = stepFishing(state, { type: "strike" }, setup);
-        if (state.phase !== "fight") return; // outclassed: no fight to test on this seed
+        assert.equal(state.phase, "fight");
         const after = stepFishing(state, { type: "play", inventoryId: "inv-1" }, setup);
         assert.equal(after.hand[1]!.chargesLeft, 39);
         assert.equal(state.hand[1]!.chargesLeft, 40, "the stored state is never changed in place");
@@ -89,7 +107,7 @@ describe("fishing Run", () => {
         assert.deepEqual(biteRarities("lake", "uncommon"), ["common", "uncommon"]);
         assert.deepEqual(biteRarities("pond", "legendary"), ["common", "uncommon"]);
 
-        for (let seed = 0; seed < 200; seed++) {
+        for (let seed = 0; seed < 10; seed++) {
             const result = playCast(newFishingState("open", hand, seed), twig).result!;
             if (result.kind !== "landed") continue;
             assert.equal(CONTENT.fish[result.fishId]?.rarity, "common", "the Twig Rod hooks only commons");

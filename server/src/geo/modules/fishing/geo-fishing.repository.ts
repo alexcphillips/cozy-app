@@ -15,6 +15,7 @@ import {
     type FishingState,
 } from "../../fishing/fishing-run";
 import { playerModifiers } from "../../world/global-effects";
+import * as dungeonFights from "../dungeon-runs/geo-dungeon-runs.fights";
 import * as playerRepository from "../player/geo-player.repository";
 import * as wardrobeRepository from "../wardrobe/geo-wardrobe.repository";
 import { ABANDON_AFTER_MINUTES, openCombatRun } from "../runs/geo-runs.repository";
@@ -87,6 +88,7 @@ export async function startFishing(playerId: string, tier: GeoFishingTier): Prom
         await tx(ABANDON_STALE_RUNS, [playerId, ABANDON_AFTER_MINUTES]);
         const [active] = await tx<FishingRunRow>(FIND_ACTIVE_RUN, [playerId]);
         if (active && active.kind !== "fishing") throw AppError.badRequest("You're in a fight. Finish or flee it first.");
+        if (!active) await dungeonFights.assertNotInDungeon(tx, playerId);
         // Before the rod is read: auto-swap puts on the fishing loadout. A
         // Run being resumed keeps what it started with.
         if (!active) await wardrobeRepository.autoSwap(tx, playerId, "fishing");
@@ -98,7 +100,7 @@ export async function startFishing(playerId: string, tier: GeoFishingTier): Prom
             throw AppError.badRequest("Your fishing hand is empty. The Angler sells fishing cards.");
         }
         const state = newFishingState(tier, hand, randomSeed());
-        const [row] = await tx<FishingRunRow>(INSERT_RUN, [playerId, "fishing", [], null, state, false]);
+        const [row] = await tx<FishingRunRow>(INSERT_RUN, [playerId, "fishing", [], null, state, false, null, null, null]);
         if (!row) throw new Error("Run insert returned nothing");
         return toFishingView(row.id, state, setup);
     });
@@ -118,7 +120,8 @@ export async function actFishing(playerId: string, runId: string, action: GeoFis
         const row = await findOpenRun(tx, playerId, runId);
         const setup = await loadSetup(tx, playerId);
 
-        // A cast takes the first packed bait, unless a perk saves it.
+        // A cast takes the first packed bait, unless a perk saves it. None
+        // packed: a bare hook (commons only, see CastBait).
         let bait: CastBait = null;
         let baitSlot: { slot: number; itemId: string; from: number } | null = null;
         if (action.type === "cast") {

@@ -155,7 +155,7 @@ function rollBetween(range: { min: number; max: number }, rng: Rng): number {
 }
 
 /** Each pool's rolls, each a weighted pick. The same item twice joins up. */
-function rollPools(pools: ChestLootPool[], rng: Rng): Drop[] {
+export function rollPools(pools: ChestLootPool[], rng: Rng): Drop[] {
     const drops: Drop[] = [];
     for (const pool of pools) {
         const total = pool.entries.reduce((sum, entry) => sum + entry.weight, 0);

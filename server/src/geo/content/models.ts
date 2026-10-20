@@ -634,6 +634,108 @@ export type Dungeon = {
     requiredLevel: number;
     /** How many players a lobby holds, host included. */
     maxPlayers: number;
+    /**
+     * How many star rooms every layout has. Clearing them all opens the
+     * boss room. Required once the dungeon has layouts in
+     * `data/dungeon-layouts/`; without layouts it's a lone boss fight.
+     */
+    stars?: number;
+    /** How many gold rooms (kind "miniboss") every layout has. Default 0. */
+    minibosses?: number;
+    /** Enemy ids an encounter room picks from. Required once the dungeon has layouts. */
+    encounterEnemies?: string[];
+    /** Enemy ids a star room picks from. Required once the dungeon has layouts. */
+    starEnemies?: string[];
+    /** Enemy ids a gold room picks from. Required when `minibosses` is above 0. */
+    minibossEnemies?: string[];
+    /**
+     * The lowest score (0–100) that offers each chest tier at the end; Plain
+     * is always offered. Void also needs no failed puzzle. Default gold 40,
+     * ruby 70, void 90.
+     */
+    chestScores?: { gold?: number; ruby?: number; void?: number };
+    /**
+     * What a loot room gives each player who collects it, straight into their
+     * inventory. Required once its layouts can have loot rooms.
+     */
+    roomLoot?: ChestPool[];
+    /**
+     * What each end-of-dungeon chest holds, by tier, as pools like an
+     * enemy's chests. A tier left out is never offered; `plain` is required
+     * once the dungeon has layouts.
+     */
+    chests?: Partial<Record<GeoChestTier, ChestPool[]>>;
+    /** Points off the score for each failed puzzle and each death. Default 20 and 15. */
+    penalties?: { failedPuzzle?: number; death?: number };
+    /** The outline style (`data/room-styles/`) for rooms that don't pick their own. */
+    roomStyle?: string;
+    /** Rooms its layouts, place rules and pool can name, e.g. `{ "inner-sanctum": { kind: "encounter", lock: "sanctum-key" } }`. */
+    rooms?: Record<string, DungeonRoom>;
+    /**
+     * What a layout's leftover slots roll from, by `weight` (default 1), up to
+     * `max` times each run. No entrance, star, gold room or boss here: place those.
+     */
+    pool?: { room: DungeonRoomRef; weight?: number; max?: number }[];
+};
+
+/** What a dungeon room holds. See `data/dungeon-layouts/README.md`. */
+export type DungeonRoomKind = "entrance" | "encounter" | "star" | "miniboss" | "puzzle" | "loot" | "event" | "boss" | "empty";
+
+/** A dungeon room: its kind, plus an optional name, outline style and lock. */
+export type DungeonRoom = {
+    kind: DungeonRoomKind;
+    /** Shown on the map, e.g. "Inner Sanctum". */
+    name?: string;
+    /** A `data/room-styles/` id. Default: the layout's, then the dungeon's. */
+    style?: string;
+    /**
+     * The item id of the key that opens it. Every room you can only reach
+     * through it becomes a private wing for whoever opens it.
+     */
+    lock?: string;
+};
+
+/** A room kind ("encounter"), one of the dungeon's named `rooms`, or a room written out. */
+export type DungeonRoomRef = DungeonRoomKind | (string & {}) | DungeonRoom;
+
+/** A hand-drawn dungeon map. Lives in `data/dungeon-layouts/<dungeon id>/`. */
+export type DungeonLayout = {
+    /** Must match the file name. */
+    id: string;
+    /** The dungeon it belongs to. */
+    dungeon: string;
+    /**
+     * The drawing: letters are rooms, digits are slots, `-` and `|` are
+     * doors, spaces are walls. Rooms sit on every other column and line.
+     * The entrance goes on the bottom line.
+     */
+    map: string;
+    /** What each letter on the map is. */
+    rooms: Record<string, DungeonRoomRef>;
+    /** Rooms put into one of the listed slots each run, in this order. Without `chance` the room always appears. */
+    place?: { room: DungeonRoomRef; at: number[]; chance?: number }[];
+    /** Outline style for its rooms; overrides the dungeon's. */
+    roomStyle?: string;
+    /** Whether a run may flip it left to right. Default true. */
+    mirror?: boolean;
+};
+
+/** How a dungeon room's outline is drawn. The app draws it from these numbers; no images. */
+export type RoomStyle = {
+    /** Must match the file name. */
+    id: string;
+    /** Rounded corners, cut corners, or as round as the room allows. */
+    corner: "round" | "chamfer" | "circle";
+    /** Corner size in map units (a cell is 64). Default 8. */
+    radius?: number;
+    /** How jagged the walls are; 0 = straight. Default 0. */
+    rough?: number;
+    /** Wall thickness. Default 3. */
+    wall?: number;
+    /** How far the walls sit inside the cell's edge. Default 4. */
+    inset?: number;
+    /** Floor and wall colours, from a set that works in light and dark mode. */
+    tone: "stone" | "moss" | "ember" | "bone" | "void";
 };
 
 export type MayorPerk = {
@@ -655,17 +757,37 @@ export type Mayor = {
 /**
  * Something to do: "Kill 1 Green Slime". The server counts progress, and the
  * app's label is written from it ("Kill Green Slime"), so a new kind here
- * needs no app change.
+ * needs no app change. Only what happens while the quest is held counts.
  */
-export type QuestObjective = {
-    /** Unique within the quest, e.g. "kill". */
-    id: string;
-    type: "kill";
-    /** The enemy to defeat. */
-    enemy: string;
-    /** How many. */
-    count: number;
-};
+export type QuestObjective =
+    | {
+          /** Unique within the quest, e.g. "kill". */
+          id: string;
+          /** Each of `enemy` defeated in a won fight (a dungeon's boss too). */
+          type: "kill";
+          enemy: string;
+          count: number;
+      }
+    | {
+          id: string;
+          /** Each win in `dungeon`. */
+          type: "dungeon";
+          dungeon: string;
+          count: number;
+      }
+    | {
+          id: string;
+          /** Each time `recipe` is made: crafting 3 at once counts 3. "Cook …" for a cooking recipe. */
+          type: "craft";
+          recipe: string;
+          count: number;
+      }
+    | {
+          id: string;
+          /** Coins put in the bank, added up over every deposit. */
+          type: "deposit";
+          count: number;
+      };
 
 /** What turning in a finished quest pays. */
 export type QuestRewards = {
@@ -679,6 +801,19 @@ export type Quest = {
     title: string;
     /** Who gives it, as the app shows it: "The Angler". Leave out for none. */
     giver?: string;
+    /**
+     * Quests to turn in first. A quest is given to the player automatically
+     * once every one of these is turned in (at once, if none).
+     */
+    after?: string[];
+    /**
+     * Makes this a Trial: the gate-quest for enemy tier `unlocksTier`. That
+     * tier opens only once the player has the combat level for it
+     * (config/spawns.ts tierUnlockLevels) AND has turned this in. It's given
+     * once the tier below is open (and its `after` are done). One per tier,
+     * 2 or more. A Trial may pay nothing else.
+     */
+    unlocksTier?: number;
     /** All must be met before it can be turned in. */
     objectives: QuestObjective[];
     rewards: QuestRewards;
@@ -712,8 +847,10 @@ export type StarterKitConfig = {
 };
 
 export type SpawnsConfig = {
-    /** How far a fight can start, in metres; new spawns land within it. */
+    /** How far a fight can start, in metres. */
     reachMetres: number;
+    /** New spawns land at most this far from the player; below reachMetres to allow for GPS drift. */
+    maxSpawnMetres: number;
     /** New spawns land at least this far from the player. */
     minSpawnMetres: number;
     /** How long a spawn lingers once you're out of its reach. */
@@ -740,6 +877,12 @@ export type SpawnsConfig = {
      * lower. Above 0, so old materials still turn up.
      */
     lowerTierWeights: number[];
+    /**
+     * How hard a quest pulls new spawns toward the enemies its kill
+     * objectives still need, against `enemies` (1). They spawn anywhere,
+     * whatever their habitat or tier, so a quest never needs water nearby.
+     */
+    questTargetWeight: number;
     /** Which enemies spawn anywhere, how often. Enemies with no `habitats` spawn only from here. */
     enemies: { enemyId: string; weight: number }[];
     /**
@@ -868,6 +1011,8 @@ export type FishingConfig = {
     rarityDifficulty: Record<Rarity, number>;
     /** Turns a clean fight should take. Past par, each turn costs 1 Finesse. */
     parTurns: Record<Rarity, number>;
+    /** NPC sell value of a regular (non-quality) fish, by its rarity. */
+    sellValue: Record<Rarity, number>;
     tuning: {
         /** The sweet zone's bottom, as a share of the line's cap. */
         zoneLow: number;

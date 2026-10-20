@@ -180,4 +180,17 @@ describe("spawns", () => {
             assert.equal(tableForTier(table, TOP + 5).length, 2, "far past both");
         });
     });
+
+    it("pull a quest's kill target in anywhere, far from its habitat", () => {
+        const rng = createRng(11);
+        let crabs = 0;
+        for (let i = 0; i < 2000; i++) {
+            if (rollSpawn(rng, DALLAS, {}, 1, ["giant-river-crab"]).enemyId === "giant-river-crab") crabs += 1;
+        }
+        const expected = SPAWN_RULES.questTargetWeight / (1 + SPAWN_RULES.questTargetWeight);
+        assert.ok(Math.abs(crabs / 2000 - expected) < 0.05, `${crabs} crabs`);
+        // No water near: without the quest it never spawns here.
+        const plain = createRng(11);
+        for (let i = 0; i < 500; i++) assert.notEqual(rollSpawn(plain, DALLAS, {}, 1).enemyId, "giant-river-crab");
+    });
 });

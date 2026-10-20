@@ -18,6 +18,7 @@ server/src/geo/
 ├── combat/              loadout → combatants, loot rolls
 ├── world/               spawns around each player; global effects (the mayor's perks)
 ├── fishing/             fishing odds with every modifier, and the rod fishing Run's rules
+├── dungeons/            dungeon maps: parse hand-drawn layouts, roll a run's map, check every roll
 ├── data/                ALL game content, a .ts file each: cards, items, enemies, recipes, tuning (see data/README.md)
 ├── content/             loads data/, checks it, builds CONTENT (schemas in data.schema.ts)
 ├── modules/             four-file modules, cozy-app style
@@ -33,6 +34,9 @@ server/src/geo/
 │   ├── player/          /geo/me, equipment, hands, saved hands, lunchbox, bait, camp and health, inventory grants
 │   ├── wardrobe/        saved loadouts (gear + pet), switching, auto-swap, slot and auto-swap purchases
 │   ├── runs/            start (reach-checked), play a card or eat, flee
+│   ├── dungeons/        dungeon lobbies: list, create, join, leave, start
+│   ├── dungeon-runs/    a started dungeon's map: move room to room, puzzles, leave; room fights are Runs
+│   ├── quests/          the quest log: quests given in order, progress counted, turning in; Trials gate enemy tiers
 │   ├── fishing/         fishing Runs: open at a spot, cast and fight, leave
 │   ├── chests/          chest selections: pending, history, opening one
 │   ├── suggestions/     players suggest places; admins review them (admin module)
@@ -102,7 +106,9 @@ Bait works the same way for fishing: a `consumable` with `bait` rules
 (PLACEHOLDER `scent`), packed into bait slots (`geo.bait`, 1 slot to start,
 up to 4) through `PUT/DELETE /geo/me/bait/:slot`. Bait used to be cards;
 the old card rows went with a progress wipe (`wipe:geo`). Each cast takes one
-from the first packed slot (a mayor's Bait Lover may save it).
+from the first packed slot (a mayor's Bait Lover may save it). Bait is
+optional: with none packed, a cast is a bare hook that only hooks commons,
+never a sea creature, and never lands a quality catch.
 
 ## Health, camp and restocking
 
@@ -159,8 +165,8 @@ A fishing Run (`modules/fishing`, rules in `fishing/fishing-run.ts`) is a
 session at one spot: it shares `geo.runs` with combat (`kind = 'fishing'`),
 so the fishing hand is locked while it's open, and only one Run of either
 kind is open at a time (starting a fight leaves the spot). Each step is a
-`POST /geo/fishing/:runId/actions`: cast, wait, strike, quick land, play it
-out, cut the line, or play a card. A landed fish goes straight into the
+`POST /geo/fishing/:runId/actions`: cast, wait, strike, cut the line, fight
+a sea creature, or play a card. Every hooked fish is fought: there's no quick land. A landed fish goes straight into the
 inventory with its fishing XP, in the same transaction as the step.
 
 A regular catch is a tradable `fish.<id>` material; a quality catch is a
@@ -170,6 +176,29 @@ tiles), like the player's position. PLACEHOLDER: fish, cards, tier
 thresholds and the rod are first drafts; card rules are a switch on card id
 until the fishing engine additions make them data. `npm run smoke:geo-fishing`
 checks the whole loop.
+
+## Dungeon runs
+
+Starting a lobby for a dungeon with layouts rolls each member a map on the
+server (`dungeons/dungeon-map.ts`) and saves it whole on a
+`geo.dungeon_runs` row, so editing a layout never touches a run in
+progress. The app only asks to do things (enter a room, answer a puzzle,
+leave) and gets back the rooms it may see: fogged rooms and puzzle answers
+never leave the server (`dungeons/dungeon-run.ts`). Every rule is checked
+on each request: a door from somewhere you've been, nothing blocking the way,
+the boss sealed until every star room is cleared, a key in the inventory
+for a locked room (one is used up).
+
+A room fight is an ordinary combat Run (`dungeon_run_id`, `dungeon_room`),
+started at the dungeon's carried health and played with the Run endpoints.
+When it ends, `dungeonFightOver` tells the map: a win marks the room done
+(the boss's ends the dungeon, scores it and puts its chests in the Chests
+tab), a defeat fails the dungeon, a flee goes back a room with the damage
+kept. Room fights drop their enemies' usual loot, coins and XP (so a
+dungeon-only enemy can drop gear); a dungeon death never costs coins.
+Eating from the lunchbox between rooms heals the dungeon's health. While a
+dungeon is active, spawn fights and fishing are refused.
+`npm run smoke:geo-dungeons` walks one end to end.
 
 ## Crafting
 

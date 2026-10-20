@@ -5,6 +5,7 @@ import { CONTENT } from "../../content";
 import { withTransaction } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
 import * as playerRepository from "../player/geo-player.repository";
+import * as questsRepository from "../quests/geo-quests.repository";
 
 function readQuantity(value: unknown): number {
     if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1 || value > GEO_CRAFT_MAX_QUANTITY) {
@@ -16,7 +17,8 @@ function readQuantity(value: unknown): number {
 /**
  * Crafts a recipe `quantity` times, in one transaction: the skill levels are
  * checked, every input is taken (refusing, with nothing taken, if any falls
- * short), and only then is the output handed over, with any skill XP.
+ * short), and only then is the output handed over, with any skill XP and
+ * quest progress.
  */
 export async function craft(req: Request, res: Response) {
     const playerId = requirePlayerId(req);
@@ -26,6 +28,8 @@ export async function craft(req: Request, res: Response) {
     const times = readQuantity(quantity);
 
     await withTransaction(async (tx) => {
+        // Before the items and quests: the same order as a won fight takes them.
+        await playerRepository.lockPlayer(tx, playerId);
         const unmet = geoUnmetSkill(await playerRepository.findSkillLevels(tx, playerId), recipe.skills);
         if (unmet) throw AppError.badRequest(`Needs ${geoSkillName(unmet.skill)} level ${unmet.level}`);
         for (const input of recipe.inputs) {
@@ -35,6 +39,7 @@ export async function craft(req: Request, res: Response) {
             { itemId: recipe.output.itemId, quantity: recipe.output.quantity * times },
         ]);
         if (recipe.xp) await playerRepository.addSkillXp(tx, playerId, recipe.xp.skill, recipe.xp.amount * times);
+        await questsRepository.recordQuestEvents(tx, playerId, [{ type: "craft", recipeId: recipe.id, times }]);
     });
 
     res.status(200).json(await playerRepository.findMe(playerId));

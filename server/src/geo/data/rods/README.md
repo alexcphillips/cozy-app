@@ -17,7 +17,7 @@ Plus the [fields every item has](../README.md#fields-every-item-has).
 
 | Field | Type | Required? | What it does |
 | --- | --- | --- | --- |
-| `rod.power` | whole number ≥ 0 | yes | Added to the fishing level for Fishing Power: reels faster, tires fish quicker, quick-lands small fish. |
+| `rod.power` | whole number ≥ 0 | yes | Added to the fishing level for Fishing Power: reels faster and tires fish quicker. |
 | `rod.line` | whole number ≥ 1 | yes | Line strength: the Tension cap. The sweet zone scales with it. |
 | `rod.maxRarity` | `common` … `legendary` | yes | The rarest fish it can hook. A rarer bite re-rolls among the rarities it can (the water still limits them too). |
 | `rod.maxTier` | `bronze` `silver` `gold` `ruby`, or `null` | yes | The best quality it can land. `null`: never a quality catch. |

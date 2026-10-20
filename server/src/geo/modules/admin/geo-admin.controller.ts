@@ -33,6 +33,7 @@ import { CONTENT } from "../../content";
 import { withTransaction } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
 import { revokeAllSessions } from "../accounts/geo-accounts.repository";
+import * as farmingRepository from "../farming/geo-farming.repository";
 import * as feedbackRepository from "../feedback/geo-feedback.repository";
 import * as inboxRepository from "../inbox/geo-inbox.repository";
 import * as marketRepository from "../market/geo-market.repository";
@@ -205,6 +206,11 @@ export async function setSeaCreatures(req: Request, res: Response) {
         await adminRepository.audit(tx, adminId, "set-always-sea-creatures", adminId, { always });
     });
     res.status(200).json({ always } satisfies GeoAdminSeaCreatures);
+}
+
+/** Playtesting: the calling admin's own farm takes its next cycle now. */
+export async function farmNextCycle(req: Request, res: Response) {
+    res.status(200).json(await farmingRepository.adminNextCycle(requirePlayerId(req)));
 }
 
 /** Takes a listing down, bids or not; everything goes back to whoever it belongs to. */

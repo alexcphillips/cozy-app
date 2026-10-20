@@ -64,5 +64,6 @@ export function toRunView(row: RunRow): GeoRunView {
         rewards: row.rewards && { ...row.rewards, chests: row.rewards.chests ?? null },
         coinsLost: row.coins_lost === null ? null : Number(row.coins_lost),
         enemyLeft: row.status === "defeat" && row.enemy_ids.some((id) => CONTENT.enemies[id]?.leavesAfterWinning),
+        dungeonRunId: row.dungeon_run_id ?? null,
     };
 }

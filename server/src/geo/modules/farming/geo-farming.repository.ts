@@ -14,6 +14,7 @@ import {
     refreshOrders,
     seededLookup,
     stepFarm,
+    tickFarm,
     upgradeFarm,
     type FarmHandCard,
     type FarmState,
@@ -21,6 +22,7 @@ import {
     type WeatherLookup,
 } from "../../farming/farm";
 import { playerModifiers } from "../../world/global-effects";
+import * as adminRepository from "../admin/geo-admin.repository";
 import * as playerRepository from "../player/geo-player.repository";
 import { findContests, findGlobalEvent, recordHarvests } from "./geo-farming.contests";
 import { toFarmView, type FarmReport } from "./geo-farming.view";
@@ -220,6 +222,47 @@ export async function actFarm(playerId: string, action: GeoFarmAction): Promise<
                   : [],
         );
         return viewOf(tx, playerId, result.state, weather, afterAway(away, { log: result.log, gained: result.gains, xpGained: result.xp }), handAfter);
+    });
+}
+
+/**
+ * Playtesting: an admin's farm takes its next cycle now, with the weather
+ * forecast for it. The real clock is left alone, so the cycle due next still
+ * comes when it would have (with that same weather). Audited.
+ */
+export async function adminNextCycle(playerId: string): Promise<GeoFarmView> {
+    return withTransaction(async (tx) => {
+        await playerRepository.lockPlayer(tx, playerId);
+        const now = new Date();
+        const { state, weather, away } = await loadFarm(tx, playerId, now);
+        const step = tickFarm(
+            state,
+            {
+                crops: CONTENT.crops,
+                mutations: CONTENT.mutations,
+                pests: CONTENT.pests,
+                structures: CONTENT.structures,
+                events: CONTENT.farmEvents,
+                globalEvent: activeGlobalEvent(now, FARMING, CONTENT.farmEvents),
+                sellValue,
+                config: FARMING,
+                now,
+                // A turn plays no cards or held items.
+                hand: [],
+                held: {},
+                farmingLevel: await farmingLevel(tx, playerId),
+                ...(await farmingStats(tx, playerId)),
+                weather,
+            },
+            weather(new Date(state.accruedAt).getTime()),
+        );
+        if (step.gains.length > 0) await playerRepository.grantItems(tx, playerId, step.gains);
+        if (step.xp > 0) await playerRepository.addSkillXp(tx, playerId, "farming", step.xp);
+        await recordHarvests(tx, playerId, step.harvested, now);
+        const next = refreshOrders(step.state, FARMING, CONTENT.crops, sellValue, now);
+        await tx(UPDATE_FARM, [playerId, next]);
+        await adminRepository.audit(tx, playerId, "farm-next-cycle", playerId, { turn: next.turn });
+        return viewOf(tx, playerId, next, weather, afterAway(away, { log: ["Admin: skipped ahead one cycle.", ...step.log], gained: step.gains, xpGained: step.xp }));
     });
 }
 

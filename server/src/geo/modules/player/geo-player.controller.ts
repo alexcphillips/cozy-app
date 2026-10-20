@@ -27,6 +27,7 @@ import { AppError } from "../../../http/AppError";
 import { CONTENT } from "../../content";
 import { withTransaction, type TxQuery } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
+import * as questsRepository from "../quests/geo-quests.repository";
 import * as runsRepository from "../runs/geo-runs.repository";
 import { syncActiveLoadout } from "../wardrobe/geo-wardrobe.repository";
 import { campMovableAt, isAtCamp, roundCamp } from "./geo-camp.rules";
@@ -417,6 +418,7 @@ async function moveBankCoins(req: Request, res: Response, direction: "deposit" |
         await runsRepository.assertNotInRun(tx, playerId, "You can't use the bank mid-Run");
         await assertAtCamp(req, tx, playerId, position, "use the bank");
         await playerRepository.moveBankCoins(tx, playerId, direction, amount!);
+        if (direction === "deposit") await questsRepository.recordQuestEvents(tx, playerId, [{ type: "deposit", amount: amount! }]);
     });
 
     res.status(200).json(await playerRepository.findMe(playerId));

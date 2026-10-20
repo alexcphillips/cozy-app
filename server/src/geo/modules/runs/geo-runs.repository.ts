@@ -34,8 +34,10 @@ import {
 import { statOf } from "../../engine/stats";
 import { createRng, randomSeed } from "../../engine/rng";
 import * as chestsRepository from "../chests/geo-chests.repository";
+import * as dungeonFights from "../dungeon-runs/geo-dungeon-runs.fights";
 import * as fishingRepository from "../fishing/geo-fishing.repository";
 import * as playerRepository from "../player/geo-player.repository";
+import * as questsRepository from "../quests/geo-quests.repository";
 import * as wardrobeRepository from "../wardrobe/geo-wardrobe.repository";
 import * as worldRepository from "../world/geo-world.repository";
 import { applyModifiers, globalModifiers, playerMaxHealth } from "../../world/global-effects";
@@ -128,8 +130,9 @@ async function loadLoadout(tx: TxQuery, playerId: string) {
 
 /**
  * Eats one lunchbox food between fights, through the battle engine, and
- * saves the health it leaves (statuses don't outlast it). The caller holds
- * the player lock and has checked there's no Run in progress.
+ * saves the health it leaves (statuses don't outlast it). Between rooms of a
+ * dungeon it's the dungeon's health that changes. The caller holds the
+ * player lock and has checked there's no Run in progress.
  */
 export async function eatBetweenFightsFor(tx: TxQuery, playerId: string, slot: number): Promise<void> {
     const player = await playerRepository.findPlayer(playerId, tx);
@@ -140,7 +143,10 @@ export async function eatBetweenFightsFor(tx: TxQuery, playerId: string, slot: n
 
     const combatLevel = (await playerRepository.findSkillLevels(tx, playerId)).combat ?? 1;
     const you = playerCombatant({ name: player.displayName, ...loadout, combatLevel, globalModifiers: await globalModifiers(tx) }, CONTENT);
-    const health = await playerRepository.findHealth(playerId, tx);
+    const dungeonRun = await dungeonFights.findActiveForUpdate(tx, playerId);
+    const health = dungeonRun
+        ? { current: dungeonRun.state.health, max: dungeonRun.state.maxHealth }
+        : await playerRepository.findHealth(playerId, tx);
     you.health = health.current;
 
     let result: { health: number };
@@ -151,7 +157,8 @@ export async function eatBetweenFightsFor(tx: TxQuery, playerId: string, slot: n
         throw error;
     }
     await playerRepository.eatFromLunchbox(tx, playerId, { slot, itemId: packed.foodId, from: packed.quantity, to: packed.quantity - 1 });
-    await playerRepository.setHealth(tx, playerId, result.health, health.max);
+    if (dungeonRun) await dungeonFights.saveRun(tx, { ...dungeonRun, state: { ...dungeonRun.state, health: Math.min(result.health, dungeonRun.state.maxHealth) } });
+    else await playerRepository.setHealth(tx, playerId, result.health, health.max);
 }
 
 /**
@@ -159,13 +166,20 @@ export async function eatBetweenFightsFor(tx: TxQuery, playerId: string, slot: n
  * enemy by id. `enemyModifiers` make it stronger, e.g. a dungeon's boss.
  * `keepsHealth` fights at full health and leaves the player's own health as
  * it was, whatever happens (a dungeon); otherwise the fight starts from the
- * player's health and saves it every turn.
+ * player's health and saves it every turn. `dungeonId` marks a dungeon's boss
+ * fight, so a win counts toward quests. `dungeonRunId` and `dungeonRoom` mark
+ * a room fight on a dungeon map, which starts at `startHealth` (the
+ * dungeon's carried health) and reports back to the map when it ends.
  */
 export type RunTarget = {
     enemyId: string;
     spawnId: string | null;
     enemyModifiers?: StatModifier[];
     keepsHealth?: boolean;
+    dungeonId?: string;
+    dungeonRunId?: string;
+    dungeonRoom?: number;
+    startHealth?: number;
 };
 
 export async function startCombatRun(playerId: string, target: RunTarget): Promise<GeoRunResponse> {
@@ -178,6 +192,7 @@ export async function startCombatRun(playerId: string, target: RunTarget): Promi
         if (target.spawnId && !(await worldRepository.findLiveSpawn(tx, playerId, target.spawnId))) {
             throw AppError.badRequest("That enemy has moved on");
         }
+        await dungeonFights.assertNotInDungeon(tx, playerId);
         return openCombatRun(tx, playerId, target);
     });
 }
@@ -211,6 +226,7 @@ export async function openCombatRun(tx: TxQuery, playerId: string, target: RunTa
     );
     // Carried from the last fight, unless this one is fought at full.
     if (!target.keepsHealth) you.health = (await playerRepository.findHealth(playerId, tx)).current;
+    else if (target.startHealth !== undefined) you.health = target.startHealth;
     // Else the fight could only be fled.
     if (!loadout.hand.some((card) => canWield(CONTENT.cards[card.cardId]!, you.weaponTags, you.offHandTags))) {
         throw AppError.badRequest("None of the cards in your hand can be used with your gear");
@@ -229,7 +245,17 @@ export async function openCombatRun(tx: TxQuery, playerId: string, target: RunTa
         CONTENT,
     );
 
-    const [inserted] = await tx<RunRow>(INSERT_RUN, [playerId, "combat", enemyIds, spawnId, state, target.keepsHealth ?? false]);
+    const [inserted] = await tx<RunRow>(INSERT_RUN, [
+        playerId,
+        "combat",
+        enemyIds,
+        spawnId,
+        state,
+        target.keepsHealth ?? false,
+        target.dungeonId ?? null,
+        target.dungeonRunId ?? null,
+        target.dungeonRoom ?? null,
+    ]);
     if (!inserted) throw new Error("Run insert returned nothing");
     // A battle can, in principle, end before the player acts.
     return settle(tx, inserted, inserted.state, state, log);
@@ -270,6 +296,8 @@ export async function fleeRun(playerId: string, runId: string): Promise<GeoRunRe
         if (row.status !== "active") throw AppError.badRequest("That Run is over");
 
         await tx(UPDATE_RUN, [row.id, row.state, "fled", null, null]);
+        const you = row.state.combatants.find((c) => c.side === "player");
+        await dungeonFights.dungeonFightOver(tx, row, "fled", you?.health ?? 0);
         return { run: toRunView({ ...row, status: "fled" }), log: [] };
     });
 }
@@ -303,7 +331,7 @@ function chestSourceName(enemyIds: string[]): string {
 
 /**
  * Saves a turn: card charges spent, food eaten, the new battle state, and —
- * on a win — loot and XP. All in the caller's transaction, so a turn is never half-saved.
+ * on a win — loot, XP and quest progress. All in the caller's transaction, so a turn is never half-saved.
  */
 async function settle(
     tx: TxQuery,
@@ -372,6 +400,10 @@ async function settle(
         await playerRepository.addCoins(tx, playerId, coins, "run-loot", row.id);
         await playerRepository.addSkillXp(tx, playerId, "combat", xp);
         if (row.spawn_id) await worldRepository.claimSpawn(tx, playerId, row.spawn_id);
+        await questsRepository.recordQuestEvents(tx, playerId, [
+            ...row.enemy_ids.map((enemyId) => ({ type: "kill" as const, enemyId })),
+            ...(row.dungeon_id ? [{ type: "dungeon" as const, dungeonId: row.dungeon_id }] : []),
+        ]);
 
         let chestReward: GeoRewards["chests"] = null;
         if (chests.length > 0) {
@@ -382,8 +414,10 @@ async function settle(
         rewards = { items, coins, xp: [{ skill: "combat", amount: xp }], chests: chestReward };
     }
 
-    // Defeat costs every coin carried. Fleeing costs nothing but the loot.
+    // Defeat costs every coin carried, except in a dungeon (a fail there
+    // only costs the chests). Fleeing costs nothing but the loot.
     let coinsLost = row.coins_lost;
+    if (status === "defeat" && coinsLost === null && row.keeps_health) coinsLost = "0";
     if (status === "defeat" && coinsLost === null) {
         coinsLost = String(await playerRepository.loseAllCoins(tx, playerId, "run-defeat", row.id));
         // Some enemies leave once they've won; marking the spawn claimed takes
@@ -393,5 +427,6 @@ async function settle(
     }
 
     await tx(UPDATE_RUN, [row.id, after, status, rewards, coinsLost]);
+    if (status !== "active" && before.outcome === "ongoing") await dungeonFights.dungeonFightOver(tx, row, status, you?.health ?? 0);
     return { run: toRunView({ ...row, state: after, status, rewards, coins_lost: coinsLost }), log };
 }

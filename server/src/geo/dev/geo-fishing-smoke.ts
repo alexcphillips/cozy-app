@@ -72,8 +72,6 @@ try {
         const phase = () => run.phase as GeoFishingRunView["phase"];
         while (phase() !== "over") {
             if (phase() === "waiting") await act({ type: "strike" });
-            // Play it out, so the cards (and their charges) get exercised.
-            else if (phase() === "outclassed") await act({ type: "playOut" });
             else if (phase() === "creature") await act({ type: "cutLine" });
             else {
                 const f = run.fight!;
@@ -120,7 +118,7 @@ try {
     let bites = 0;
     while (run.phase !== "creature") {
         assert.ok(bites < 600, "no sea creature in 600 bites with chum");
-        if (run.phase === "fight" || run.phase === "outclassed") {
+        if (run.phase === "fight") {
             await call("POST", GEO_API_PATHS.fishing.leave.replace(":runId", run.id), token);
             run = (await call<GeoFishingRunView>("POST", GEO_API_PATHS.fishing.start, token, { tier: "open" })).body;
         }

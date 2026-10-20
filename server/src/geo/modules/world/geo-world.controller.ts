@@ -72,8 +72,8 @@ async function worldReply(playerId: string, here: GeoPoint, near: NearPlaces, fi
     return {
         spawns: await worldRepository.spawnsAround(playerId, here, Date.now(), near, fill),
         reachMetres: SPAWN_RULES.reachMetres,
-        // The ring the app draws: every spawn is inside it, all in reach.
-        spawnRadiusMetres: SPAWN_RULES.reachMetres,
+        // Every new spawn lands inside this, a little short of reach.
+        spawnRadiusMetres: SPAWN_RULES.maxSpawnMetres,
     };
 }
 

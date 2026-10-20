@@ -481,6 +481,7 @@ export async function grantItems(
 /** Why coins moved, as the ledger records it. */
 export type CoinReason =
     | "run-loot"
+    | "quest-reward"
     | "chest-open"
     | "run-defeat"
     | GeoDeathCause

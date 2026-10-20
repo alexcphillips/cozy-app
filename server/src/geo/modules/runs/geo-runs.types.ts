@@ -19,4 +19,9 @@ export type RunRow = {
     coins_lost: string | null;
     /** Fought at full health, leaving the player's own as it was (a dungeon's). */
     keeps_health: boolean;
+    /** The dungeon this is the boss fight of; null for any other Run. */
+    dungeon_id: string | null;
+    /** The dungeon run this is a room fight of, and the room; null outside dungeon maps. */
+    dungeon_run_id: string | null;
+    dungeon_room: number | null;
 };

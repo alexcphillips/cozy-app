@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { GEO_CHEST_TIERS, GEO_FARM_SOILS, GEO_FARM_WEATHERS, GEO_FISHING_TIERS, GEO_MAX_SKILL_LEVEL, GEO_QUALITY_TIERS, GEO_WORLD_HABITAT_METRES, GEO_WORLD_HABITATS, GEO_WORLD_WATER_KINDS } from "@cozy/shared/geo";
 import type { Action, Amount, Condition, EffectDef, StatModifier } from "../engine/engine.types";
+import { DUNGEON_ROOM_KINDS } from "../dungeons/dungeon-map";
 import type * as M from "./models";
 
 /**
@@ -390,6 +391,12 @@ const PestFile = z.strictObject({
 
 const ChestTier = z.enum(GEO_CHEST_TIERS);
 
+/** One pool of a chest: `rolls` weighted picks from `entries`. */
+const ChestPoolSchema = z.strictObject({
+    rolls: range(0),
+    entries: z.array(z.strictObject({ itemId: ref, weight: z.number().positive(), quantity: range(1) })),
+});
+
 const EnemyFile = z.strictObject({
     id,
     name: z.string().min(1),
@@ -416,14 +423,7 @@ const EnemyFile = z.strictObject({
                 z.strictObject({
                     tier: ChestTier,
                     chance: fraction,
-                    pools: z.array(
-                        z.strictObject({
-                            rolls: range(0),
-                            entries: z.array(
-                                z.strictObject({ itemId: ref, weight: z.number().positive(), quantity: range(1) }),
-                            ),
-                        }),
-                    ),
+                    pools: z.array(ChestPoolSchema),
                 }),
             ),
         })
@@ -504,14 +504,16 @@ const QuestFile = z.strictObject({
     id,
     title: z.string().min(1),
     giver: z.string().min(1).optional(),
+    after: z.array(ref).optional(),
+    unlocksTier: z.int().min(2).optional(),
     objectives: z
         .array(
-            z.strictObject({
-                id: z.string().min(1),
-                type: z.literal("kill"),
-                enemy: ref,
-                count,
-            }),
+            z.discriminatedUnion("type", [
+                z.strictObject({ id: z.string().min(1), type: z.literal("kill"), enemy: ref, count }),
+                z.strictObject({ id: z.string().min(1), type: z.literal("dungeon"), dungeon: ref, count }),
+                z.strictObject({ id: z.string().min(1), type: z.literal("craft"), recipe: ref, count }),
+                z.strictObject({ id: z.string().min(1), type: z.literal("deposit"), count }),
+            ]),
         )
         .min(1),
     rewards: z.strictObject({
@@ -519,6 +521,14 @@ const QuestFile = z.strictObject({
         items: z.array(ItemAmount).optional(),
     }),
 });
+
+const DungeonRoomSchema = z.strictObject({
+    kind: z.enum(DUNGEON_ROOM_KINDS),
+    name: z.string().min(1).optional(),
+    style: ref.optional(),
+    lock: ref.optional(),
+});
+const DungeonRoomRefSchema = z.union([z.string().min(1), DungeonRoomSchema]);
 
 const DungeonFile = z.strictObject({
     id,
@@ -528,6 +538,46 @@ const DungeonFile = z.strictObject({
     bossModifiers: z.array(StatModifierSchema).optional(),
     requiredLevel: z.int().min(0).max(GEO_MAX_SKILL_LEVEL),
     maxPlayers: z.int().min(1).max(8),
+    stars: z.int().min(0).optional(),
+    minibosses: z.int().min(0).default(0),
+    encounterEnemies: z.array(ref).default([]),
+    starEnemies: z.array(ref).default([]),
+    minibossEnemies: z.array(ref).default([]),
+    chestScores: z
+        .strictObject({ gold: z.int().min(0).max(100).default(40), ruby: z.int().min(0).max(100).default(70), void: z.int().min(0).max(100).default(90) })
+        .default({ gold: 40, ruby: 70, void: 90 }),
+    roomLoot: z.array(ChestPoolSchema).default([]),
+    chests: z.partialRecord(ChestTier, z.array(ChestPoolSchema)).default({}),
+    penalties: z
+        .strictObject({ failedPuzzle: z.int().min(0).max(100).default(20), death: z.int().min(0).max(100).default(15) })
+        .default({ failedPuzzle: 20, death: 15 }),
+    roomStyle: ref.optional(),
+    rooms: z.record(id, DungeonRoomSchema).default({}),
+    pool: z
+        .array(z.strictObject({ room: DungeonRoomRefSchema, weight: z.number().positive().default(1), max: count.optional() }))
+        .default([]),
+});
+
+const DungeonLayoutFile = z.strictObject({
+    id,
+    dungeon: ref,
+    map: z.string().min(1),
+    rooms: z.record(z.string().regex(/^[A-Za-z]$/, "one letter: digits are slots"), DungeonRoomRefSchema),
+    place: z
+        .array(z.strictObject({ room: DungeonRoomRefSchema, at: z.array(z.int().min(0).max(9)).min(1), chance: fraction.default(1) }))
+        .default([]),
+    roomStyle: ref.optional(),
+    mirror: z.boolean().default(true),
+});
+
+const RoomStyleFile = z.strictObject({
+    id,
+    corner: z.enum(["round", "chamfer", "circle"]),
+    radius: z.number().min(0).default(8),
+    rough: z.number().min(0).default(0),
+    wall: z.number().positive().default(3),
+    inset: z.number().min(0).default(4),
+    tone: z.enum(["stone", "moss", "ember", "bone", "void"]),
 });
 
 /**
@@ -561,6 +611,8 @@ export const DATA_FOLDERS = {
     reforges: ReforgeFile,
     mayors: MayorFile,
     dungeons: DungeonFile,
+    "dungeon-layouts": DungeonLayoutFile,
+    "room-styles": RoomStyleFile,
     quests: QuestFile,
 } as const;
 
@@ -579,6 +631,7 @@ const FishingConfig = z.strictObject({
     waterRarities: z.record(z.enum(GEO_FISHING_TIERS), z.array(Rarity).min(1)),
     rarityDifficulty: byRarity(z.number().positive()),
     parTurns: byRarity(count),
+    sellValue: byRarity(z.int().min(0)),
     tuning: z.strictObject({
         zoneLow: fraction,
         zoneHigh: fraction,
@@ -650,6 +703,7 @@ const PlayerConfig = z.strictObject({
 
 const SpawnsConfig = z.strictObject({
     reachMetres: z.number().positive(),
+    maxSpawnMetres: z.number().positive(),
     minSpawnMetres: z.number().min(0),
     outOfReachSeconds: z.number().positive(),
     respawnAfterWinSeconds: z.number().min(0),
@@ -659,6 +713,7 @@ const SpawnsConfig = z.strictObject({
     lifetimeMinutes: z.strictObject({ min: z.number().positive(), max: z.number().positive() }),
     tierUnlockLevels: z.array(z.int().min(1)).min(1),
     lowerTierWeights: z.array(z.number().positive()).min(1),
+    questTargetWeight: z.number().positive(),
     enemies: z.array(z.strictObject({ enemyId: ref, weight: z.number().positive() })).min(1),
     habitats: z.record(
         z.enum(GEO_WORLD_HABITATS),
@@ -782,6 +837,8 @@ const folderModels: { [K in DataFolder]: Same<z.input<(typeof DATA_FOLDERS)[K]>,
     reforges: true,
     mayors: true,
     dungeons: true,
+    "dungeon-layouts": true,
+    "room-styles": true,
     quests: true,
 };
 const configModels: { [K in ConfigFile]: Same<z.input<(typeof CONFIG_FILES)[K]>, ConfigModelOf[K]> } = {
@@ -828,6 +885,8 @@ export type ModelOf = {
     reforges: M.Reforge;
     mayors: M.Mayor;
     dungeons: M.Dungeon;
+    "dungeon-layouts": M.DungeonLayout;
+    "room-styles": M.RoomStyle;
     quests: M.Quest;
 };
 

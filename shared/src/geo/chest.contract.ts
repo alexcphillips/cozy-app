@@ -12,7 +12,7 @@ export type GeoChestOffer = {
 
 /** Where a chest selection came from, e.g. the boss that was beaten. */
 export type GeoChestSource = {
-    kind: "combat";
+    kind: "combat" | "dungeon";
     /** As it was named when won. */
     name: string;
 };

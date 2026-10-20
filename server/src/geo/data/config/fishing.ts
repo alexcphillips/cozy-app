@@ -11,6 +11,7 @@ export default {
     },
     rarityDifficulty: { common: 1, uncommon: 1.2, rare: 1.5, epic: 1.8, legendary: 2.2 },
     parTurns: { common: 3, uncommon: 4, rare: 6, epic: 8, legendary: 12 },
+    sellValue: { common: 2, uncommon: 8, rare: 30, epic: 120, legendary: 480 },
     tuning: {
         zoneLow: 0.35,
         zoneHigh: 0.7,

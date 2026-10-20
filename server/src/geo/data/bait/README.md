@@ -1,7 +1,9 @@
 # Bait
 
 Packed into the bait slots before fishing. One is used per cast, unless
-`baitSaveChance` saves it.
+`baitSaveChance` saves it. Bait is optional: a cast with none packed is a
+bare hook, which only hooks commons, never a sea creature, and never lands a
+quality catch. Any bait opens the water's full range (up to the rod's cap).
 
 ## Fields
 

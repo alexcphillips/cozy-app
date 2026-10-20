@@ -15,10 +15,10 @@ import { APP_SPRITES } from "./app-sprites.generated";
  * All numbers are PLACEHOLDERS to tune, in `data/config/spawns.ts`.
  */
 /**
- * New spawns appear only within reach (`reachMetres`), so whatever turns up —
- * on opening the game or later — can be fought where you stand. The app's
- * ring shows this same reach. Walk away from one and it lingers a short
- * while (`outOfReachSeconds`), then despawns.
+ * New spawns appear only within `maxSpawnMetres`, a little inside reach
+ * (`reachMetres`) to allow for GPS drift, so whatever turns up — on opening
+ * the game or later — can be fought where you stand. Walk away from one and
+ * it lingers a short while (`outOfReachSeconds`), then despawns.
  */
 /**
  * Whether the app has art for this enemy. Enemies without a sprite never
@@ -30,8 +30,6 @@ export const hasArt = (enemyId: string) => (APP_SPRITES as readonly string[]).in
 export const SPAWN_RULES = {
     ...GAME_CONFIG.spawns,
     enemies: GAME_CONFIG.spawns.enemies.filter(({ enemyId }) => hasArt(enemyId)),
-    /** New spawns land at most this far from the player: within reach. */
-    maxSpawnMetres: GAME_CONFIG.spawns.reachMetres,
 };
 
 export const MAX_SPAWNS = SPAWN_RULES.countWeights.length;
@@ -70,7 +68,10 @@ export function rollLifetimeMs(rng: Rng): number {
     return (min + rng.next() * (max - min)) * 60_000;
 }
 
-/** The highest enemy tier a combat level has opened: 1 to tierUnlockLevels.length. */
+/**
+ * The highest enemy tier a combat level reaches: 1 to tierUnlockLevels.length.
+ * A tier with a Trial also needs it turned in (modules/quests openTier).
+ */
 export function enemyTierFor(combatLevel: number): number {
     return Math.max(1, SPAWN_RULES.tierUnlockLevels.filter((level) => combatLevel >= level).length);
 }
@@ -149,13 +150,17 @@ const FACING_SPREAD = Math.PI / 4;
  * Where a new spawn comes from, by weight: the anywhere table has 1, and each
  * nearby place its habitat's `weight`, fading to nothing at its
  * `influenceMetres`. A place pulls only if someone lives there (in that kind
- * of water, for water) of a tier the player has opened.
+ * of water, for water) of a tier the player has opened. Enemies a quest
+ * still needs killed (`questTargets`) pull `questTargetWeight`, anywhere,
+ * whatever their habitat or tier.
  */
-function spawnSources(here: GeoPoint, near: NearPlaces, tier: number) {
+function spawnSources(here: GeoPoint, near: NearPlaces, tier: number, questTargets: readonly string[]) {
     // Never empty: config needs a tier 1 enemy, and lowerTierWeights are above 0.
     const sources: { weight: number; table: readonly HabitatEntry[]; place?: NearPlace }[] = [
         { weight: 1, table: tableForTier(SPAWN_RULES.enemies, tier) },
     ];
+    const targets = questTargets.filter(hasArt).map((enemyId) => ({ enemyId, weight: 1 }));
+    if (targets.length > 0) sources.push({ weight: SPAWN_RULES.questTargetWeight, table: targets });
     for (const habitat of GEO_WORLD_HABITATS) {
         const place = near[habitat];
         if (!place) continue;
@@ -174,10 +179,16 @@ function spawnSources(here: GeoPoint, near: NearPlaces, tier: number) {
  * One new spawn. Nearby places (`near`) pull some toward their own enemies:
  * beside the place when it's within reach, else on the player's side facing
  * it. The rest come from `enemies`, anywhere in the ring. Only enemies of
- * `tier` (enemyTierFor the player's combat level) and below.
+ * `tier` (the player's open tier) and below, plus any `questTargets`.
  */
-export function rollSpawn(rng: Rng, here: GeoPoint, near: NearPlaces, tier: number): { enemyId: string; point: GeoPoint } {
-    const source = pickWeighted(spawnSources(here, near, tier), rng.next())!;
+export function rollSpawn(
+    rng: Rng,
+    here: GeoPoint,
+    near: NearPlaces,
+    tier: number,
+    questTargets: readonly string[] = [],
+): { enemyId: string; point: GeoPoint } {
+    const source = pickWeighted(spawnSources(here, near, tier, questTargets), rng.next())!;
     const enemyId = rollEnemyId(rng, source.table);
     if (!source.place) return { enemyId, point: randomPointNear(here, rng) };
     return { enemyId, point: pointToward(source.place, here, rng) };

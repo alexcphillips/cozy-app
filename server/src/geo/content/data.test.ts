@@ -76,6 +76,23 @@ describe("game data files", () => {
         assert.ok(problems.includes(`config/spawns.ts spawns unknown enemy "dragon"`), problems.join("\n"));
     });
 
+    it("checks dungeon layouts: their folder, styles, keys and every roll", async () => {
+        const moved = copyOfData();
+        cpSync(join(moved, "dungeon-layouts/slime-pits/slime-pits-b.ts"), join(moved, "dungeon-layouts/slime-pits-b.ts"));
+        rmSync(join(moved, "dungeon-layouts/slime-pits/slime-pits-b.ts"));
+        assert.ok((await problemsIn(moved)).includes("dungeon-layouts/slime-pits-b.ts: a slime-pits layout goes in dungeon-layouts/slime-pits/"));
+
+        const dir = copyOfData();
+        edit(join(dir, "dungeons/slime-pits.ts"), 'style: "sluice" }', 'style: "sewer" }');
+        edit(join(dir, "dungeons/slime-pits.ts"), 'lock: "sluice-key"', 'lock: "sewer-key"');
+        edit(join(dir, "dungeon-layouts/slime-pits/slime-pits-a.ts"), 'place: [{ room: "den", at: [1, 2] }]', "place: []");
+        const problems = await problemsIn(dir);
+        const has = (text: string) => assert.ok(problems.some((line) => line.includes(text)), `${text}\n${problems.join("\n")}`);
+        has('Dungeon "slime-pits" room "sluice-gate" uses unknown room style "sewer"');
+        has('Dungeon "slime-pits" room "sluice-gate" is locked by unknown item "sewer-key"');
+        has('Dungeon layout "slime-pits-a": needs exactly one boss room, has 0');
+    });
+
     it("every example in the folder guides is a valid file", async () => {
         const dir = mkdtempSync(join(tmpdir(), "geo-examples-"));
         dirs.push(dir);

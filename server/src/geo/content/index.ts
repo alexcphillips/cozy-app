@@ -1,7 +1,8 @@
 import { GEO_CHEST_TIERS, GEO_FARM_SIZE, GEO_MAX_SKILL_LEVEL } from "@cozy/shared/geo";
 import type { Action, Condition, EffectDef } from "../engine/engine.types";
+import { layoutProblems, type DungeonRoomRef } from "../dungeons/dungeon-map";
 import { buildContent } from "./build";
-import type { GameContent, ItemDef } from "./content.types";
+import type { ChestLootPool, GameContent, ItemDef } from "./content.types";
 import { GameDataError, loadGameData } from "./data";
 import type { GameData } from "./data.schema";
 import { FARMING_CARD_IDS, isFarmingCardId } from "./farming";
@@ -298,21 +299,50 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
     if (Object.keys(content.mayors).length <= elections.candidates) {
         problems.push(`An election needs more than ${elections.candidates} mayors to pick ${elections.candidates} candidates`);
     }
-    for (const dungeon of Object.values(content.dungeons)) {
-        if (!content.enemies[dungeon.boss]) problems.push(`Dungeon "${dungeon.id}" has unknown boss "${dungeon.boss}"`);
-    }
+    checkDungeons(content, problems);
     for (const quest of Object.values(content.quests)) {
         if (new Set(quest.objectives.map((objective) => objective.id)).size !== quest.objectives.length) {
             problems.push(`Quest "${quest.id}" uses an objective id twice`);
         }
         for (const objective of quest.objectives) {
-            if (!content.enemies[objective.enemy]) problems.push(`Quest "${quest.id}" has unknown enemy "${objective.enemy}"`);
+            if (objective.type === "kill" && !content.enemies[objective.enemy]) {
+                problems.push(`Quest "${quest.id}" has unknown enemy "${objective.enemy}"`);
+            }
+            if (objective.type === "dungeon" && !content.dungeons[objective.dungeon]) {
+                problems.push(`Quest "${quest.id}" has unknown dungeon "${objective.dungeon}"`);
+            }
+            if (objective.type === "craft" && !content.recipes[objective.recipe]) {
+                problems.push(`Quest "${quest.id}" has unknown recipe "${objective.recipe}"`);
+            }
         }
         for (const { itemId } of quest.rewards.items) {
             if (!content.items[itemId]) problems.push(`Quest "${quest.id}" rewards unknown item "${itemId}"`);
         }
-        if (quest.rewards.coins === 0 && quest.rewards.items.length === 0) problems.push(`Quest "${quest.id}" has no reward`);
+        for (const before of quest.after) {
+            if (!content.quests[before]) problems.push(`Quest "${quest.id}" comes after unknown quest "${before}"`);
+        }
+        // A Trial's reward is the tier it opens.
+        if (quest.unlocksTier === null && quest.rewards.coins === 0 && quest.rewards.items.length === 0) {
+            problems.push(`Quest "${quest.id}" has no reward`);
+        }
+        if (quest.unlocksTier !== null && quest.unlocksTier > spawns.tierUnlockLevels.length) {
+            problems.push(`Quest "${quest.id}" unlocks tier ${quest.unlocksTier}, but config/spawns.ts has only ${spawns.tierUnlockLevels.length}`);
+        }
     }
+    const trialTiers = Object.values(content.quests).flatMap((quest) => (quest.unlocksTier === null ? [] : [quest.unlocksTier]));
+    if (new Set(trialTiers).size !== trialTiers.length) problems.push("Two quests are the Trial for the same tier");
+    // `after` must never loop, or the quests in the loop could never be given.
+    const settled = new Set<string>();
+    const visit = (id: string, path: string[]): void => {
+        if (settled.has(id)) return;
+        if (path.includes(id)) {
+            problems.push(`Quests come after each other in a loop: ${[...path, id].join(" → ")}`);
+            return;
+        }
+        for (const before of content.quests[id]?.after ?? []) visit(before, [...path, id]);
+        settled.add(id);
+    };
+    for (const id of Object.keys(content.quests)) visit(id, []);
     for (const { enemyId } of spawns.enemies) {
         if (!content.enemies[enemyId]) problems.push(`config/spawns.ts spawns unknown enemy "${enemyId}"`);
     }
@@ -334,8 +364,9 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
         }
     }
     // Farther, water creatures would land inland, facing water out of reach.
-    if (spawns.habitats.water.influenceMetres > spawns.reachMetres) problems.push("config/spawns.ts: water influenceMetres is past reachMetres");
-    if (spawns.minSpawnMetres > spawns.reachMetres) problems.push("config/spawns.ts: minSpawnMetres is past reachMetres");
+    if (spawns.habitats.water.influenceMetres > spawns.maxSpawnMetres) problems.push("config/spawns.ts: water influenceMetres is past maxSpawnMetres");
+    if (spawns.minSpawnMetres > spawns.maxSpawnMetres) problems.push("config/spawns.ts: minSpawnMetres is past maxSpawnMetres");
+    if (spawns.maxSpawnMetres > spawns.reachMetres) problems.push("config/spawns.ts: maxSpawnMetres is past reachMetres");
     if (spawns.lifetimeMinutes.min > spawns.lifetimeMinutes.max) problems.push("config/spawns.ts: lifetimeMinutes min is over max");
     if (fishing.tuning.zoneLow >= fishing.tuning.zoneHigh) problems.push("config/fishing.ts: zoneLow must be under zoneHigh");
     for (const [water, creatures] of Object.entries(fishing.seaCreatures)) {
@@ -359,6 +390,61 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
         if (bait?.kind !== "consumable" || !bait.bait) problems.push(`config/starter-kit.ts bait has "${itemId}", which isn't bait`);
     }
     return problems;
+}
+
+/** Dungeons and their layouts: enemies, styles and keys exist, and every roll of every layout is playable. */
+function checkDungeons(content: GameContent, problems: string[]) {
+    const needStyle = (where: string, style: string | null) => {
+        if (style && !content.roomStyles[style]) problems.push(`${where} uses unknown room style "${style}"`);
+    };
+    const needRoom = (where: string, ref: DungeonRoomRef) => {
+        if (typeof ref === "string") return;
+        needStyle(where, ref.style);
+        if (ref.lock && !content.items[ref.lock]) problems.push(`${where} is locked by unknown item "${ref.lock}"`);
+    };
+    // Every pool must give something: rolls at least once, from items that exist.
+    const checkPools = (where: string, pools: ChestLootPool[]) => {
+        if (pools.length > 0 && !pools.some((pool) => pool.rolls.min >= 1)) problems.push(`${where} can come out empty`);
+        for (const pool of pools) {
+            if (!isRange(pool.rolls) || pool.entries.length === 0) problems.push(`${where} has a bad pool`);
+            for (const entry of pool.entries) {
+                if (!content.items[entry.itemId]) problems.push(`${where} has unknown item "${entry.itemId}"`);
+                if (!isRange(entry.quantity)) problems.push(`${where} "${entry.itemId}" quantity min is over max`);
+            }
+        }
+    };
+    for (const dungeon of Object.values(content.dungeons)) {
+        const name = `Dungeon "${dungeon.id}"`;
+        if (!content.enemies[dungeon.boss]) problems.push(`${name} has unknown boss "${dungeon.boss}"`);
+        const pools = { encounterEnemies: dungeon.encounterEnemies, starEnemies: dungeon.starEnemies, minibossEnemies: dungeon.minibossEnemies };
+        for (const [field, ids] of Object.entries(pools)) {
+            for (const enemyId of ids) if (!content.enemies[enemyId]) problems.push(`${name} ${field} has unknown enemy "${enemyId}"`);
+        }
+        needStyle(name, dungeon.roomStyle);
+        for (const [key, room] of Object.entries(dungeon.rooms)) needRoom(`${name} room "${key}"`, room);
+        dungeon.pool.forEach((entry, index) => needRoom(`${name} pool ${index + 1}`, entry.room));
+        const { gold, ruby, void: voidScore } = dungeon.chestScores;
+        if (!(gold <= ruby && ruby <= voidScore)) problems.push(`${name} chestScores must climb: gold ≤ ruby ≤ void`);
+        checkPools(`${name} roomLoot`, dungeon.roomLoot);
+        for (const [tier, pools] of Object.entries(dungeon.chests)) checkPools(`${name} chests "${tier}"`, pools);
+        if (dungeon.layouts.length === 0) continue;
+        if (!dungeon.chests.plain) problems.push(`${name} has layouts, so it needs chests.plain: the chest everyone can take`);
+        if (dungeon.roomLoot.length === 0) problems.push(`${name} has layouts, so it needs roomLoot for its loot rooms`);
+        if (dungeon.stars === null) problems.push(`${name} has layouts, so it needs stars: the number of star rooms in each`);
+        if (dungeon.encounterEnemies.length === 0) problems.push(`${name} has layouts, so it needs encounterEnemies`);
+        if (dungeon.starEnemies.length === 0) problems.push(`${name} has layouts, so it needs starEnemies`);
+        if (dungeon.minibosses > 0 && dungeon.minibossEnemies.length === 0) problems.push(`${name} has gold rooms, so it needs minibossEnemies`);
+        for (const layout of dungeon.layouts) {
+            const where = `Dungeon layout "${layout.id}"`;
+            needStyle(where, layout.roomStyle);
+            for (const [key, ref] of Object.entries(layout.legend)) needRoom(`${where} room "${key}"`, ref);
+            layout.place.forEach((rule, index) => needRoom(`${where} place ${index + 1}`, rule.room));
+            for (const problem of layoutProblems(dungeon, layout)) problems.push(`${where}: ${problem}`);
+        }
+    }
+    for (const layout of Object.values(content.dungeonLayouts)) {
+        if (!content.dungeons[layout.dungeon]) problems.push(`Dungeon layout "${layout.id}" is for unknown dungeon "${layout.dungeon}"`);
+    }
 }
 
 /** The checked data files, as loaded from `geo/data/`. */

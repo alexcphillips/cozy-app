@@ -626,6 +626,45 @@ const STATEMENTS = [
     // Members once entered one by one; starting now takes everyone in at once.
     `ALTER TABLE geo.dungeon_lobby_members DROP COLUMN IF EXISTS entered_at;`,
     `CREATE INDEX IF NOT EXISTS dungeon_lobby_members_player_idx ON geo.dungeon_lobby_members (player_id);`,
+    // The dungeon a Run is its boss fight for; NULL for any other Run. A win
+    // counts toward quests' dungeon objectives.
+    `ALTER TABLE geo.runs ADD COLUMN IF NOT EXISTS dungeon_id VARCHAR(80);`,
+
+    // A started dungeon's map, walked room by room (modules/dungeon-runs).
+    // The rolled map is a snapshot: editing a layout or a deploy never
+    // changes a run in progress. One per player for now (solo maps); party
+    // maps come later. state holds progress, health and the hidden puzzle
+    // answers, so it never goes to the app as-is.
+    `CREATE TABLE IF NOT EXISTS geo.dungeon_runs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        player_id UUID NOT NULL REFERENCES geo.players(id) ON DELETE CASCADE,
+        dungeon_id VARCHAR(80) NOT NULL,
+        lobby_id UUID REFERENCES geo.dungeon_lobbies(id) ON DELETE SET NULL,
+        status VARCHAR(10) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'won', 'failed')),
+        map JSONB NOT NULL,
+        state JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        ended_at TIMESTAMPTZ
+    );`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS dungeon_runs_one_active_idx
+        ON geo.dungeon_runs (player_id) WHERE status = 'active';`,
+    // A room fight's dungeon run and room; NULL for any other Run.
+    `ALTER TABLE geo.runs ADD COLUMN IF NOT EXISTS dungeon_run_id UUID REFERENCES geo.dungeon_runs(id) ON DELETE CASCADE;`,
+    `ALTER TABLE geo.runs ADD COLUMN IF NOT EXISTS dungeon_room SMALLINT;`,
+
+    // Quests a player holds (modules/quests), one row each, kept once turned
+    // in (claimed_at) so a Trial's tier stays open and a quest never comes
+    // back. progress is objective id → count, capped at its target.
+    `CREATE TABLE IF NOT EXISTS geo.player_quests (
+        player_id UUID NOT NULL REFERENCES geo.players(id) ON DELETE CASCADE,
+        quest_id VARCHAR(80) NOT NULL,
+        progress JSONB NOT NULL DEFAULT '{}',
+        tracked BOOLEAN NOT NULL DEFAULT false,
+        started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        claimed_at TIMESTAMPTZ,
+        PRIMARY KEY (player_id, quest_id)
+    );`,
 
     // chum-slick was renamed bloody-bait: carry over what players held, so a
     // packed slot of it doesn't sit there unknown (hidden, uncastable, full).

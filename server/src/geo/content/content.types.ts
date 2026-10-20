@@ -1,6 +1,7 @@
 import type { GeoChestTier, GeoQualityTier, GeoWorldHabitat, GeoWorldWaterKind } from "@cozy/shared/geo";
 import type { CropDef, FarmEventDef, MutationDef, PestDef, StructureDef } from "./farming";
 import type { FishDef, RodStats } from "./fishing";
+import type { DungeonLayoutDef, DungeonPoolEntryDef, DungeonRoomSpecDef, DungeonScoreRules } from "../dungeons/dungeon-map";
 import type { Action, CardDef, EffectDef, EnemyMove, FoodDef, StatModifier, Stats, StatusDef } from "../engine/engine.types";
 
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
@@ -308,19 +309,47 @@ export type DungeonDef = {
     bossModifiers: StatModifier[];
     requiredLevel: number;
     maxPlayers: number;
+    /** Star rooms per layout; null while it has no layouts. */
+    stars: number | null;
+    minibosses: number;
+    encounterEnemies: string[];
+    starEnemies: string[];
+    minibossEnemies: string[];
+    chestScores: DungeonScoreRules["chestScores"];
+    roomLoot: ChestLootPool[];
+    chests: Partial<Record<GeoChestTier, ChestLootPool[]>>;
+    penalties: DungeonScoreRules["penalties"];
+    roomStyle: string | null;
+    rooms: Record<string, DungeonRoomSpecDef>;
+    pool: DungeonPoolEntryDef[];
+    /** Its hand-drawn maps; empty = a lone boss fight. */
+    layouts: DungeonLayoutDef[];
 };
 
-export type QuestObjectiveDef = {
+/** How a dungeon room's outline is drawn (`data/room-styles/`). */
+export type RoomStyleDef = {
     id: string;
-    type: "kill";
-    enemy: string;
-    count: number;
+    corner: "round" | "chamfer" | "circle";
+    radius: number;
+    rough: number;
+    wall: number;
+    inset: number;
+    tone: "stone" | "moss" | "ember" | "bone" | "void";
 };
+
+export type QuestObjectiveDef =
+    | { id: string; type: "kill"; enemy: string; count: number }
+    | { id: string; type: "dungeon"; dungeon: string; count: number }
+    | { id: string; type: "craft"; recipe: string; count: number }
+    | { id: string; type: "deposit"; count: number };
 
 export type QuestDef = {
     id: string;
     title: string;
     giver: string | null;
+    after: string[];
+    /** The enemy tier this Trial opens; null for an ordinary quest. */
+    unlocksTier: number | null;
     objectives: QuestObjectiveDef[];
     rewards: { coins: number; items: ItemAmount[] };
 };
@@ -352,6 +381,10 @@ export type GameContent = {
     mayors: Record<string, MayorDef>;
     /** Raid-style dungeons (`data/dungeons/`). */
     dungeons: Record<string, DungeonDef>;
+    /** Every dungeon layout by id (`data/dungeon-layouts/`); each is also in its dungeon's `layouts`. */
+    dungeonLayouts: Record<string, DungeonLayoutDef>;
+    /** Room outline styles (`data/room-styles/`). */
+    roomStyles: Record<string, RoomStyleDef>;
     /** Quests (`data/quests/`). */
     quests: Record<string, QuestDef>;
     recipes: Record<string, RecipeDef>;
