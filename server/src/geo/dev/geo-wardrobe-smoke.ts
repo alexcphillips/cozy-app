@@ -38,12 +38,26 @@ try {
     assert.equal(state.wardrobe.activeSlot, 0);
     assert.equal(itemOf(state, state.equipment.mainHand), "bronze-dagger");
     assert.equal(itemOf(state, state.wardrobe.loadouts[1]?.equipment.mainHand), "twig-rod");
-    step("a new player has Combat (worn) and Fishing loadouts");
+    assert.deepEqual(state.wardrobe.loadouts.map((loadout) => loadout.autoFor), ["combat", "fishing"]);
+    step("a new player has Combat (worn) and Fishing loadouts, tagged for auto-swap");
 
-    const noRod = await startFishing();
-    assert.equal(noRod.status, 400);
-    assert.match(noRod.body.error, /fishing rod in your main hand/);
-    step("fishing with a dagger in hand: refused");
+    const freeSwap = await startFishing();
+    assert.equal(freeSwap.status, 201, JSON.stringify(freeSwap.body));
+    state = await me();
+    assert.equal(state.wardrobe.activeSlot, 1);
+    assert.equal(itemOf(state, state.equipment.mainHand), "twig-rod");
+    await leaveFishing(freeSwap.body.id);
+    assert.equal((await wear(0)).status, 200);
+    step("fishing in combat gear wears Fishing, without auto-swap bought");
+
+    assert.equal((await call("PUT", slotPath(GEO_API_PATHS.me.loadoutAuto, 1), token, { autoFor: null })).status, 200);
+    const untagged = await startFishing();
+    assert.equal(untagged.status, 201, JSON.stringify(untagged.body));
+    assert.equal((await me()).wardrobe.activeSlot, 1);
+    await leaveFishing(untagged.body.id);
+    assert.equal((await wear(0)).status, 200);
+    assert.equal((await call("PUT", slotPath(GEO_API_PATHS.me.loadoutAuto, 1), token, { autoFor: "fishing" })).status, 200);
+    step("none tagged for fishing: the first loadout with a rod is worn; fishing tags are free");
 
     assert.equal((await wear(1)).status, 200);
     state = await me();
@@ -76,11 +90,11 @@ try {
     assert.equal((await wear(GAME_CONFIG.wardrobe.startingSlots)).status, 400);
     step("rename; empty names, renaming an empty slot and slots not owned: refused");
 
-    const tagEarly = await call("PUT", slotPath(GEO_API_PATHS.me.loadoutAuto, 1), token, { autoFor: "fishing" });
+    const tagEarly = await call("PUT", slotPath(GEO_API_PATHS.me.loadoutAuto, 1), token, { autoFor: "combat" });
     assert.equal(tagEarly.status, 400);
     const poor = await call("POST", GEO_API_PATHS.me.buyAutoSwap, token);
     assert.equal(poor.status, 400);
-    step("tagging before buying auto-swap, and buying it without the coins: refused");
+    step("tagging for combat before buying auto-swap, and buying it without the coins: refused");
 
     const { autoSwapCost, slotCost } = GAME_CONFIG.wardrobe;
     await withTransaction((tx) => addCoins(tx, player.id, autoSwapCost + slotCost.first, "admin-grant", "wardrobe-smoke"));

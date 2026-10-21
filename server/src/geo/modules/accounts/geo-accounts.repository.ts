@@ -65,7 +65,7 @@ export async function grantStarterKit(tx: TxQuery, playerId: string) {
             // A ring kind goes in the first ring slot.
             if (entry) equipment[(kind === "ring" ? "ring1" : kind) as GeoEquipmentSlot] = entry.id;
         }
-        await wardrobeRepository.insertLoadout(tx, playerId, slot, loadout.name, equipment, null);
+        await wardrobeRepository.insertLoadout(tx, playerId, slot, loadout.name, equipment, null, loadout.autoFor ?? null);
     }
     await wardrobeRepository.wearLoadout(tx, playerId, 0);
 

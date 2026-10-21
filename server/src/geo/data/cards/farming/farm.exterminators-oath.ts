@@ -8,7 +8,7 @@ export default {
     description: "You swear it on the shell of the first one you ever caught.",
     stats: [
         { label: "Role", value: "Pest control" },
-        { label: "Does", value: "2 Labor. The next 3 pests cleared roll their drops twice." },
+        { label: "Does", value: "The next 3 pests cleared roll their drops twice." },
     ],
     skill: "farming",
     maxCharges: 5,

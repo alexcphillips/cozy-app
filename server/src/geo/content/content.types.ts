@@ -370,7 +370,7 @@ export type GameContent = {
     pests: Record<string, PestDef>;
     /** Secret crops that sprout from recipes (`data/mutations/`). */
     mutations: Record<string, MutationDef>;
-    /** Farm structures (`data/structures/`); each also makes a `structure.<id>` item. */
+    /** Farm structures (`data/structures/`): built on the farm from their cost, never items. */
     structures: Record<string, StructureDef>;
     /** Farm events (`data/farm-events/`). */
     farmEvents: Record<string, FarmEventDef>;

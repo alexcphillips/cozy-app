@@ -14,10 +14,10 @@ import { CONTENT, FARMING } from "../../content";
 import { FARMING_CARDS, isFarmingCardId, type GrowsDef, type MutationRecipe } from "../../content/farming";
 import {
     forecast,
+    groundAt,
     isRipe,
     isUnlockable,
-    laborFor,
-    nextLaborLevel,
+    playsLeft,
     nextTurnAt,
     rotChance,
     tileXY,
@@ -35,7 +35,7 @@ const where = (index: number) => {
 
 const growsDef = (id: string): GrowsDef | undefined => CONTENT.crops[id] ?? CONTENT.mutations[id];
 
-const WEATHER_NAMES: Record<GeoFarmWeather, string> = { clear: "a Clear day", overcast: "an Overcast day", rain: "Rain", heatwave: "a Heatwave", storm: "a Storm", frost: "a Frost" };
+const WEATHER_NAMES: Record<GeoFarmWeather, string> = { clear: "a Clear day", rain: "Rain", heatwave: "a Heatwave", frost: "a Frost" };
 
 /** "2 ripe Wheat next to an empty tile, on a Heatwave, with a Field Mouse near". */
 export function recipeText(recipe: MutationRecipe): string {
@@ -44,8 +44,11 @@ export function recipeText(recipe: MutationRecipe): string {
         .join(" and ");
     const parts = [`${parents} next to an empty tile`];
     if (recipe.weather) parts.push(`on ${WEATHER_NAMES[recipe.weather]}`);
+    if (recipe.event) parts.push(`during a ${CONTENT.farmEvents[recipe.event]?.name ?? recipe.event}`);
     if (recipe.pest) parts.push(`with a ${CONTENT.pests[recipe.pest]?.name ?? recipe.pest} on or beside it`);
-    if (recipe.minFertility !== undefined) parts.push(`fertility ${recipe.minFertility}+`);
+    if (recipe.structure) parts.push(`with a ${CONTENT.structures[recipe.structure]?.name ?? recipe.structure} beside it`);
+    if (recipe.blessing) parts.push(`under ${FARMING.shrine.blessings.find((entry) => entry.id === recipe.blessing)?.name ?? recipe.blessing}`);
+    if (recipe.ground) parts.push(`on ${recipe.ground} ground`);
     return parts.join(", ");
 }
 
@@ -102,8 +105,6 @@ function intentText(state: FarmState, from: number, intent: GeoFarmPestIntent): 
             return intent.tile === from ? `Eats the ${cropName} here` : `Moves to ${where(intent.tile)} and eats the ${cropName}`;
         case "move":
             return intent.tile === from ? "Sits tight" : `Moves to ${where(intent.tile)}`;
-        case "drain":
-            return `Drains ${intent.amount} fertility here`;
         case "sap":
             return cropName ? `Saps the ${cropName}: it won't grow` : "Sits tight";
         case "breed":
@@ -139,6 +140,10 @@ export type FarmViewExtras = {
 };
 
 export function toFarmView(state: FarmState, { hand, held, weather, contests, global, farmingLevel, fortune }: FarmViewExtras, report: FarmReport = NO_REPORT): GeoFarmView {
+    const sky = forecast(state, FARMING, weather);
+    const standing = new Set(state.tiles.flatMap((tile) => [tile.structure?.structureId, tile.roof?.structureId].filter((id): id is string => Boolean(id))));
+    // The ground each tile will have on the coming turn.
+    const coming = sky[0]!;
     return {
         size: GEO_FARM_SIZE,
         tiles: state.tiles.map((tile, index) => {
@@ -161,33 +166,30 @@ export function toFarmView(state: FarmState, { hand, held, weather, contests, gl
                               rotten: tile.crop.rotten,
                           }
                         : null,
-                moisture: tile.moisture,
-                soakTurns: tile.soakTurns,
-                fertility: tile.fertility,
+                ground: tile.owned ? groundAt(state, index, coming, CONTENT.structures) : "normal",
                 blueprint: tile.blueprint,
                 trap: tile.trap,
                 pollinated: tile.pollinated,
                 structure: tile.structure,
+                partOf: tile.partOf,
+                setups: state.setups.filter((setup) => setup.tile === index).map(({ mutationId, cycles }) => ({ mutationId, cycles })),
+                roof: tile.roof,
                 waste: tile.waste,
-                soil: tile.soil,
-                soilOverlay: tile.soilOverlay,
             };
         }),
         turn: state.turn,
-        labor: state.labor,
-        laborPerTurn: laborFor(FARMING, farmingLevel),
-        laborNextLevel: nextLaborLevel(FARMING, farmingLevel),
+        playsLeft: playsLeft(state),
+        farmingLevel,
         fortune,
         nextTurnAt: nextTurnAt(state, FARMING).toISOString(),
         maxTurnsAway: FARMING.maxTurnsAway,
-        forecast: forecast(state, FARMING, weather),
+        forecast: sky,
         events: {
             next: eventView(state.nextEvent, []),
             active: state.activeEvent ? eventView(state.activeEvent.eventId, state.activeEvent.offers) : null,
         },
         global,
         contests,
-        amendments: FARMING.soil.amendments,
         blessings: state.blessings.flatMap((blessing) => {
             const def = FARMING.shrine.blessings.find((entry) => entry.id === blessing.id);
             return def ? [{ id: def.id, name: def.name, description: def.description, curse: def.curse, turnsLeft: blessing.turnsLeft }] : [];
@@ -197,8 +199,9 @@ export function toFarmView(state: FarmState, { hand, held, weather, contests, gl
             endsAt: weekEndsAt(state.orders?.week ?? 0).toISOString(),
         },
         unlockCost: unlockCost(state, FARMING),
+        compostItemId: FARMING.unlockCost.itemId,
         hand: hand.flatMap((card) =>
-            isFarmingCardId(card.cardId) ? [{ ...card, labor: FARMING_CARDS[card.cardId].labor, shape: FARMING_CARDS[card.cardId].shape }] : [],
+            isFarmingCardId(card.cardId) ? [{ ...card, shape: FARMING_CARDS[card.cardId].shape, played: state.played.includes(card.inventoryId) }] : [],
         ),
         crops: cropViews(state),
         pests: state.pests.map((pest) => ({
@@ -212,18 +215,25 @@ export function toFarmView(state: FarmState, { hand, held, weather, contests, gl
         pestTypes: Object.values(CONTENT.pests).map(({ id, name, icon, description, likes, bounty }) => ({ id, name, icon, description, likes, bounty })),
         lab: toLab(state, held),
         pesthunter: { points: state.pesthunterPoints, shop: FARMING.pesthunter.shop },
-        structureTypes: Object.values(CONTENT.structures).map(({ id, name, icon, description, itemId, effect }) => ({
-            id,
-            kind: effect.kind,
-            name,
-            icon,
-            description,
-            itemId,
-        })),
-        structureKit: Object.values(CONTENT.structures).flatMap((structure) => {
-            const quantity = held[structure.itemId] ?? 0;
-            return quantity > 0 ? [{ structureId: structure.id, itemId: structure.itemId, quantity }] : [];
-        }),
+        // Only what's built or buildable: a structure past the player's level stays hidden.
+        structureTypes: Object.values(CONTENT.structures)
+            .filter((structure) => structure.requiredLevel <= farmingLevel || standing.has(structure.id))
+            .map(({ id, name, icon, description, stats, cost, size, requiredLevel, effect }) => ({
+                id,
+                kind: effect.kind,
+                name,
+                icon,
+                description,
+                stats,
+                cost,
+                size,
+                requiredLevel,
+                capacity: effect.kind === "compost" ? effect.capacity : null,
+            })),
+        buildList: Object.values(CONTENT.structures)
+            .filter((structure) => structure.requiredLevel <= farmingLevel)
+            .sort((a, b) => a.requiredLevel - b.requiredLevel)
+            .map((structure) => structure.id),
         log: report.log,
         gained: report.gained,
         xpGained: report.xpGained,

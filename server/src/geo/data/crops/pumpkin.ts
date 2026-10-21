@@ -10,6 +10,5 @@ export default {
     stages: 4,
     yield: { min: 1, max: 2 },
     seedsBack: { min: 1, max: 2 },
-    fertilityCost: 2,
     xp: 14,
 } satisfies Crop;

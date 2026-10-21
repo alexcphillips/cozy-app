@@ -3,7 +3,7 @@ import type { CardDef, FoodDef, StatusDef } from "../engine/engine.types";
 import type { GameData } from "./data.schema";
 import { parseLayoutMap, type DungeonLayoutDef, type DungeonRoomRef, type DungeonRoomSpecDef } from "../dungeons/dungeon-map";
 import type { ChestTierDef, DungeonDef, EnemyDef, GameContent, ItemDef, MayorDef, PetDef, QuestDef, Rarity, RecipeDef, ReforgeDef, RoomStyleDef, VendorDef } from "./content.types";
-import { structureItemId, type CropDef, type FarmEventDef, type MutationDef, type PestDef, type StructureDef } from "./farming";
+import { type CropDef, type FarmEventDef, type MutationDef, type PestDef, type StructureDef } from "./farming";
 import { fishItemId, qualityFishItemId, type FishDef } from "./fishing";
 
 /**
@@ -172,18 +172,12 @@ export function buildContent(data: GameData): BuiltContent {
         name: entry.name,
         icon: entry.icon,
         description: entry.description,
-        itemId: structureItemId(entry.id),
+        stats: entry.stats ?? [],
+        cost: entry.cost,
+        size: entry.size ?? { width: 1, height: 1 },
+        requiredLevel: entry.requiredLevel ?? 0,
         effect: entry.effect,
     }));
-    for (const entry of data.structures) {
-        items.push({
-            ...itemBase(entry),
-            id: structureItemId(entry.id),
-            kind: "misc",
-            stackSize: 10,
-            stats: [{ label: "Farm structure", value: "Place it on an empty tile of your farm" }, ...(entry.stats ?? [])],
-        });
-    }
 
     // Every fish is a regular, tradable material, plus a Soulbound item per
     // quality tier: account-bound, for the collection log, quests or a fillet.

@@ -4,9 +4,9 @@ import type { Structure } from "#geo/models";
 export default {
     id: "pond",
     name: "Pond",
-    rarity: "uncommon",
     icon: "lily-pads",
     description: "A little water and one very hungry frog.",
-    stats: [{ label: "Water and frog", value: "Keeps the 4 tiles beside it at 1 water or more. Its frog eats 1 pest on or around it each cycle" }],
+    stats: [{ label: "Water and frog", value: "The 4 tiles beside it are always wet. Its frog eats 1 pest on or around it each cycle" }],
+    cost: [{ itemId: "melon", quantity: 4 }, { itemId: "worm-castings", quantity: 3 }],
     effect: { kind: "pond" },
 } satisfies Structure;

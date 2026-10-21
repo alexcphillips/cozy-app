@@ -4,9 +4,9 @@ import type { Structure } from "#geo/models";
 export default {
     id: "compost-bin",
     name: "Compost Bin",
-    rarity: "common",
     icon: "barrel",
-    description: "Waste in, soil out. Slowly.",
-    stats: [{ label: "Compost", value: "Each harvest or clear adds 1 (up to 6). Each cycle spends 1: +1 fertility on the 8 tiles around" }],
-    effect: { kind: "compost", capacity: 6 },
+    description: "Waste in, Compost out. Slowly.",
+    stats: [{ label: "Compost", value: "Every 5 harvests or clears on the farm make 1 Compost, for buying tiles and building" }],
+    cost: [{ itemId: "wheat", quantity: 10 }],
+    effect: { kind: "compost", capacity: 5, itemId: "compost" },
 } satisfies Structure;

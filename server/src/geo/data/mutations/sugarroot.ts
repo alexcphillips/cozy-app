@@ -9,7 +9,6 @@ export default {
     produce: "sugarroot",
     stages: 3,
     yield: { min: 1, max: 2 },
-    fertilityCost: 2,
     xp: 50,
     recipe: { parents: [{ cropId: "carrot", count: 2 }], pest: "mite" },
     chance: 0.3,

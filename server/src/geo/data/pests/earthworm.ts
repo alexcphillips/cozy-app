@@ -1,15 +1,14 @@
 import type { Pest } from "#geo/models";
 
-// PLACEHOLDER numbers. Drains 2 fertility a turn; moves to richer soil once a tile is spent.
+// PLACEHOLDER numbers. Saps the crop it's on; doesn't eat or breed.
 export default {
     id: "earthworm",
     name: "Earthworm",
     icon: "earth-worm",
-    description: "Leaves the crops alone and eats the soil out from under them.",
+    description: "It doesn't eat the crop. It just sits in the roots until nothing grows.",
     likes: ["melon", "carrot"],
-    behaviour: { kind: "drain", amount: 2 },
+    behaviour: { kind: "sap" },
     weight: 1,
-    soils: ["boggy"],
     drops: [
         { itemId: "worm-castings", chance: 1, quantity: { min: 1, max: 2 } },
         { itemId: "golden-scarab", chance: 0.03, quantity: { min: 1, max: 1 } },

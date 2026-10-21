@@ -8,7 +8,7 @@ export default {
     description: "Set it all off at once and stand well back.",
     stats: [
         { label: "Role", value: "Atomic" },
-        { label: "Does", value: "3 Labor. Every waste tile: 30% it becomes a random mutation, else a Glow Beetle crawls out." },
+        { label: "Does", value: "Every waste tile: 30% it becomes a random mutation, else a Glow Beetle crawls out." },
     ],
     skill: "farming",
     maxCharges: 3,

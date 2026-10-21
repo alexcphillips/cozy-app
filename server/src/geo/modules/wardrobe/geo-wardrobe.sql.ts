@@ -38,7 +38,7 @@ export const SYNC_ACTIVE = `
 `;
 
 export const INSERT_LOADOUT = `
-  INSERT INTO geo.loadouts (player_id, slot, name, equipment, pet_id) VALUES ($1, $2, $3, $4::jsonb, $5);
+  INSERT INTO geo.loadouts (player_id, slot, name, equipment, pet_id, auto_for) VALUES ($1, $2, $3, $4::jsonb, $5, $6);
 `;
 
 export const RENAME_LOADOUT = `
@@ -69,10 +69,10 @@ export const SET_AUTO_FOR = `
 `;
 
 /** For auto-swap: whether it's owned, what's worn, and the loadout tagged for the activity. */
-export const FIND_AUTO_TARGET = `
-  SELECT p.wardrobe_auto_swap, p.active_loadout, l.slot AS target
-  FROM geo.players p LEFT JOIN geo.loadouts l ON l.player_id = p.id AND l.auto_for = $2
-  WHERE p.id = $1;
+/** The item held in the main hand, if any. */
+export const FIND_MAIN_HAND_ITEM = `
+  SELECT i.item_id FROM geo.equipment e JOIN geo.inventory i ON i.id = e.inventory_id
+  WHERE e.player_id = $1 AND e.slot = 'mainHand';
 `;
 
 export const ADD_BOUGHT_SLOT = `

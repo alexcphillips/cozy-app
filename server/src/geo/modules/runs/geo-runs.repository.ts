@@ -212,7 +212,7 @@ export async function openCombatRun(tx: TxQuery, playerId: string, target: RunTa
     else if (active) throw AppError.badRequest("You're already in a Run. Finish or flee it first.");
     // Before the gear is read: auto-swap puts on the combat loadout (a sea
     // creature hooked mid-cast included).
-    await wardrobeRepository.autoSwap(tx, playerId, "combat");
+    await wardrobeRepository.autoSwap(tx, playerId, { activity: "combat", enemyId, dungeonId: target.dungeonId ?? null });
 
     const player = await playerRepository.findPlayer(playerId, tx);
     if (!player) throw AppError.notFound("Player not found");

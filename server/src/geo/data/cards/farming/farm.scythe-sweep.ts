@@ -8,7 +8,7 @@ export default {
     description: "One wide swing takes the lot.",
     stats: [
         { label: "Role", value: "Harvest" },
-        { label: "Does", value: "2 Labor. Harvest every ripe crop in a 3×3, each −1 yield." },
+        { label: "Does", value: "Harvest every ripe crop in a 3×3, each giving its seeds back twice." },
     ],
     skill: "farming",
     maxCharges: 30,

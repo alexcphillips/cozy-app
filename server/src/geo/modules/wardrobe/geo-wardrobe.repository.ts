@@ -1,5 +1,6 @@
 import {
     GEO_EQUIPMENT_SLOTS,
+    GEO_FREE_AUTO_ACTIVITIES,
     geoSkillLevel,
     geoSlotKind,
     geoUnmetSkill,
@@ -19,9 +20,9 @@ import {
     CLEAR_AUTO_FOR,
     CLEAR_EQUIPMENT,
     DELETE_LOADOUT,
-    FIND_AUTO_TARGET,
     FIND_LOADOUT,
     FIND_LOADOUTS,
+    FIND_MAIN_HAND_ITEM,
     FIND_OWNED,
     FIND_WARDROBE_STATE,
     INSERT_LOADOUT,
@@ -129,8 +130,9 @@ export async function insertLoadout(
     name: string,
     equipment: Partial<Record<GeoEquipmentSlot, string>>,
     petId: string | null,
+    autoFor: GeoLoadoutActivity | null,
 ) {
-    await tx(INSERT_LOADOUT, [playerId, slot, name, JSON.stringify(equipment), petId]);
+    await tx(INSERT_LOADOUT, [playerId, slot, name, JSON.stringify(equipment), petId, autoFor]);
 }
 
 export async function renameLoadout(tx: TxQuery, playerId: string, slot: number, name: string) {
@@ -178,26 +180,61 @@ export async function wearLoadout(tx: TxQuery, playerId: string, slot: number) {
 }
 
 /**
- * As an activity starts (a fight, a fishing Run): wears the loadout tagged
- * for it, if auto-swap is owned and it isn't already worn. In the Run's own
+ * What's starting, for auto-swap to pick a loadout by. It carries what a
+ * player-set rule could match on later ("entering this dungeon", "fighting
+ * this creature"); for now only the activity decides.
+ */
+export type LoadoutTrigger =
+    | { activity: "fishing" }
+    | { activity: "combat"; enemyId: string; dungeonId: string | null };
+
+const isRod = (itemId: string | undefined) => {
+    const item = itemId ? CONTENT.items[itemId] : undefined;
+    return item?.kind === "equipment" && !!item.rod;
+};
+
+/**
+ * As an activity starts (a fight, a fishing Run or a step in one): wears the
+ * loadout auto-swap picks for it, if it isn't already worn. In the Run's own
  * transaction, before the player's gear is read. Returns whether it swapped.
  */
-export async function autoSwap(tx: TxQuery, playerId: string, activity: GeoLoadoutActivity): Promise<boolean> {
-    const [row] = await tx<{ wardrobe_auto_swap: boolean; active_loadout: number | null; target: number | null }>(
-        FIND_AUTO_TARGET,
-        [playerId, activity],
-    );
-    if (!row?.wardrobe_auto_swap || row.target === null || row.target === row.active_loadout) return false;
-    // A slot no longer owned (fewer starting slots in config) isn't worn.
-    if (row.target >= slotCount((await findState(tx, playerId)).wardrobe_bought)) return false;
-    await wearLoadout(tx, playerId, row.target);
+export async function autoSwap(tx: TxQuery, playerId: string, trigger: LoadoutTrigger): Promise<boolean> {
+    const state = await findState(tx, playerId);
+    const target = await pickAutoLoadout(tx, playerId, state, trigger);
+    if (target === null || target === state.active_loadout) return false;
+    await wearLoadout(tx, playerId, target);
     return true;
 }
 
-/** Tags a saved loadout for an activity (taking the tag off any other), or untags it. Needs auto-swap. */
+/**
+ * The loadout slot auto-swap wears for a trigger, or null to leave gear be.
+ * The one place that decides, so player-set rules go here, ahead of the
+ * activity tags. Skills are free; combat needs auto-swap bought.
+ */
+async function pickAutoLoadout(tx: TxQuery, playerId: string, state: WardrobeStateRow, trigger: LoadoutTrigger): Promise<number | null> {
+    const { activity } = trigger;
+    if (!state.wardrobe_auto_swap && !GEO_FREE_AUTO_ACTIVITIES.includes(activity)) return null;
+    // A slot no longer owned (fewer starting slots in config) isn't worn.
+    const loadouts = (await tx<LoadoutRow>(FIND_LOADOUTS, [playerId])).filter((row) => row.slot < slotCount(state.wardrobe_bought));
+    const tagged = loadouts.find((row) => row.auto_for === activity);
+    if (tagged) return tagged.slot;
+
+    // Fishing with none tagged: the first loadout with a rod, unless one's held.
+    if (activity === "fishing") {
+        const [held] = await tx<{ item_id: string }>(FIND_MAIN_HAND_ITEM, [playerId]);
+        if (isRod(held?.item_id)) return null;
+        const owned = await findOwned(tx, playerId, referencedIds(loadouts));
+        return loadouts.find((row) => isRod(owned.get(row.equipment.mainHand ?? "")))?.slot ?? null;
+    }
+    return null;
+}
+
+/** Tags a saved loadout for an activity (taking the tag off any other), or untags it. Combat's tag needs auto-swap. */
 export async function setAutoFor(tx: TxQuery, playerId: string, slot: number, autoFor: GeoLoadoutActivity | null) {
     const state = await findState(tx, playerId);
-    if (!state.wardrobe_auto_swap) throw AppError.badRequest("Buy auto-swap first");
+    if (autoFor && !state.wardrobe_auto_swap && !GEO_FREE_AUTO_ACTIVITIES.includes(autoFor)) {
+        throw AppError.badRequest("Buy auto-swap first");
+    }
     if (autoFor) await tx(CLEAR_AUTO_FOR, [playerId, autoFor]);
     const [row] = await tx<{ slot: number }>(SET_AUTO_FOR, [playerId, slot, autoFor]);
     if (!row) throw AppError.notFound("Nothing saved in that loadout slot");

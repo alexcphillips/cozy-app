@@ -8,7 +8,7 @@ export default {
     description: "Something sweet in the middle draws them in.",
     stats: [
         { label: "Role", value: "Pest control" },
-        { label: "Does", value: "1 Labor. Pulls every pest in the 8 tiles around onto the middle tile, and its crop." },
+        { label: "Does", value: "Pulls every pest in the 8 tiles around onto the middle tile, and its crop." },
     ],
     skill: "farming",
     maxCharges: 40,

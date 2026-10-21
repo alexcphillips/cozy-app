@@ -15,7 +15,7 @@ import {
     seededLookup,
     stepFarm,
     tickFarm,
-    upgradeFarm,
+    readFarm,
     type FarmHandCard,
     type FarmState,
     type StoredFarm,
@@ -49,7 +49,7 @@ async function loadHand(tx: TxQuery, playerId: string, inventory: InventoryRows)
     });
 }
 
-/** The player's farming level, for the Labor each turn refills to. */
+/** The player's farming level, for what it unlocks (structures' required levels). */
 async function farmingLevel(tx: TxQuery, playerId: string): Promise<number> {
     return (await playerRepository.findSkillLevels(tx, playerId)).farming ?? 1;
 }
@@ -66,6 +66,7 @@ async function farmingStats(tx: TxQuery, playerId: string): Promise<{ fortune: n
 
 /** What an NPC pays for an item: sizes the Order Board's orders. */
 const sellValue = (itemId: string) => CONTENT.items[itemId]?.sellValue ?? 1;
+const itemName = (itemId: string) => CONTENT.items[itemId]?.name ?? itemId;
 
 type LoadedFarm = { state: FarmState; weather: WeatherLookup; away: FarmReport };
 
@@ -76,7 +77,7 @@ type LoadedFarm = { state: FarmState; weather: WeatherLookup; away: FarmReport }
  */
 async function loadFarm(tx: TxQuery, playerId: string, now: Date): Promise<LoadedFarm> {
     const [row] = await tx<{ state: StoredFarm }>(FIND_FARM_FOR_UPDATE, [playerId]);
-    let stored = row ? upgradeFarm(row.state) : null;
+    let stored = row ? readFarm(row.state) : null;
     if (!stored) {
         const fresh = newFarm(FARMING, randomSeed(), randomSeed(), now);
         const [inserted] = await tx<{ state: FarmState }>(INSERT_FARM, [playerId, fresh]);
@@ -86,7 +87,7 @@ async function loadFarm(tx: TxQuery, playerId: string, now: Date): Promise<Loade
         // Made by a request racing this one: read theirs.
         const [raced] = await tx<{ state: StoredFarm }>(FIND_FARM_FOR_UPDATE, [playerId]);
         if (!raced) throw new Error("Farm insert raced and vanished");
-        stored = upgradeFarm(raced.state);
+        stored = readFarm(raced.state);
     }
     const weather = seededLookup(stored.weatherSeed, FARMING);
     const { pestChance, mutationChance } = await farmingStats(tx, playerId);
@@ -97,6 +98,7 @@ async function loadFarm(tx: TxQuery, playerId: string, now: Date): Promise<Loade
         structures: CONTENT.structures,
         events: CONTENT.farmEvents,
         sellValue,
+        itemName,
         config: FARMING,
         now,
         // A turn plays no cards or held items.
@@ -182,6 +184,7 @@ export async function actFarm(playerId: string, action: GeoFarmAction): Promise<
                 events: CONTENT.farmEvents,
                 globalEvent: activeGlobalEvent(now, FARMING, CONTENT.farmEvents),
                 sellValue,
+                itemName,
                 held: heldItems(inventoryBefore),
                 farmingLevel: await farmingLevel(tx, playerId),
                 ...(await farmingStats(tx, playerId)),
@@ -245,6 +248,7 @@ export async function adminNextCycle(playerId: string): Promise<GeoFarmView> {
                 events: CONTENT.farmEvents,
                 globalEvent: activeGlobalEvent(now, FARMING, CONTENT.farmEvents),
                 sellValue,
+                itemName,
                 config: FARMING,
                 now,
                 // A turn plays no cards or held items.

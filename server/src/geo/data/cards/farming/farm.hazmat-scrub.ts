@@ -8,7 +8,7 @@ export default {
     description: "Gloves, mask, bucket. Don't ask what's in the bucket.",
     stats: [
         { label: "Role", value: "Atomic" },
-        { label: "Does", value: "1 Labor. Scrubs the nuclear waste off one tile." },
+        { label: "Does", value: "Scrubs the nuclear waste off one tile." },
     ],
     skill: "farming",
     maxCharges: 40,

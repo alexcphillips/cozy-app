@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GEO_CHEST_TIERS, GEO_FARM_SOILS, GEO_FARM_WEATHERS, GEO_FISHING_TIERS, GEO_MAX_SKILL_LEVEL, GEO_QUALITY_TIERS, GEO_WORLD_HABITAT_METRES, GEO_WORLD_HABITATS, GEO_WORLD_WATER_KINDS } from "@cozy/shared/geo";
+import { GEO_CHEST_TIERS, GEO_FARM_GROUNDS, GEO_FARM_SIZE, GEO_FARM_WEATHERS, GEO_FISHING_TIERS, GEO_LOADOUT_ACTIVITIES, GEO_MAX_SKILL_LEVEL, GEO_QUALITY_TIERS, GEO_WORLD_HABITAT_METRES, GEO_WORLD_HABITATS, GEO_WORLD_WATER_KINDS } from "@cozy/shared/geo";
 import type { Action, Amount, Condition, EffectDef, StatModifier } from "../engine/engine.types";
 import { DUNGEON_ROOM_KINDS } from "../dungeons/dungeon-map";
 import type * as M from "./models";
@@ -310,7 +310,6 @@ const CropFile = z.strictObject({
     stages: count,
     yield: range(1),
     seedsBack: range(0),
-    fertilityCost: z.int().min(0),
     xp: z.int().min(0),
 });
 
@@ -322,7 +321,6 @@ const FarmEventFile = z.strictObject({
     weight: z.number().min(0),
     effect: z.discriminatedUnion("kind", [
         z.strictObject({ kind: z.literal("pest-swarm"), count }),
-        z.strictObject({ kind: z.literal("fairy-ring"), fertility: count, mutationBoost: z.number().min(1) }),
         z.strictObject({ kind: z.literal("blood-moon"), pestBoost: z.number().min(1) }),
         z.strictObject({ kind: z.literal("bumper-harvest"), bonus: count }),
         z.strictObject({ kind: z.literal("merchant"), count, stock: z.array(z.strictObject({ itemId: ref, price: z.int().min(0) })).min(1) }),
@@ -331,19 +329,25 @@ const FarmEventFile = z.strictObject({
 });
 
 const StructureFile = z.strictObject({
-    ...itemBase,
+    id,
+    name: z.string().min(1),
+    icon: z.string().min(1),
+    description: z.string(),
+    stats: z.array(ItemStat).optional(),
+    cost: z.array(ItemAmount),
+    size: z.strictObject({ width: z.int().min(1).max(GEO_FARM_SIZE), height: z.int().min(1).max(GEO_FARM_SIZE) }).optional(),
+    requiredLevel: z.int().min(0).max(GEO_MAX_SKILL_LEVEL).optional(),
     effect: z.discriminatedUnion("kind", [
         z.strictObject({ kind: z.literal("jukebox"), boost: z.number().min(1) }),
         z.strictObject({ kind: z.literal("cage") }),
         z.strictObject({ kind: z.literal("beehive"), boost: z.number().min(1), swarmChance: fraction }),
-        z.strictObject({ kind: z.literal("compost"), capacity: count }),
+        z.strictObject({ kind: z.literal("compost"), capacity: count, itemId: ref }),
         z.strictObject({ kind: z.literal("pond") }),
         z.strictObject({ kind: z.literal("greenhouse") }),
         z.strictObject({ kind: z.literal("reactor"), radius: count, growth: count, wasteChance: fraction }),
         z.strictObject({ kind: z.literal("portal"), wave: count, pests: z.array(ref).min(1) }),
         z.strictObject({ kind: z.literal("shrine") }),
-        z.strictObject({ kind: z.literal("well"), capacity: count, rain: z.int().min(0), storm: z.int().min(0), heatwave: z.int().min(0) }),
-        z.strictObject({ kind: z.literal("lightning-rod"), radius: count }),
+        z.strictObject({ kind: z.literal("well"), radius: count }),
     ]),
 });
 
@@ -355,16 +359,15 @@ const MutationFile = z.strictObject({
     produce: ref,
     stages: count,
     yield: range(1),
-    fertilityCost: z.int().min(0),
     xp: z.int().min(0),
     recipe: z.strictObject({
         parents: z.array(z.strictObject({ cropId: ref, count })).min(1),
         weather: z.enum(GEO_FARM_WEATHERS).optional(),
         event: ref.optional(),
         pest: ref.optional(),
-        minFertility: z.int().min(0).max(10).optional(),
         structure: ref.optional(),
-        soil: z.enum(GEO_FARM_SOILS).optional(),
+        blessing: ref.optional(),
+        ground: z.enum(GEO_FARM_GROUNDS).optional(),
     }),
     chance: fraction,
     research: z.strictObject({ coins: z.int().min(0), xp: z.int().min(0) }),
@@ -378,12 +381,11 @@ const PestFile = z.strictObject({
     likes: z.array(ref),
     behaviour: z.discriminatedUnion("kind", [
         z.strictObject({ kind: z.literal("eat"), reach: count }),
-        z.strictObject({ kind: z.literal("drain"), amount: count }),
+        z.strictObject({ kind: z.literal("sap") }),
         z.strictObject({ kind: z.literal("breed"), every: count }),
     ]),
     weight: z.number().min(0),
     hp: count.optional(),
-    soils: z.array(z.enum(GEO_FARM_SOILS)).optional(),
     drops: z.array(z.strictObject({ itemId: ref, chance: fraction, quantity: range(1) })),
     xp: z.int().min(0),
     bounty: z.int().min(0).optional(),
@@ -645,28 +647,13 @@ const FishingConfig = z.strictObject({
 });
 
 const FarmingConfig = z.strictObject({
-    laborPerTurn: count,
-    laborLevels: z.array(count),
     turnHours: z.number().positive(),
     maxTurnsAway: count,
     startSize: count,
-    unlockCost: z.strictObject({ first: z.int().min(0), step: z.int().min(0) }),
-    startFertility: z.int().min(0).max(10),
-    fallowRecovery: z.int().min(0),
-    fallowCap: z.int().min(0).max(10),
-    fertilityYield: z.strictObject({ low: z.int().min(0).max(10), high: z.int().min(0).max(10) }),
+    unlockCost: z.strictObject({ first: z.int().min(0), step: z.int().min(0), compost: z.int().min(0), compostFrom: z.int().min(0), itemId: ref }),
     rotChances: z.array(fraction).min(1),
-    labor: z.strictObject({ water: z.int().min(0), harvest: z.int().min(0), clear: z.int().min(0), swat: z.int().min(0), cage: z.int().min(0), scrub: z.int().min(0) }),
+    mutationRamp: fraction,
     waste: z.strictObject({ spreadChance: fraction, mutationBoost: z.number().min(1), pestChance: fraction, pest: ref }),
-    soil: z.strictObject({
-        richFallowCap: z.int().min(0).max(10),
-        richRecovery: z.int().min(0),
-        cursedYield: z.int().max(0),
-        amendments: z.array(z.strictObject({ itemId: ref, soil: z.enum(GEO_FARM_SOILS) })),
-        peatChance: fraction,
-        peatItem: ref,
-        ashItem: ref,
-    }),
     shrine: z.strictObject({
         halfValue: z.number().positive(),
         curseShare: fraction,
@@ -691,10 +678,6 @@ const FarmingConfig = z.strictObject({
     pesthunter: z.strictObject({ shop: z.array(z.strictObject({ itemId: ref, price: count })) }),
     globalEvents: z.array(z.strictObject({ eventId: ref, days: z.int().min(1).max(7), weight: z.number().min(0) })),
     weatherWeights: z.record(z.enum(GEO_FARM_WEATHERS), z.number().min(0)),
-    weather: z.strictObject({
-        stormFlattenChance: fraction,
-        frostKillsUpToStage: z.int().min(0),
-    }),
 });
 
 const PlayerConfig = z.strictObject({
@@ -727,6 +710,7 @@ const StarterKitConfig = z.strictObject({
         .array(
             z.strictObject({
                 name: z.string().min(1).max(20),
+                autoFor: z.enum(GEO_LOADOUT_ACTIVITIES).optional(),
                 equip: z.partialRecord(z.enum(["mainHand", "offHand", "head", "chest", "hands", "legs", "feet", "shoulders", "cloak", "belt", "amulet", "ring"]), ref),
             }),
         )

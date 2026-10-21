@@ -6,8 +6,9 @@ crafting screen.
 
 Sort them into a folder per skill (`recipes/combat/`, `recipes/cooking/`,
 `recipes/farming/`, `recipes/fishing/`…). A recipe with no skill level goes
-in the folder of the skill its output belongs to (structures and farming
-cards in `farming/`). The folder is only for tidiness; the `skills` field is
+in the folder of the skill its output belongs to (farming cards in
+`farming/`). Farm structures aren't crafted: their cost is in their own file
+(`structures/`). The folder is only for tidiness; the `skills` field is
 what gates it.
 
 Compact recipes (100 Silk Spool → 1 Compact Silk Spool) come from a

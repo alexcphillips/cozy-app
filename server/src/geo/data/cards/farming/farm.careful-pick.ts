@@ -8,7 +8,7 @@ export default {
     description: "Slow hands, nothing bruised.",
     stats: [
         { label: "Role", value: "Harvest" },
-        { label: "Does", value: "1 Labor. Harvest one ripe crop with +1 yield." },
+        { label: "Does", value: "Harvest one ripe crop with +1 yield." },
     ],
     skill: "farming",
     maxCharges: 60,

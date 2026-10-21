@@ -9,7 +9,6 @@ export default {
     produce: "rainroot",
     stages: 3,
     yield: { min: 1, max: 2 },
-    fertilityCost: 2,
     xp: 45,
     recipe: { parents: [{ cropId: "carrot", count: 1 }, { cropId: "potato", count: 1 }], weather: "rain" },
     chance: 0.25,

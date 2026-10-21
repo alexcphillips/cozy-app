@@ -9,7 +9,6 @@ Model: `FarmEvent` in `#geo/models` (`content/models.ts`).
 | `effect` | When | What it does |
 | --- | --- | --- |
 | `{ kind: "pest-swarm", count }` | Its turn | `count` extra pests arrive, past the usual cap. |
-| `{ kind: "fairy-ring", fertility, mutationBoost }` | Its turn | Picks an empty tile: +`fertility` on the 8 around it, and its mutation chances × `mutationBoost`. |
 | `{ kind: "blood-moon", pestBoost }` | Its turn | Mutation recipes with `event: "blood-moon"` can sprout; pests are `pestBoost` × likelier to come. |
 | `{ kind: "bumper-harvest", bonus }` | The turn after | Every harvest gives +`bonus` yield. |
 | `{ kind: "merchant", count, stock }` | The turn after | `count` picks from `stock` (`{ itemId, price }`) are for sale, each once. |

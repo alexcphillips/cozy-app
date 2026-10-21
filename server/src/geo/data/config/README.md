@@ -67,28 +67,22 @@ Enemy spawns around each player.
 
 | Field | What it does |
 | --- | --- |
-| `laborPerTurn` | Labor each turn refills to, at farming level 1. |
-| `laborLevels` | Farming levels that each add 1 Labor per turn, lowest first (e.g. `[10, 20, 35, 50]`: 3 Labor up to 7). |
-| `turnHours` | The farm takes a turn on its own this often: crops grow, weather lands, pests move, Labor refills. |
+| `turnHours` | The farm takes a turn on its own this often: crops grow, weather lands, pests move, and the farming hand is ready again (each card plays once a cycle, 5 plays in all). |
 | `maxTurnsAway` | Turns the farm takes while the player is away; past this it waits for them (nothing grows, nothing is lost). |
 | `startSize` | The odd-sized square a new farm owns in the middle of the 9×9. |
-| `unlockCost` | `{ first, step }`: coins for the nth extra tile are first + step × (n − 1). |
-| `startFertility`, `fallowRecovery`, `fallowCap` | Every tile's fertility to start; an empty tile gains `fallowRecovery` per turn up to `fallowCap`. |
-| `fertilityYield` | `{ low, high }`: harvest −1 at or below `low` fertility, +1 at or above `high`. |
+| `unlockCost` | `{ first, step, compost, compostFrom, itemId }`: coins for the nth extra tile are first + step × (n − 1); from the `compostFrom`th bought on (counting from 0), each also takes `compost` of `itemId`, which Compost Bins make. |
 | `rotChances` | Harvest or push: rot chance on each turn a ripe crop waits. Each wait it survives adds +1 yield; the list's length caps that. |
-| `labor` | Labor for the plain actions: `water`, `harvest`, `clear`, `swat` (clears the pests on a tile), `cage` (a pest into a Pest Cage). |
 | `pests` | `fromTurn`: no pests before this turn. Then each turn one spawns with chance `chancePerCrop` × liked crops growing, at most `maxChance`, while fewer than `max` are on the farm. |
 | `events` | `fromTurn`: no farm events before this turn. Then each turn telegraphs one for the next with this `chance` (which one: their `weight`s in `farm-events/`). |
 | `orders` | The weekly Order Board: `perWeek` orders for plain crops, each asking for `value` (`{ min, max }`) coins of NPC sell value. Completing pays that × `rewardMultiplier` plus the deposit back; accepting costs `depositShare` of the reward, lost if the week ends first. |
 | `contests` | Weekly farm contests (Total Harvest, Top Mutation, a rotating crop). `prizes`: coins for 1st, 2nd, 3rd…; `participation`: for every other entrant. Paid each Monday 00:00 UTC. |
 | `pesthunter` | The Pesthunter button on the farm. A caged pest turned in pays its `bounty` (in the pest's file) in points, and no drops. `shop`: `{ itemId, price }` items those points buy. |
 | `globalEvents` | Server-wide events: one `{ eventId, days, weight }` picked each week by `weight`, announced Monday, running the week's last `days` days (UTC). Every farm's turns during it get the event. |
-| `waste` | Nuclear waste from a Reactor. Each turn a waste tile spreads to one beside it with `spreadChance` (killing what grows there); empty tiles next to waste get mutation chances × `mutationBoost`; each waste tile has `pestChance` of a `pest` crawling out. `labor.scrub` clears one by hand. |
-| `soil` | Soil types. `rich` rests to `richFallowCap` fertility at `richRecovery` a turn; `boggy` never dries below 1 water; plain crops on `cursed` yield `cursedYield` (negative). `amendments`: `{ itemId, soil }`, items that change a tile's soil for good. A Pond turns up `peatItem` `peatChance` a turn; the Shrine leaves `ashItem` when it doesn't bless. Rocky and Ancient soils wait for mining and archaeology. |
+| `waste` | Nuclear waste from a Reactor. Each turn a waste tile spreads to one beside it with `spreadChance` (killing what grows there); empty tiles next to waste get mutation chances × `mutationBoost`; each waste tile has `pestChance` of a `pest` crawling out. The Hazmat Scrub card clears one. |
 | `shrine` | The Mysterious Shrine. An offering worth `value` coins (NPC sell value) grants a blessing with chance value ÷ (value + `halfValue`), so more is better but never certain. A failed roll is a curse `curseShare` of the time. `blessings`: `{ id, name, description, turns, weight, curse }`; ids are `growth`, `plenty`, `mutation` and (a curse) `pests`. |
 | `pollinateBoost` | Hand Pollinate multiplies a tile's mutation chances by this on the next turn. |
-| `weatherWeights` | How often each weather is rolled for a farm turn (seeded per farm): `clear`, `overcast`, `rain`, `heatwave`, `storm`, `frost` comes. |
-| `weather` | What the harsh weathers do. `stormFlattenChance`: each open-field crop flattened in a storm. `frostKillsUpToStage`: growing open-field crops at this stage or below die in a frost. |
+| `mutationRamp` | Added to a mutation's chance on a tile for each cycle in a row its recipe held there without sprouting (0.25: a 25% recipe is certain by its fourth cycle). A cycle it doesn't hold starts it over. |
+| `weatherWeights` | How often each weather is rolled for a farm turn (seeded per farm): `clear`, `rain`, `heatwave`, `frost`. |
 
 ## elections.ts
 

@@ -9,7 +9,6 @@ export default {
     produce: "grinning-gourd",
     stages: 4,
     yield: { min: 1, max: 1 },
-    fertilityCost: 3,
     xp: 55,
     recipe: { parents: [{ cropId: "pumpkin", count: 1 }], pest: "field-mouse" },
     chance: 0.3,

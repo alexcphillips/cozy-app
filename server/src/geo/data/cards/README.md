@@ -88,10 +88,15 @@ its name, charges, rarity and text. Its id must be one the code knows
 ## Farming cards
 
 Like fishing, a farming card's rules are code (`farming/farm.ts`), and its
-Labor cost and shape (`tile`, `row`, `square3`, `none`) are in
+shape (`tile`, `row`, `square3`, `ring`, `cross`, `none`) is in
 `content/farming.ts` (`FARMING_CARDS`). A file in `cards/farming/` sets its
 name, charges, rarity and text, and its id must be one the code knows
-(`farm.bucket-line`…). A new farming card needs code.
+(`farm.swat`…). A new farming card needs code.
+
+Farming cards cost no Labor. Each plays once a farm cycle, and a cycle
+allows 5 plays in all (the hand's size), tracked on the farm: moving a
+played card out of the hand and back, or swapping others in, gives no
+extra plays.
 
 Mining and foraging cards have no Runs yet. Their files exist so players
 can own and pack them, and they do nothing.

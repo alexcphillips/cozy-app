@@ -148,14 +148,18 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
         }
     }
 
-    const { waste, shrine, soil } = config.farming;
-    for (const itemId of [...soil.amendments.map((entry) => entry.itemId), soil.peatItem, soil.ashItem]) {
-        if (!item(itemId)) problems.push(`config/farming.ts soil uses unknown item "${itemId}"`);
+    const { waste, shrine, unlockCost } = config.farming;
+    if (!item(unlockCost.itemId)) problems.push(`config/farming.ts unlockCost uses unknown item "${unlockCost.itemId}"`);
+    for (const structure of Object.values(content.structures)) {
+        if (structure.effect.kind === "compost" && !item(structure.effect.itemId)) problems.push(`Structure "${structure.id}" makes unknown item "${structure.effect.itemId}"`);
+    }
+    for (const mutation of Object.values(content.mutations)) {
+        const blessing = mutation.recipe.blessing;
+        if (blessing && !shrine.blessings.some((entry) => entry.id === blessing)) problems.push(`Mutation "${mutation.id}" needs unknown Shrine blessing "${blessing}"`);
     }
     for (const offer of config.farming.pesthunter.shop) {
         if (!item(offer.itemId)) problems.push(`config/farming.ts pesthunter sells unknown item "${offer.itemId}"`);
     }
-    if (config.farming.laborLevels.some((level, i, all) => i > 0 && level <= all[i - 1]!)) problems.push("config/farming.ts laborLevels must go up");
     if (!content.pests[waste.pest]) problems.push(`config/farming.ts waste.pest is unknown pest "${waste.pest}"`);
     if (!shrine.blessings.some((blessing) => !blessing.curse)) problems.push("config/farming.ts shrine needs a blessing that isn't a curse");
     if (!shrine.blessings.some((blessing) => blessing.curse)) problems.push("config/farming.ts shrine needs a curse");
@@ -279,6 +283,11 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
         }
     }
 
+    for (const structure of Object.values(content.structures)) {
+        for (const { itemId } of structure.cost) needItem(`Structure "${structure.id}"`, itemId);
+        if (new Set(structure.cost.map((entry) => entry.itemId)).size !== structure.cost.length) problems.push(`Structure "${structure.id}" lists a cost twice`);
+    }
+
     for (const recipe of Object.values(content.recipes)) {
         for (const { itemId } of [...recipe.inputs, recipe.output]) needItem(`Recipe "${recipe.id}"`, itemId);
         if (new Set(recipe.inputs.map((input) => input.itemId)).size !== recipe.inputs.length) {
@@ -293,7 +302,6 @@ export function checkContent(content: GameContent, config: GameConfig): string[]
     if (farming.startSize > GEO_FARM_SIZE || farming.startSize % 2 === 0) {
         problems.push(`config/farming.ts: startSize must be odd and at most ${GEO_FARM_SIZE}`);
     }
-    if (farming.fertilityYield.low >= farming.fertilityYield.high) problems.push("config/farming.ts: fertilityYield low must be under high");
     if (!content.mayors[elections.firstMayor]) problems.push(`config/elections.ts: first mayor "${elections.firstMayor}" doesn't exist`);
     // Each election leaves the mayor in office out, so the pool needs one spare.
     if (Object.keys(content.mayors).length <= elections.candidates) {

@@ -19,7 +19,6 @@ Model: `Pest` in `#geo/models` (`content/models.ts`). Hover any field in the edi
 | `likes` | crop ids | yes | It only spawns while one of these grows, next to it, and goes for them first. May be empty for a Portal or waste pest. |
 | `behaviour` | one of below | yes | How it acts each turn. |
 | `weight` | number ≥ 0 | yes | How likely it is to be the pest that spawns, per liked crop growing. 0: never on its own, only from a Portal or nuclear waste. |
-| `soils` | soils | no | Soils it's drawn to: those tiles count like crops it likes, for where and how often it spawns. |
 | `hp` | whole number ≥ 1 | no (1) | Hits to clear: Swat, Smoke and a Snap Trap hit once. Cages and frogs only take 1-hit pests. More than 1 is an elite pest. |
 | `drops` | `{ itemId, chance, quantity }[]` | yes | Each rolled on its own when it's cleared; `chance` is 0–1. |
 | `xp` | whole number ≥ 0 | yes | Farming XP when it's cleared. |
@@ -30,7 +29,7 @@ Model: `Pest` in `#geo/models` (`content/models.ts`). Hover any field in the edi
 | `behaviour` | What it does |
 | --- | --- |
 | `{ kind: "eat", reach }` | Eats the crop on its tile, or moves onto one up to `reach` tiles away (diagonals count) and eats it. The crop is gone. |
-| `{ kind: "drain", amount }` | Takes `amount` fertility from its tile each turn; moves to the richest tile next door once the soil is spent. |
+| `{ kind: "sap" }` | The crop it's on doesn't grow. With no crop under it, it moves onto one next door. It never eats or breeds. |
 | `{ kind: "breed", every }` | The crop it's on doesn't grow. Every `every` turns, a new one appears on a crop next door. |
 
 With nothing to go for, a pest wanders one tile.

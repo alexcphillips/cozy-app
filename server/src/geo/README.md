@@ -153,11 +153,17 @@ loadout last worn or saved is active (`players.active_loadout`), and every
 equip and pet change saves into it. Wearing is refused mid-Run.
 
 Rods are held in the main hand, so fishing means wearing a fishing loadout.
-Auto-swap (bought once, `config/wardrobe.ts`) wears the loadout tagged for
-`combat` or `fishing` as that starts, inside the Run's own transaction and
-before the gear is read: `openCombatRun` (spawns, dungeons, sea creatures)
-and `startFishing`. Extra slots are bought too. New players get the starter
-kit's loadouts (Combat, Fishing). `npm run smoke:geo-wardrobe`.
+Auto-swap wears the loadout tagged for `combat` or `fishing` as that starts,
+inside the Run's own transaction and before the gear is read:
+`openCombatRun` (spawns, dungeons, sea creatures), `startFishing` and each
+fishing step. Skills (`GEO_FREE_AUTO_ACTIVITIES`) swap for free, falling
+back to the first loadout with a rod when none is tagged; combat needs
+auto-swap bought once (`config/wardrobe.ts`). `autoSwap` takes a
+`LoadoutTrigger` (activity, plus enemy and dungeon for fights) and
+`pickAutoLoadout` is the one place that chooses, where player-set rules
+("entering this dungeon, wear X") would go. Extra slots are bought too. New
+players get the starter kit's loadouts (Combat, Fishing), already tagged.
+`npm run smoke:geo-wardrobe`.
 
 ## Fishing Runs
 

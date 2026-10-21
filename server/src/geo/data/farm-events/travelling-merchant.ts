@@ -14,8 +14,6 @@ export default {
             { itemId: "card.farm.hand-pollinate", price: 90 },
             { itemId: "card.farm.smoke", price: 70 },
             { itemId: "card.farm.ripen", price: 90 },
-            { itemId: "structure.pest-cage", price: 150 },
-            { itemId: "structure.compost-bin", price: 120 },
             { itemId: "golden-scarab", price: 120 },
             { itemId: "melon-seeds", price: 6 },
         ],

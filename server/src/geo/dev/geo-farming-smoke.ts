@@ -37,10 +37,10 @@ try {
 
     let farm = (await call<GeoFarmView>("GET", GEO_API_PATHS.farm.root, token)).body;
     assert.equal(farm.tiles.filter((tile) => tile.owned).length, 9);
-    assert.equal(farm.labor, 3);
+    assert.equal(farm.playsLeft, 5);
     assert.equal(farm.turn, 0);
     assert.equal(farm.hand.length, 5);
-    step("first look makes a 3×3 farm with 3 Labor, its clock just started");
+    step("first look makes a 3×3 farm with 5 card plays, its clock just started");
 
     const act = async (action: GeoFarmAction, status = 200) => {
         const response = await call<GeoFarmView>("POST", GEO_API_PATHS.farm.actions, token, action);
@@ -71,62 +71,62 @@ try {
     await act({ type: "plant", tile: 0, itemId: "wheat-seeds" }, 400);
     step("planting takes a seed; occupied and locked tiles are refused");
 
-    await act({ type: "water", tile: MID });
-    await act({ type: "water", tile: MID });
-    await act({ type: "water", tile: MID });
-    assert.equal(farm.labor, 0);
-    await act({ type: "water", tile: MID }, 400);
-    step("watering spends Labor, and runs out");
+    const sky = farm.hand.find((card) => card.cardId === "farm.read-sky")!;
+    await act({ type: "play", inventoryId: sky.inventoryId, tile: 0 });
+    assert.equal(farm.playsLeft, 4);
+    assert.ok(farm.hand.find((card) => card.inventoryId === sky.inventoryId)!.played);
+    await act({ type: "play", inventoryId: sky.inventoryId, tile: 0 }, 400);
+    step("a card plays once a cycle, out of 5 plays");
 
     await passTurns(1);
     assert.equal(farm.turn, 1);
-    assert.equal(farm.labor, 3);
+    assert.equal(farm.playsLeft, 5);
+    assert.ok(!farm.hand.some((card) => card.played));
     assert.match(farm.log[0]!, /ran 1 cycle\./);
     await passTurns(10);
     assert.equal(farm.turn, 1 + FARMING.maxTurnsAway);
     assert.match(farm.log[0]!, /then waited for you/);
     assert.ok(new Date(farm.nextTurnAt).getTime() > Date.now() + (FARMING.turnHours - 1) * 3_600_000, "the clock restarts on the look");
-    step(`the farm takes turns on its own, refilling Labor, and waits after ${FARMING.maxTurnsAway} away`);
+    step(`the farm takes turns on its own, readying the hand, and waits after ${FARMING.maxTurnsAway} away`);
 
-    // Keep the wheat watered, a turn at a time, until it's ripe.
+    // A turn at a time until the wheat is ripe (no watering: only heatwaves stall it).
     for (let guard = 0; !farm.tiles[MID]!.crop?.ripe; guard++) {
         assert.ok(guard < 20, "wheat never ripened");
         // Ripe wheat left two turns can rot; clear it.
         if (farm.tiles[MID]!.crop?.rotten) await act({ type: "clear", tile: MID });
-        // Placeholder weather can storm or frost the wheat away: plant again.
+        // Pests can eat the wheat: plant again.
         if (!farm.tiles[MID]!.crop) await act({ type: "plant", tile: MID, itemId: "wheat-seeds" });
-        if (farm.tiles[MID]!.moisture === 0) await act({ type: "water", tile: MID });
-        // Pests may come for the wheat: swat each before it acts.
-        for (const tile of new Set(farm.pests.map((pest) => pest.tile))) if (farm.labor >= 2) await act({ type: "swat", tile });
+        // Pests may come for the wheat: swat the one on it before it acts (once a cycle).
+        const swat = farm.hand.find((card) => card.cardId === "farm.swat")!;
+        const onWheat = farm.pests.find((pest) => pest.tile === MID);
+        if (onWheat && !swat.played) await act({ type: "play", inventoryId: swat.inventoryId, tile: MID });
         await passTurns(1);
     }
-    const pick = farm.hand.find((card) => card.cardId === "farm.careful-pick")!;
     // Pests swatted on the way gave XP too: count only the harvest's.
     const xpBefore = (await me(token)).skillXp.farming ?? 0;
-    await act({ type: "play", inventoryId: pick.inventoryId, tile: MID });
+    await act({ type: "harvest", tile: MID });
     const wheat = farm.gained.find((gain) => gain.itemId === "wheat");
     assert.ok(wheat && wheat.quantity >= 1, "harvested wheat");
-    assert.equal(farm.hand.find((card) => card.inventoryId === pick.inventoryId)!.chargesLeft, pick.chargesLeft - 1);
     const after = await me(token);
     assert.ok(after.inventory.some((entry) => entry.itemId === "wheat" && entry.quantity === wheat.quantity));
     assert.equal(after.skillXp.farming, xpBefore + CONTENT.crops.wheat!.xp);
-    assert.equal(after.inventory.find((entry) => entry.id === pick.inventoryId)!.chargesLeft, pick.chargesLeft - 1);
-    step(`Careful Pick harvested ${wheat.quantity} wheat into the inventory, with farming XP and a charge spent`);
+    step(`harvesting is free: ${wheat.quantity} wheat into the inventory, with farming XP`);
 
     const mouse = { id: 999, pestId: "field-mouse", tile: MID, age: 0, intent: { kind: "move", tile: MID } };
     await withTransaction((tx) =>
-        tx(`UPDATE geo.farms SET state = jsonb_set(jsonb_set(state, '{pests}', $2::jsonb), '{labor}', '3') WHERE player_id = $1`, [
+        tx(`UPDATE geo.farms SET state = jsonb_set(jsonb_set(state, '{pests}', $2::jsonb), '{played}', '[]') WHERE player_id = $1`, [
             playerId,
             JSON.stringify([mouse]),
         ]),
     );
-    await act({ type: "swat", tile: MID });
+    const swat = farm.hand.find((card) => card.cardId === "farm.swat")!;
+    await act({ type: "play", inventoryId: swat.inventoryId, tile: MID });
     assert.equal(farm.pests.length, 0);
-    assert.equal(farm.labor, 1);
+    assert.equal(farm.hand.find((card) => card.inventoryId === swat.inventoryId)!.chargesLeft, swat.chargesLeft - 1);
     assert.ok(farm.gained.some((gain) => gain.itemId === "mouse-tail"));
     assert.ok((await me(token)).inventory.some((entry) => entry.itemId === "mouse-tail"));
-    await act({ type: "swat", tile: MID }, 400);
-    step("Swat clears a pest for 2 Labor, its drop into the inventory");
+    await act({ type: "play", inventoryId: swat.inventoryId, tile: MID }, 400);
+    step("the Swat card clears a pest, its drop into the inventory and a charge spent");
 
     const edge = MID - 2;
     await act({ type: "unlock", tile: edge }, 400);
@@ -178,26 +178,32 @@ try {
     assert.equal((await me(token)).player.coins, beforeOrder + order.reward);
     step("an Order Board order takes a deposit, and pays reward plus deposit on delivery");
 
-    await withTransaction((tx) => grantItems(tx, playerId, [{ itemId: "structure.compost-bin", quantity: 1 }]));
+    // Structures are built from their materials, from the Build list.
+    const bin = CONTENT.structures["compost-bin"]!;
+    const holding = async (itemId: string) => held((await me(token)).inventory, itemId);
+    await withTransaction((tx) => grantItems(tx, playerId, bin.cost));
     farm = (await call<GeoFarmView>("GET", GEO_API_PATHS.farm.root, token)).body;
-    assert.deepEqual(farm.structureKit.map((entry) => entry.structureId), ["compost-bin"]);
-    await act({ type: "place", tile: MID, itemId: "structure.compost-bin" });
+    assert.ok(farm.buildList.includes("compost-bin"));
+    const before = await Promise.all(bin.cost.map((entry) => holding(entry.itemId)));
+    await act({ type: "place", tile: MID, structureId: "compost-bin" });
     assert.equal(farm.tiles[MID]!.structure?.structureId, "compost-bin");
-    assert.ok(!(await me(token)).inventory.some((entry) => entry.itemId === "structure.compost-bin"));
-    await act({ type: "place", tile: MID, itemId: "structure.compost-bin" }, 400);
-    await act({ type: "pickup", tile: MID });
+    const built = await Promise.all(bin.cost.map((entry) => holding(entry.itemId)));
+    assert.deepEqual(built, before.map((have, i) => have - bin.cost[i]!.quantity));
+    await act({ type: "place", tile: MID, structureId: "compost-bin" }, 400);
+    await act({ type: "demolish", tile: MID });
     assert.equal(farm.tiles[MID]!.structure, null);
-    assert.ok((await me(token)).inventory.some((entry) => entry.itemId === "structure.compost-bin"));
-    step("a Compost Bin leaves the inventory when placed, and comes back on pick-up");
+    assert.deepEqual(await Promise.all(bin.cost.map((entry) => holding(entry.itemId))), built, "nothing back");
+    step("a Compost Bin is built from its materials, and demolished for nothing back");
 
-    await withTransaction((tx) => grantItems(tx, playerId, [{ itemId: "structure.mysterious-shrine", quantity: 1 }, { itemId: "mouse-tail", quantity: 4 }]));
+    const shrine = CONTENT.structures["mysterious-shrine"]!;
+    await withTransaction((tx) => grantItems(tx, playerId, [...shrine.cost, { itemId: "mouse-tail", quantity: 4 }]));
     farm = (await call<GeoFarmView>("GET", GEO_API_PATHS.farm.root, token)).body;
-    await act({ type: "place", tile: MID, itemId: "structure.mysterious-shrine" });
-    const tailsBefore = (await me(token)).inventory.find((entry) => entry.itemId === "mouse-tail")?.quantity ?? 0;
+    await act({ type: "place", tile: MID, structureId: "mysterious-shrine" });
+    const tailsBefore = await holding("mouse-tail");
     await act({ type: "offer", tile: MID, itemId: "mouse-tail", quantity: 4 });
     assert.ok(farm.log.some((line) => line.startsWith("The Shrine")), "the Shrine answered");
-    assert.equal((await me(token)).inventory.find((entry) => entry.itemId === "mouse-tail")?.quantity ?? 0, tailsBefore - 4);
-    await act({ type: "pickup", tile: MID });
+    assert.equal(await holding("mouse-tail"), tailsBefore - 4);
+    await act({ type: "demolish", tile: MID });
     step("the Mysterious Shrine takes an offering from the inventory and answers");
 
     await act({ type: "blueprint", tile: 0, cropId: "melon" });

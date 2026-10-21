@@ -55,7 +55,7 @@ async function loadRod(tx: TxQuery, playerId: string): Promise<RodDef> {
     const [row] = slot ? await playerRepository.findInventoryByIds(playerId, [slot.inventory_id], tx) : [];
     const item = row ? CONTENT.items[row.item_id] : undefined;
     if (item?.kind !== "equipment" || !item.rod) {
-        throw AppError.badRequest("Hold a fishing rod in your main hand: wear a fishing loadout from the Wardrobe. The Angler sells rods.");
+        throw AppError.badRequest("Hold a fishing rod in your main hand: save a loadout with one in the Wardrobe and it's worn when you fish. The Angler sells rods.");
     }
     return { name: item.name, ...item.rod };
 }
@@ -89,9 +89,9 @@ export async function startFishing(playerId: string, tier: GeoFishingTier): Prom
         const [active] = await tx<FishingRunRow>(FIND_ACTIVE_RUN, [playerId]);
         if (active && active.kind !== "fishing") throw AppError.badRequest("You're in a fight. Finish or flee it first.");
         if (!active) await dungeonFights.assertNotInDungeon(tx, playerId);
-        // Before the rod is read: auto-swap puts on the fishing loadout. A
-        // Run being resumed keeps what it started with.
-        if (!active) await wardrobeRepository.autoSwap(tx, playerId, "fishing");
+        // Before the rod is read: auto-swap puts on the fishing loadout, a
+        // Run being resumed included (say, combat gear worn since).
+        await wardrobeRepository.autoSwap(tx, playerId, { activity: "fishing" });
         const setup = await loadSetup(tx, playerId);
         if (active) return toFishingView(active.id, active.state, setup);
 
@@ -118,6 +118,8 @@ export async function actFishing(playerId: string, runId: string, action: GeoFis
         await playerRepository.lockPlayer(tx, playerId);
         await tx(ABANDON_STALE_RUNS, [playerId, ABANDON_AFTER_MINUTES]);
         const row = await findOpenRun(tx, playerId, runId);
+        // Gear changed mid-Run: auto-swap puts the fishing loadout back on.
+        await wardrobeRepository.autoSwap(tx, playerId, { activity: "fishing" });
         const setup = await loadSetup(tx, playerId);
 
         // A cast takes the first packed bait, unless a perk saves it. None
