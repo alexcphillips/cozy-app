@@ -1019,8 +1019,6 @@ export type WardrobeConfig = {
     maxSlots: number;
     /** Coins for the first slot bought past the start, then `step` more for each after. */
     slotCost: { first: number; step: number };
-    /** Coins to unlock auto-swap, once. */
-    autoSwapCost: number;
 };
 
 export type ElectionsConfig = {

@@ -24,8 +24,6 @@ export default {
     enemies: [
         { enemyId: "spider", weight: 10 },
         { enemyId: "green-slime", weight: 10 },
-        // Rare, coin-rich.
-        // { enemyId: "gilded-slime", weight: 1 },
     ],
     // PLACEHOLDER pulls. Each new spawn picks where it's from by weight:
     // `enemies` above has 1; a place nearby has its `weight` when you're on

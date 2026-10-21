@@ -14,7 +14,7 @@ import { startSmokeServer, step } from "./smoke-kit";
 /**
  * End-to-end check of the wardrobe against the local database: the starter
  * loadouts, wearing one, the active loadout following gear changes, the rod
- * in the main hand, buying slots and auto-swap, and auto-swap wearing the
+ * in the main hand, buying slots, and auto-swap wearing the
  * tagged loadout as a fishing Run or a fight starts. `npm run smoke:geo-wardrobe`.
  */
 const { call, registerPlayer, stop } = await startSmokeServer();
@@ -48,7 +48,7 @@ try {
     assert.equal(itemOf(state, state.equipment.mainHand), "twig-rod");
     await leaveFishing(freeSwap.body.id);
     assert.equal((await wear(0)).status, 200);
-    step("fishing in combat gear wears Fishing, without auto-swap bought");
+    step("fishing in combat gear wears Fishing");
 
     assert.equal((await call("PUT", slotPath(GEO_API_PATHS.me.loadoutAuto, 1), token, { autoFor: null })).status, 200);
     const untagged = await startFishing();
@@ -90,24 +90,16 @@ try {
     assert.equal((await wear(GAME_CONFIG.wardrobe.startingSlots)).status, 400);
     step("rename; empty names, renaming an empty slot and slots not owned: refused");
 
-    const tagEarly = await call("PUT", slotPath(GEO_API_PATHS.me.loadoutAuto, 1), token, { autoFor: "combat" });
-    assert.equal(tagEarly.status, 400);
-    const poor = await call("POST", GEO_API_PATHS.me.buyAutoSwap, token);
-    assert.equal(poor.status, 400);
-    step("tagging for combat before buying auto-swap, and buying it without the coins: refused");
-
-    const { autoSwapCost, slotCost } = GAME_CONFIG.wardrobe;
-    await withTransaction((tx) => addCoins(tx, player.id, autoSwapCost + slotCost.first, "admin-grant", "wardrobe-smoke"));
+    const { slotCost } = GAME_CONFIG.wardrobe;
+    assert.equal((await call("POST", GEO_API_PATHS.me.buyLoadoutSlot, token)).status, 400);
+    await withTransaction((tx) => addCoins(tx, player.id, slotCost.first, "admin-grant", "wardrobe-smoke"));
     const before = (await me()).player.coins;
-    assert.equal((await call("POST", GEO_API_PATHS.me.buyAutoSwap, token)).status, 200);
-    assert.equal((await call("POST", GEO_API_PATHS.me.buyAutoSwap, token)).status, 400);
     assert.equal((await call("POST", GEO_API_PATHS.me.buyLoadoutSlot, token)).status, 200);
     state = await me();
-    assert.equal(state.player.coins, before - autoSwapCost - slotCost.first);
-    assert.equal(state.wardrobe.autoSwap, true);
+    assert.equal(state.player.coins, before - slotCost.first);
     assert.equal(state.wardrobe.slots, GAME_CONFIG.wardrobe.startingSlots + 1);
     assert.equal(state.wardrobe.nextSlotCost, slotCost.first + slotCost.step);
-    step("auto-swap (once) and a slot bought; the next slot costs more");
+    step("a slot refused without the coins, then bought; the next slot costs more");
 
     for (const [slot, autoFor] of [[0, "combat"], [1, "fishing"]] as const) {
         assert.equal((await call("PUT", slotPath(GEO_API_PATHS.me.loadoutAuto, slot), token, { autoFor })).status, 200);

@@ -7,9 +7,8 @@ import * as wardrobeController from "./geo-wardrobe.controller";
 /** The wardrobe: saved loadouts, switching between them, and its upgrades. */
 export const geoWardrobeRouter: Router = Router();
 
-// The two purchases first, so "buy-slot" is never read as a slot number.
+// The purchase first, so "buy-slot" is never read as a slot number.
 geoWardrobeRouter.post(GEO_API_PATHS.me.buyLoadoutSlot, geoAuth, asyncHandler(wardrobeController.buyLoadoutSlot));
-geoWardrobeRouter.post(GEO_API_PATHS.me.buyAutoSwap, geoAuth, asyncHandler(wardrobeController.buyAutoSwap));
 geoWardrobeRouter.put(GEO_API_PATHS.me.loadout, geoAuth, asyncHandler(wardrobeController.saveLoadout));
 geoWardrobeRouter.delete(GEO_API_PATHS.me.loadout, geoAuth, asyncHandler(wardrobeController.deleteLoadout));
 geoWardrobeRouter.post(GEO_API_PATHS.me.wearLoadout, geoAuth, asyncHandler(wardrobeController.wearLoadout));

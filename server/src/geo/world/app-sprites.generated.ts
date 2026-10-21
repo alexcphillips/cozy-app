@@ -9,10 +9,10 @@ export const APP_SPRITES = [
     "crystal-slime",
     "dreadclaw-crab",
     "giant-river-crab",
-    "gilded-slime",
     "green-slime",
     "knight",
     "magma-slime",
+    "mother-slime",
     "spider",
     "tarantula",
 ] as const;

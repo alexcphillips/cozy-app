@@ -76,7 +76,7 @@ async function main() {
         await tx(
             `TRUNCATE ${PROGRESS_TABLES.map((table) => `geo.${table}`).join(", ")}`,
         );
-        await tx(`UPDATE geo.players SET coins = 0, bank_coins = 0, wardrobe_bought = 0, wardrobe_auto_swap = false, active_loadout = NULL, talisman_bag_pages = 1, lunchbox_slots = 1, bait_slots = 1, health = NULL,
+        await tx(`UPDATE geo.players SET coins = 0, bank_coins = 0, wardrobe_bought = 0, active_loadout = NULL, talisman_bag_pages = 1, lunchbox_slots = 1, bait_slots = 1, health = NULL,
             camp_latitude = NULL, camp_longitude = NULL, camp_set_at = NULL`);
         for (const { id } of players) await grantStarterKit(tx, id);
     });

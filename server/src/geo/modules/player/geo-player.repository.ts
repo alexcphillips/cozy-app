@@ -502,8 +502,7 @@ export type CoinReason =
     | "admin-grant"
     | "bank-deposit"
     | "bank-withdraw"
-    | "wardrobe-slot"
-    | "wardrobe-auto-swap";
+    | "wardrobe-slot";
 
 /** Locks one owned row, or null if the player doesn't own it. */
 export async function lockInventoryRow(tx: TxQuery, playerId: string, inventoryId: string): Promise<InventoryRow | null> {

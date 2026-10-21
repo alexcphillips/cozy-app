@@ -6,5 +6,4 @@ export default {
     maxSlots: 9,
     // 5,000 for the 4th slot, 10,000 for the 5th, ... 30,000 for the 9th.
     slotCost: { first: 5_000, step: 5_000 },
-    autoSwapCost: 25_000,
 } satisfies WardrobeConfig;

@@ -9,8 +9,7 @@ import type { Enemy } from "#geo/models";
 export default {
     id: "mother-slime",
     name: "Mother Slime",
-    // PLACEHOLDER: until the Mother Slime has her own sprite.
-    sprite: "green-slime",
+    sprite: "mother-slime",
     tier: 1,
     stats: { maxHealth: 60, attack: 10, defense: 2, speed: 11 },
     moves: [

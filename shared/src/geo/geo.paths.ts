@@ -45,8 +45,6 @@ export const GEO_API_PATHS = {
         loadoutAuto: "/geo/me/wardrobe/:slot/auto",
         /** POST: buys one more loadout slot. */
         buyLoadoutSlot: "/geo/me/wardrobe/buy-slot",
-        /** POST: buys auto-swap. */
-        buyAutoSwap: "/geo/me/wardrobe/buy-auto-swap",
         /** PUT { inventoryId }: the active pet (null puts it away). */
         activePet: "/geo/me/pet",
         /** PUT { inventoryId } gives the pet a held item; DELETE takes it off, for coins. */

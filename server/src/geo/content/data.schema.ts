@@ -726,7 +726,6 @@ const WardrobeConfig = z
         startingSlots: z.int().min(1),
         maxSlots: z.int().min(1),
         slotCost: z.strictObject({ first: z.int().min(0), step: z.int().min(0) }),
-        autoSwapCost: z.int().min(0),
     })
     .refine((config) => config.maxSlots >= config.startingSlots, "maxSlots must be at least startingSlots");
 

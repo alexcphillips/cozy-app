@@ -124,8 +124,9 @@ const STATEMENTS = [
     `CREATE UNIQUE INDEX IF NOT EXISTS loadouts_auto_for_idx ON geo.loadouts (player_id, auto_for) WHERE auto_for IS NOT NULL;`,
     `ALTER TABLE geo.players
         ADD COLUMN IF NOT EXISTS wardrobe_bought SMALLINT NOT NULL DEFAULT 0 CHECK (wardrobe_bought >= 0),
-        ADD COLUMN IF NOT EXISTS wardrobe_auto_swap BOOLEAN NOT NULL DEFAULT false,
         ADD COLUMN IF NOT EXISTS active_loadout SMALLINT;`,
+    // Auto-swap was a bought upgrade; it's free now.
+    `ALTER TABLE geo.players DROP COLUMN IF EXISTS wardrobe_auto_swap;`,
 
     // Talismans count only while in the bag, and only one copy of each: the
     // primary key on item_id is what stops duplicates.

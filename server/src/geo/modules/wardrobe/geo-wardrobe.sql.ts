@@ -1,5 +1,5 @@
 export const FIND_WARDROBE_STATE = `
-  SELECT wardrobe_bought, wardrobe_auto_swap, active_loadout FROM geo.players WHERE id = $1;
+  SELECT wardrobe_bought, active_loadout FROM geo.players WHERE id = $1;
 `;
 
 export const FIND_LOADOUTS = `
@@ -77,8 +77,4 @@ export const FIND_MAIN_HAND_ITEM = `
 
 export const ADD_BOUGHT_SLOT = `
   UPDATE geo.players SET wardrobe_bought = wardrobe_bought + 1 WHERE id = $1;
-`;
-
-export const SET_AUTO_SWAP_OWNED = `
-  UPDATE geo.players SET wardrobe_auto_swap = true WHERE id = $1;
 `;

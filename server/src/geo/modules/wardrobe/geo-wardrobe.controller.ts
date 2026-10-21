@@ -7,7 +7,6 @@ import {
     type GeoSaveLoadoutRequest,
 } from "@cozy/shared/geo";
 import { AppError } from "../../../http/AppError";
-import { GAME_CONFIG } from "../../content";
 import { withTransaction } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
 import * as playerRepository from "../player/geo-player.repository";
@@ -92,18 +91,6 @@ export async function buyLoadoutSlot(req: Request, res: Response) {
         const cost = await wardrobeRepository.quoteSlot(tx, playerId);
         await playerRepository.spendCoins(tx, playerId, cost, "wardrobe-slot", "wardrobe");
         await wardrobeRepository.addBoughtSlot(tx, playerId);
-    });
-    await replyMe(res, playerId);
-}
-
-/** `POST /geo/me/wardrobe/buy-auto-swap`: once. */
-export async function buyAutoSwap(req: Request, res: Response) {
-    const playerId = requirePlayerId(req);
-    await withTransaction(async (tx) => {
-        await playerRepository.lockPlayer(tx, playerId);
-        await wardrobeRepository.assertAutoSwapNotOwned(tx, playerId);
-        await playerRepository.spendCoins(tx, playerId, GAME_CONFIG.wardrobe.autoSwapCost, "wardrobe-auto-swap", "wardrobe");
-        await wardrobeRepository.markAutoSwapOwned(tx, playerId);
     });
     await replyMe(res, playerId);
 }
