@@ -8,11 +8,11 @@ import {
 } from "@cozy/shared/geo";
 import { AppError } from "../../../http/AppError";
 import { requirePlayerId } from "../../middleware/geo-auth";
+import { isUuid } from "../../lib/validate";
 import { countPending } from "../chests/geo-chests.repository";
 import { countUnread } from "../inbox/geo-inbox.repository";
 import * as friendsRepository from "./geo-friends.repository";
 
-const UUID = /^[0-9a-f-]{36}$/i;
 /** A skill id: a short slug, never free text a friend would see. */
 const SKILL = /^[a-z][a-z0-9-]{0,39}$/;
 
@@ -22,7 +22,7 @@ function isActivity(activity: unknown): activity is GeoActivity {
 
 function param(req: Request, name: string, what: string): string {
     const value = String(req.params[name] ?? "");
-    if (!UUID.test(value)) throw AppError.notFound(`No such ${what}`);
+    if (!isUuid(value)) throw AppError.notFound(`No such ${what}`);
     return value;
 }
 

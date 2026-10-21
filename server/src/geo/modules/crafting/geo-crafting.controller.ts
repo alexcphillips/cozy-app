@@ -4,14 +4,12 @@ import { AppError } from "../../../http/AppError";
 import { CONTENT } from "../../content";
 import { withTransaction } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
+import { wholeNumber } from "../../lib/validate";
 import * as playerRepository from "../player/geo-player.repository";
 import * as questsRepository from "../quests/geo-quests.repository";
 
 function readQuantity(value: unknown): number {
-    if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1 || value > GEO_CRAFT_MAX_QUANTITY) {
-        throw AppError.badRequest(`Choose between 1 and ${GEO_CRAFT_MAX_QUANTITY}`);
-    }
-    return value;
+    return wholeNumber(value, 1, GEO_CRAFT_MAX_QUANTITY, AppError.badRequest(`Choose between 1 and ${GEO_CRAFT_MAX_QUANTITY}`));
 }
 
 /**

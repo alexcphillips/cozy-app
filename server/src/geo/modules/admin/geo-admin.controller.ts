@@ -32,6 +32,7 @@ import { AppError } from "../../../http/AppError";
 import { CONTENT } from "../../content";
 import { withTransaction } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
+import { isUuid } from "../../lib/validate";
 import { revokeAllSessions } from "../accounts/geo-accounts.repository";
 import * as farmingRepository from "../farming/geo-farming.repository";
 import * as feedbackRepository from "../feedback/geo-feedback.repository";
@@ -52,7 +53,7 @@ const MAX_ITEM_GRANT = 999;
 
 function targetId(req: Request): string {
     const id = String(req.params.playerId ?? "");
-    if (!/^[0-9a-f-]{36}$/i.test(id)) throw AppError.badRequest("Bad player id");
+    if (!isUuid(id)) throw AppError.badRequest("Bad player id");
     return id;
 }
 
@@ -217,7 +218,7 @@ export async function farmNextCycle(req: Request, res: Response) {
 export async function removeListing(req: Request, res: Response) {
     const adminId = requirePlayerId(req);
     const listingId = String(req.params.listingId ?? "");
-    if (!/^[0-9a-f-]{36}$/i.test(listingId)) throw AppError.notFound("That listing is gone");
+    if (!isUuid(listingId)) throw AppError.notFound("That listing is gone");
     await withTransaction(async (tx) => {
         const row = await marketRepository.removeListing(tx, listingId);
         await adminRepository.audit(tx, adminId, "remove-listing", listingId, {
@@ -255,7 +256,7 @@ export async function listSuggestions(req: Request, res: Response) {
 export async function reviewSuggestion(req: Request, res: Response) {
     const adminId = requirePlayerId(req);
     const suggestionId = String(req.params.suggestionId ?? "");
-    if (!/^[0-9a-f-]{36}$/i.test(suggestionId)) throw AppError.badRequest("Bad suggestion id");
+    if (!isUuid(suggestionId)) throw AppError.badRequest("Bad suggestion id");
     const { status, reviewNote } = (req.body ?? {}) as Partial<GeoAdminReviewSuggestionRequest>;
     if (!isSuggestionStatus(status)) throw AppError.badRequest("status must be open, accepted or rejected");
     if (status === "accepted") throw AppError.badRequest("Accept a suggestion by creating its place");
@@ -277,7 +278,7 @@ export async function reviewSuggestion(req: Request, res: Response) {
 export async function adjustSuggestion(req: Request, res: Response) {
     const adminId = requirePlayerId(req);
     const suggestionId = String(req.params.suggestionId ?? "");
-    if (!/^[0-9a-f-]{36}$/i.test(suggestionId)) throw AppError.badRequest("Bad suggestion id");
+    if (!isUuid(suggestionId)) throw AppError.badRequest("Bad suggestion id");
     const { kind, latitude, longitude } = (req.body ?? {}) as Partial<Record<keyof GeoAdminAdjustSuggestionRequest, unknown>>;
     if (kind !== undefined && !GEO_SUGGESTION_KINDS.includes(kind as GeoSuggestionKind)) {
         throw AppError.badRequest(`kind must be one of ${GEO_SUGGESTION_KINDS.join(", ")}`);
@@ -310,7 +311,7 @@ function isFeedbackStatus(status: unknown): status is GeoFeedbackStatus {
 
 function feedbackId(req: Request): string {
     const id = String(req.params.feedbackId ?? "");
-    if (!/^[0-9a-f-]{36}$/i.test(id)) throw AppError.notFound("Feedback not found");
+    if (!isUuid(id)) throw AppError.notFound("Feedback not found");
     return id;
 }
 
@@ -410,7 +411,7 @@ export async function postAnnouncement(req: Request, res: Response) {
 export async function deleteAnnouncement(req: Request, res: Response) {
     const adminId = requirePlayerId(req);
     const id = String(req.params.announcementId ?? "");
-    if (!/^[0-9a-f-]{36}$/i.test(id)) throw AppError.notFound("Announcement not found");
+    if (!isUuid(id)) throw AppError.notFound("Announcement not found");
     await withTransaction(async (tx) => {
         const deleted = await inboxRepository.deleteAnnouncement(tx, id);
         if (!deleted) throw AppError.notFound("Announcement not found");

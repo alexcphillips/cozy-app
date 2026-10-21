@@ -9,13 +9,13 @@ import {
 import { query } from "../../../db";
 import { AppError } from "../../../http/AppError";
 import { requirePlayerId } from "../../middleware/geo-auth";
+import { isUuid } from "../../lib/validate";
 import * as dungeonsRepository from "./geo-dungeons.repository";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function lobbyId(req: Request): string {
     const id = String(req.params.lobbyId ?? "");
-    if (!UUID.test(id)) throw AppError.badRequest("Bad lobby id");
+    if (!isUuid(id)) throw AppError.badRequest("Bad lobby id");
     return id;
 }
 

@@ -14,6 +14,7 @@ import { AppError } from "../../../http/AppError";
 import { CONTENT, reforgesFor, npcBuys, sellValueOf, type VendorDef } from "../../content";
 import { withTransaction } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
+import { wholeNumber } from "../../lib/validate";
 import * as playerRepository from "../player/geo-player.repository";
 import { applyModifiers, globalModifiers } from "../../world/global-effects";
 import type { StatModifier } from "../../engine/engine.types";
@@ -66,10 +67,7 @@ function findVendor(req: Request): VendorDef {
 }
 
 function readQuantity(value: unknown): number {
-    if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1 || value > GEO_VENDOR_MAX_QUANTITY) {
-        throw AppError.badRequest(`Choose between 1 and ${GEO_VENDOR_MAX_QUANTITY}`);
-    }
-    return value;
+    return wholeNumber(value, 1, GEO_VENDOR_MAX_QUANTITY, AppError.badRequest(`Choose between 1 and ${GEO_VENDOR_MAX_QUANTITY}`));
 }
 
 export async function listVendors(_req: Request, res: Response) {

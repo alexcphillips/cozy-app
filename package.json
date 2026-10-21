@@ -15,7 +15,8 @@
         "build": "npm run build --workspace @cozy/ui",
         "typecheck": "npm run typecheck --workspaces --if-present",
         "lint": "eslint .",
-        "verify": "npm run typecheck && npm run lint && npm run build"
+        "verify": "npm run typecheck && npm run lint && npm run build",
+        "check:geo": "npm run typecheck --workspace @cozy/shared --workspace @cozy/server && eslint server/src/geo shared/src/geo && npm run test:geo --workspace @cozy/server && npm run geo:data --workspace @cozy/server"
     },
     "devDependencies": {
         "@eslint/js": "^9.39.1",

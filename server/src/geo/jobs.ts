@@ -32,12 +32,12 @@ export function startGeoJobs(): () => void {
     const tick = async () => {
         if (running) return;
         running = true;
+        // Each on its own, so one failing (a bad auction row) can't hold up the others.
+        const steps = { settleEndedAuctions, advanceElections, settleFarmWeeks };
         try {
-            await settleEndedAuctions();
-            await advanceElections();
-            await settleFarmWeeks();
-        } catch (error) {
-            console.error("geo jobs:", error);
+            for (const [name, step] of Object.entries(steps)) {
+                await step().catch((error: unknown) => console.error(`geo jobs (${name}):`, error));
+            }
         } finally {
             running = false;
         }

@@ -845,7 +845,6 @@ describe("damage dealt bonus", () => {
 
 describe("status damage", () => {
     const boosted = [{ stat: "damageDealt", kind: "flat" as const, value: 0.5 }];
-    const target = () => spider({ baseStats: { maxHealth: 500, attack: 0, speed: 1 } });
 
     it("isn't raised by damage-dealt bonuses, even from a status the player carries", () => {
         // A status on the player that hurts whoever attacks them.

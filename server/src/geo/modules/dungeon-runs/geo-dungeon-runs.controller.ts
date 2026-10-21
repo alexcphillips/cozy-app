@@ -2,13 +2,13 @@ import type { Request, Response } from "express";
 import type { GeoDungeonMoveRequest, GeoDungeonPuzzleRequest } from "@cozy/shared/geo";
 import { AppError } from "../../../http/AppError";
 import { requirePlayerId } from "../../middleware/geo-auth";
+import { isUuid } from "../../lib/validate";
 import * as dungeonRunsRepository from "./geo-dungeon-runs.repository";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function dungeonRunId(req: Request): string {
     const id = String(req.params.dungeonRunId ?? "");
-    if (!UUID.test(id)) throw AppError.badRequest("Bad dungeon run id");
+    if (!isUuid(id)) throw AppError.badRequest("Bad dungeon run id");
     return id;
 }
 

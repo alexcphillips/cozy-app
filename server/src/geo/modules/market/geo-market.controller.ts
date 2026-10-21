@@ -12,22 +12,20 @@ import {
 import { AppError } from "../../../http/AppError";
 import { CONTENT } from "../../content";
 import { requirePlayerId } from "../../middleware/geo-auth";
+import { isUuid, wholeNumber } from "../../lib/validate";
 import * as playerRepository from "../player/geo-player.repository";
 import * as marketRepository from "./geo-market.repository";
 
 /** Most units one stack listing or purchase may move. */
 const MAX_STACK_QUANTITY = GEO_VENDOR_MAX_QUANTITY;
 
-function wholeNumber(value: unknown, name: string, min: number, max: number): number {
-    if (typeof value !== "number" || !Number.isSafeInteger(value) || value < min || value > max) {
-        throw AppError.badRequest(`${name} must be a whole number from ${min.toLocaleString()} to ${max.toLocaleString()}`);
-    }
-    return value;
+function wholeNumberOf(value: unknown, name: string, min: number, max: number): number {
+    return wholeNumber(value, min, max, AppError.badRequest(`${name} must be a whole number from ${min.toLocaleString()} to ${max.toLocaleString()}`));
 }
 
 function listingId(req: Request): string {
     const id = String(req.params.listingId ?? "");
-    if (!/^[0-9a-f-]{36}$/i.test(id)) throw AppError.notFound("That listing is gone");
+    if (!isUuid(id)) throw AppError.notFound("That listing is gone");
     return id;
 }
 
@@ -68,7 +66,7 @@ export async function createListing(req: Request, res: Response) {
     const body = (req.body ?? {}) as Partial<GeoCreateListingRequest>;
     if (typeof body.inventoryId !== "string" || !body.inventoryId) throw AppError.badRequest("Missing inventoryId");
     if (body.type !== "auction" && body.type !== "bin") throw AppError.badRequest("type must be auction or bin");
-    const quantity = wholeNumber(body.quantity, "quantity", 1, MAX_STACK_QUANTITY);
+    const quantity = wholeNumberOf(body.quantity, "quantity", 1, MAX_STACK_QUANTITY);
 
     let hours: GeoAuctionHours | undefined;
     if (body.type === "auction") {
@@ -82,8 +80,8 @@ export async function createListing(req: Request, res: Response) {
         inventoryId: body.inventoryId,
         type: body.type,
         quantity,
-        price: body.type === "bin" ? wholeNumber(body.price, "price", 1, GEO_MAX_PRICE) : undefined,
-        startingBid: body.type === "auction" ? wholeNumber(body.startingBid, "startingBid", 1, GEO_MAX_PRICE) : undefined,
+        price: body.type === "bin" ? wholeNumberOf(body.price, "price", 1, GEO_MAX_PRICE) : undefined,
+        startingBid: body.type === "auction" ? wholeNumberOf(body.startingBid, "startingBid", 1, GEO_MAX_PRICE) : undefined,
         hours,
     });
     await replyWithMe(res, playerId, 201);
@@ -92,7 +90,7 @@ export async function createListing(req: Request, res: Response) {
 export async function buyListing(req: Request, res: Response) {
     const playerId = requirePlayerId(req);
     const { expectedPrice } = (req.body ?? {}) as Partial<GeoBuyListingRequest>;
-    await marketRepository.buyListing(playerId, listingId(req), wholeNumber(expectedPrice, "expectedPrice", 1, GEO_MAX_PRICE));
+    await marketRepository.buyListing(playerId, listingId(req), wholeNumberOf(expectedPrice, "expectedPrice", 1, GEO_MAX_PRICE));
     await replyWithMe(res, playerId);
 }
 
@@ -104,8 +102,8 @@ export async function buyStack(req: Request, res: Response) {
     await marketRepository.buyStack(
         playerId,
         itemId,
-        wholeNumber(quantity, "quantity", 1, MAX_STACK_QUANTITY),
-        wholeNumber(expectedTotal, "expectedTotal", 1, GEO_MAX_PRICE),
+        wholeNumberOf(quantity, "quantity", 1, MAX_STACK_QUANTITY),
+        wholeNumberOf(expectedTotal, "expectedTotal", 1, GEO_MAX_PRICE),
     );
     await replyWithMe(res, playerId);
 }
@@ -115,7 +113,7 @@ export async function placeBid(req: Request, res: Response) {
     const id = listingId(req);
     await settleOne(id);
     const { amount } = (req.body ?? {}) as Partial<GeoBidRequest>;
-    await marketRepository.placeBid(playerId, id, wholeNumber(amount, "amount", 1, GEO_MAX_PRICE));
+    await marketRepository.placeBid(playerId, id, wholeNumberOf(amount, "amount", 1, GEO_MAX_PRICE));
     await replyWithMe(res, playerId);
 }
 

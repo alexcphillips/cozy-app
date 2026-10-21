@@ -21,6 +21,7 @@ import { geoSuggestionsRouter } from "./modules/suggestions/geo-suggestions.rout
 import { geoVendorsRouter } from "./modules/vendors/geo-vendors.routes";
 import { geoWardrobeRouter } from "./modules/wardrobe/geo-wardrobe.routes";
 import { geoWorldRouter } from "./modules/world/geo-world.routes";
+import { geoDbErrors } from "./middleware/geo-db-errors";
 
 /**
  * geo-game's route manifest: every geo module, mounted once. cozy-app's
@@ -51,3 +52,6 @@ geoRouter.use(geoSuggestionsRouter);
 geoRouter.use(geoInboxRouter);
 geoRouter.use(geoFeedbackRouter);
 geoRouter.use(geoAdminRouter);
+
+// Last: errors from every geo route above.
+geoRouter.use(geoDbErrors);

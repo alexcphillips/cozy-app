@@ -54,6 +54,10 @@ try {
 
     assert.equal((await call("GET", GEO_API_PATHS.me.root)).status, 401);
     assert.equal((await call("GET", GEO_API_PATHS.me.root, "not-a-token")).status, 401);
+
+    // A malformed id is the caller's mistake (400), not a server error.
+    const badRunId = await call("POST", GEO_API_PATHS.runs.flee.replace(":runId", "not-a-uuid"), accessToken);
+    assert.equal(badRunId.status, 400, JSON.stringify(badRunId.body));
     step("me rejects missing and bad tokens");
 
     const me = await call<GeoMeResponse>("GET", GEO_API_PATHS.me.root, accessToken);

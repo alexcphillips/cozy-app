@@ -19,12 +19,12 @@ import {
 import { AppError } from "../../../http/AppError";
 import { withTransaction } from "../../db/transaction";
 import { requirePlayerId } from "../../middleware/geo-auth";
+import { isUuid } from "../../lib/validate";
 import * as adminRepository from "../admin/geo-admin.repository";
 import * as suggestionsRepository from "../suggestions/geo-suggestions.repository";
 import * as placesRepository from "./geo-places.repository";
 import type { PlaceChanges } from "./geo-places.types";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isKind(kind: unknown): kind is GeoPlaceKind {
     return GEO_PLACE_KINDS.includes(kind as GeoPlaceKind);
@@ -32,7 +32,7 @@ function isKind(kind: unknown): kind is GeoPlaceKind {
 
 function placeId(req: Request): string {
     const id = String(req.params.placeId ?? "");
-    if (!UUID.test(id)) throw AppError.badRequest("Bad place id");
+    if (!isUuid(id)) throw AppError.badRequest("Bad place id");
     return id;
 }
 
@@ -102,7 +102,7 @@ export async function createPlace(req: Request, res: Response) {
     if (!isKind(kind)) throw AppError.badRequest(`kind must be one of ${GEO_PLACE_KINDS.join(", ")}`);
     const point = { latitude, longitude };
     if (!isValidPoint(point)) throw AppError.badRequest("A valid latitude and longitude are needed");
-    if (suggestionId !== undefined && (typeof suggestionId !== "string" || !UUID.test(suggestionId))) {
+    if (suggestionId !== undefined && !isUuid(suggestionId)) {
         throw AppError.badRequest("Bad suggestion id");
     }
     const place = {
