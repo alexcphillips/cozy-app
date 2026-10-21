@@ -245,7 +245,7 @@ export type Pet = {
     name: string;
     /** A Game Icons name, for lists that don't draw the pet's art. */
     icon: string;
-    /** The app's pet art: `features/pets/assets/<image>.png`. */
+    /** The app's pet art: `features/items/art/pets/<image>.png`. */
     image: string;
     description: string;
     /** It gains full XP from this skill's XP, and a share of every other skill's (config/pets). */

@@ -21,7 +21,7 @@ Model: `Pet` in `#geo/models` (`content/models.ts`). Hover any field in the edit
 | `id`                  | text                                                  | yes       | Must match the file name. Items are `pet.<id>.<rarity>`.                             |
 | `name`, `description` | text                                                  | yes       | Shown in the app.                                                                    |
 | `icon`                | Game Icons name                                       | yes       | For lists that don't draw the pet's art.                                             |
-| `image`               | text                                                  | yes       | The app's art: `features/pets/assets/<image>.png` in geo-game (`npm run pet-icons`). |
+| `image`               | text                                                  | yes       | The app's art: `features/items/art/pets/<image>.png` in geo-game (`npm run item-art`). |
 | `skill`               | skill                                                 | yes       | It gains full XP from this skill.                                                    |
 | `rarities`            | list of rarities, lowest first                        | yes       | The rarities it comes in; Kat raises it through these.                               |
 | `stats`               | list of [pet stats](#pet-stats)                       | yes       | Stats that grow with level. Can be empty.                                            |

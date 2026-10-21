@@ -19,7 +19,7 @@ Read ARCHITECTURE.md for the repo's layout. Most work here is geo-game's backend
 - Anything writing more than one row runs in `withTransaction`, takes `playerRepository.lockPlayer` first, and only queries through `tx`. Mid-Run guards: `runsRepository.assertNotInRun`, `assertHandNotInRun`.
 - Content is one TypeScript file per thing in `data/`, typed `satisfies <Model>` from `#geo/models`. The loader checks it at boot.
 - Combat rules are data (`data/EFFECTS.md`); a new trigger, condition or action goes in `engine/engine.types.ts` and `engine/battle.ts`, with a test.
-- `world/app-sprites.generated.ts` is written by geo-game's `npm run sprites`; don't edit it.
+- `world/app-sprites.generated.ts` is written by geo-game's sprite generator (runs on its `npm start`, or `npm run assets`); don't edit it.
 
 ## Shell
 
