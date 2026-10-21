@@ -8,7 +8,15 @@ import type {
 } from "@cozy/shared/geo";
 import { GEO_QUALITY_TIERS } from "@cozy/shared/geo";
 import type { Rarity } from "../content/content.types";
-import { FISHING_TUNING, PAR_TURNS, RARITY_DIFFICULTY, RARITY_WEIGHT, SEA_CREATURES, WATER_RARITIES } from "../content";
+import {
+    FISHING_TUNING,
+    PAR_TURNS,
+    RARITY_DIFFICULTY,
+    RARITY_POWER,
+    RARITY_WEIGHT,
+    SEA_CREATURES,
+    WATER_RARITIES,
+} from "../content";
 import { RARITIES } from "../content/data.schema";
 import { isFishingCardId, type FishDef, type FishingCardId, type RodDef } from "../content/fishing";
 import { createRng, type Rng } from "../engine/rng";
@@ -109,6 +117,9 @@ export function newFishingState(tier: GeoFishingTier, hand: FishingHandCard[], s
 }
 
 const INTENT_VERBS: Record<GeoFishIntent, string> = { run: "runs", thrash: "thrashes", dive: "dives", rest: "rests", jump: "jumps" };
+
+/** How far Feather the Drag pulls Tension toward the zone's middle. */
+const FEATHER_PULL = 3;
 
 const fmt = (n: number) => String(Math.round(n * 10) / 10);
 
@@ -255,8 +266,10 @@ function playCard(state: FishingState, inventoryId: string, setup: FishingSetup,
     card.chargesLeft -= 1;
 
     const f = state.fight;
+    const finesseBefore = f.finesse;
     const say = (line: string) => state.lastTurn.push(line);
-    const power = setup.power;
+    // Rarer fish shrug off part of your Fishing Power.
+    const power = Math.max(0, setup.power - RARITY_POWER[fish.rarity]);
     const reelBonus = Math.floor(power / 6);
     let intent = f.intents[0]!;
 
@@ -378,7 +391,10 @@ function playCard(state: FishingState, inventoryId: string, setup: FishingSetup,
             break;
     }
     if (fish.traits.includes("slippery")) f.tension -= 1;
-    if (feather) f.tension = (f.zoneLow + f.zoneHigh) / 2;
+    if (feather) {
+        const mid = (f.zoneLow + f.zoneHigh) / 2;
+        f.tension += Math.max(-FEATHER_PULL, Math.min(FEATHER_PULL, mid - f.tension));
+    }
     say(`It ${INTENT_VERBS[intent]}`);
 
     if (f.tension > f.cap) return over(state, { kind: "lost", reason: "The line snapped.", turns: f.turn });
@@ -405,8 +421,9 @@ function playCard(state: FishingState, inventoryId: string, setup: FishingSetup,
         if (!f.exhausted) f.finesse += 1 + (f.statuses.focus > 0 ? 1 : 0) + steadyBonus;
         f.stamina = Math.max(0, f.stamina - (1 + power / 6));
     }
+    // Past par you're stalling: nothing earns Finesse, and each turn costs 1.
     if (f.turn > f.par) {
-        f.finesse -= 1;
+        f.finesse = Math.min(f.finesse, finesseBefore) - 1;
         say("Past par: −1 finesse");
     }
 

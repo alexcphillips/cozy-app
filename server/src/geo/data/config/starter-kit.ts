@@ -8,7 +8,7 @@ export default {
         { itemId: "card.double-slash", quantity: 1 },
         { itemId: "card.fish.reel", quantity: 1 },
         { itemId: "card.fish.slack", quantity: 1 },
-        { itemId: "card.fish.steady", quantity: 1 },
+        { itemId: "card.fish.tire", quantity: 1 },
         { itemId: "card.fish.gaff", quantity: 1 },
         { itemId: "card.farm.hold", quantity: 1 },
         { itemId: "card.farm.swat", quantity: 1 },

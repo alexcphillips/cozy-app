@@ -8,7 +8,7 @@ export default {
     description: "A light touch on the spool.",
     stats: [
         { label: "Role", value: "Control" },
-        { label: "Does", value: "After the fish moves, Tension settles mid-zone. +1 Finesse." },
+        { label: "Does", value: "After the fish moves, Tension shifts up to 3 toward mid-zone. +1 Finesse." },
     ],
     skill: "fishing",
     maxCharges: 15,

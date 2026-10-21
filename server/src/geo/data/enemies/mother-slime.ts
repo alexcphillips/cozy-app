@@ -5,11 +5,12 @@ import type { Enemy } from "#geo/models";
 // starter kit never wins, even at full health with its best play; a
 // Venomfang Dagger and one armor piece win from 65 health with its worst
 // play; Venomfang alone usually loses. Defense 2 is what the bronze dagger
-// can't get through, and Acid Spray's four light hits are what armor blunts.
+// can't get through, and Slimeling Swarm's four light hits are what armor blunts.
 export default {
     id: "mother-slime",
     name: "Mother Slime",
-    sprite: "acid-slime",
+    // PLACEHOLDER: until the Mother Slime has her own sprite.
+    sprite: "green-slime",
     tier: 1,
     stats: { maxHealth: 60, attack: 10, defense: 2, speed: 11 },
     moves: [
@@ -20,8 +21,8 @@ export default {
             actions: [{ type: "attack", to: "other", amount: { stat: "attack" }, delivery: "melee" }],
         },
         {
-            id: "acid-spray",
-            name: "Acid Spray",
+            id: "slimeling-swarm",
+            name: "Slimeling Swarm",
             weight: 1,
             actions: [{ type: "attack", to: "other", amount: { stat: "attack", multiplier: 0.4 }, hits: 4, delivery: "melee" }],
         },

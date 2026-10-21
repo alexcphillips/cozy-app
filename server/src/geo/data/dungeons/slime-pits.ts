@@ -5,7 +5,7 @@ import type { Dungeon } from "#geo/models";
 export default {
     id: "slime-pits",
     name: "Slime Pits",
-    description: "Something huge and acidic has settled at the bottom of the pits.",
+    description: "Something huge has settled at the bottom of the pits, and the slimes keep coming from it.",
     boss: "mother-slime",
     requiredLevel: 0,
     maxPlayers: 4,

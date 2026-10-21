@@ -1,6 +1,6 @@
 import type { DungeonLayout } from "#geo/models";
 
-// A long Acid Pool (2×1) and a Drip Hall (2×1). The boss is north, west or
+// A long Brood Pool (2×1) and a Drip Hall (2×1). The boss is north, west or
 // south-west; the other two slots roll from the pool.
 export default {
     id: "slime-pits-b",
@@ -16,7 +16,7 @@ export default {
     `,
     rooms: {
         E: "entrance",
-        p: { kind: "encounter", name: "Acid Pool" },
+        p: { kind: "encounter", name: "Brood Pool" },
         h: { kind: "event", name: "Drip Hall" },
         s: "star",
     },

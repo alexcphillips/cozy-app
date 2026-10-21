@@ -632,6 +632,7 @@ const FishingConfig = z.strictObject({
     rarityWeight: byRarity(z.number().min(0)),
     waterRarities: z.record(z.enum(GEO_FISHING_TIERS), z.array(Rarity).min(1)),
     rarityDifficulty: byRarity(z.number().positive()),
+    rarityPower: byRarity(z.int().min(0)),
     parTurns: byRarity(count),
     sellValue: byRarity(z.int().min(0)),
     tuning: z.strictObject({

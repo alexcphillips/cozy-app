@@ -989,7 +989,9 @@ export type FishingConfig = {
     waterRarities: Record<GeoFishingTier, Rarity[]>;
     /** Quality thresholds × this: rarer fish need more Finesse. */
     rarityDifficulty: Record<Rarity, number>;
-    /** Turns a clean fight should take. Past par, each turn costs 1 Finesse. */
+    /** Fishing Power a fish of this rarity shrugs off: only power above it reels faster and tires it quicker. */
+    rarityPower: Record<Rarity, number>;
+    /** Turns a clean fight should take. Past par, nothing earns Finesse and each turn costs 1. */
     parTurns: Record<Rarity, number>;
     /** NPC sell value of a regular (non-quality) fish, by its rarity. */
     sellValue: Record<Rarity, number>;

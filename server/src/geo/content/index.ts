@@ -481,6 +481,7 @@ const { fishing, elections } = GAME_CONFIG;
 export const RARITY_WEIGHT = fishing.rarityWeight;
 export const WATER_RARITIES = fishing.waterRarities;
 export const RARITY_DIFFICULTY = fishing.rarityDifficulty;
+export const RARITY_POWER = fishing.rarityPower;
 export const PAR_TURNS = fishing.parTurns;
 export const FISHING_TUNING = fishing.tuning;
 /** The enemies a sea creature can be, per water. */

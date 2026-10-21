@@ -76,7 +76,7 @@ try {
 
     const trial = await only("trial-1");
     assert.equal(trial.unlocksTier, 2);
-    await win([{ type: "kill", enemyId: "acid-slime" }, { type: "dungeon", dungeonId: "slime-pits" }]);
+    await win([{ type: "kill", enemyId: "green-slime" }, { type: "dungeon", dungeonId: "slime-pits" }]);
     assert.equal((await only("trial-1")).status, "active");
     await win([{ type: "kill", enemyId: "giant-river-crab" }]);
     assert.equal((await only("trial-1")).status, "ready");

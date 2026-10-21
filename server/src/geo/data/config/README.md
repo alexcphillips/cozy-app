@@ -56,7 +56,8 @@ Enemy spawns around each player.
 | `rarityWeight` | How often each rarity bites, when the water allows it. |
 | `waterRarities` | Which rarities can bite in `puddle`, `pond`, `lake`, `open` water. |
 | `rarityDifficulty` | Quality thresholds × this: rarer fish need more Finesse. |
-| `parTurns` | Turns a clean fight should take, per rarity. Past par, each turn costs 1 Finesse. |
+| `rarityPower` | Fishing Power each rarity shrugs off. Only power above it reels faster and tires the fish quicker, so a big rod outclasses small fish but rare ones still fight. |
+| `parTurns` | Turns a clean fight should take, per rarity. Past par, nothing earns Finesse and each turn costs 1. |
 | `sellValue` | NPC sell value of a regular fish, per rarity. Quality fish are Soulbound and never sell. |
 | `tuning.zoneLow`, `zoneHigh` | The sweet Tension zone, as a share of the line's cap. |
 | `tuning.tierThresholds` | Finesse needed for bronze, silver, gold, ruby. |
