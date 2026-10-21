@@ -5,7 +5,10 @@ export default {
     id: "rainy-day-fund",
     title: "Rainy Day Fund",
     after: ["slime-cull"],
-    objectives: [{ id: "deposit", type: "deposit", count: 10 }],
+    objectives: [
+        { id: "camp", type: "camp", count: 1 },
+        { id: "deposit", type: "deposit", count: 10 },
+    ],
     // PLACEHOLDER
     rewards: { coins: 10 },
 } satisfies Quest;

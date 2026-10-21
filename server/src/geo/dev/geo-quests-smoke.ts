@@ -47,6 +47,13 @@ try {
     assert.equal(first.status, "ready");
     assert.equal(first.objectives[0]!.label, "Kill Green Slime");
     assert.equal((await claim("trial-1")).status, 404);
+
+    // Camp placed and coins banked before Rainy Day Fund is given still count.
+    await withTransaction((tx) => addCoins(tx, player.id, 50, "admin-grant", "quests-smoke"));
+    assert.equal((await call("PUT", GEO_API_PATHS.me.camp, accessToken, { position: CAMP })).status, 200);
+    const deposit = (amount: number) => call("POST", GEO_API_PATHS.me.bankDeposit, accessToken, { amount, position: CAMP });
+    assert.equal((await deposit(4)).status, 200);
+
     const afterSlime = await claim("slime-cull");
     assert.equal(afterSlime.status, 200);
     assert.deepEqual(afterSlime.body.quests.map((q) => q.id), ["rainy-day-fund"]);
@@ -54,14 +61,21 @@ try {
     assert.equal((await claim("slime-cull")).status, 404);
     step("unfinished quests can't be turned in; turning one in gives the next, tracked, once");
 
-    await withTransaction((tx) => addCoins(tx, player.id, 50, "admin-grant", "quests-smoke"));
-    assert.equal((await call("PUT", GEO_API_PATHS.me.camp, accessToken, { position: CAMP })).status, 200);
-    const deposit = (amount: number) => call("POST", GEO_API_PATHS.me.bankDeposit, accessToken, { amount, position: CAMP });
-    assert.equal((await deposit(4)).status, 200);
-    assert.equal((await only("rainy-day-fund")).objectives[0]!.current, 4);
+    const early = await only("rainy-day-fund");
+    assert.deepEqual(
+        early.objectives.map((o) => [o.label, o.current, o.target]),
+        [
+            ["Place your camp", 1, 1],
+            ["Deposit coins in the bank", 4, 10],
+        ],
+    );
+    assert.equal(early.status, "active");
+    assert.equal((await claim("rainy-day-fund")).status, 400);
+    step("camp placed and coins banked before Rainy Day Fund count toward it");
+
     assert.equal((await deposit(20)).status, 200);
     const bank = await only("rainy-day-fund");
-    assert.deepEqual([bank.status, bank.objectives[0]!.current, bank.objectives[0]!.target], ["ready", 10, 10]);
+    assert.deepEqual([bank.status, bank.objectives[1]!.current, bank.objectives[1]!.target], ["ready", 10, 10]);
     assert.equal((await claim("rainy-day-fund")).status, 200);
     step("bank deposits add up toward Rainy Day Fund, capped at 10");
 

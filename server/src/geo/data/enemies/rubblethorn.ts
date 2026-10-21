@@ -1,9 +1,9 @@
 import type { Enemy } from "#geo/models";
 
 export default {
-    id: "bramble-golem",
-    name: "Bramble Golem",
-    sprite: "bramble-golem",
+    id: "rubblethorn",
+    name: "Rubblethorn",
+    sprite: "rubblethorn",
     tier: 5,
     stats: { maxHealth: 40, attack: 12, defense: 0, speed: 12 },
     moves: [

@@ -2,13 +2,15 @@
 
 Things for a player to do, and what turning them in pays. The server counts
 progress and writes each objective's label for the app from it:
-`Kill Green Slime (0/1)`. Only what happens while a quest is held counts.
+`Kill Green Slime (0/1)`. Only what happens while a quest is held counts,
+except `camp` and `deposit`: those count what the player did before too, so
+someone who placed camp or banked early isn't asked to again.
 
 There are no quest givers to visit yet: every quest is given automatically
 once the quests in its `after` are turned in (at once, for none). Turning in
 works from anywhere (`POST /geo/quests/:questId/claim`).
 
-The chain today: Slime Cull → Rainy Day Fund (the bank) → Fresh off the Fire
+The chain today: Slime Cull → Rainy Day Fund (camp and the bank) → Fresh off the Fire
 (cooking) → Trial I.
 
 ## Trials
@@ -44,7 +46,8 @@ Each has an `id` unique within the quest, a `count`, and a `type`:
 | `kill` | `enemy` (enemy id) | Kill Giant River Crab | Each of that enemy defeated in a won fight, a dungeon's boss included. While unmet, that enemy also spawns anywhere for the player (`questTargetWeight` in `config/spawns.ts`), whatever its habitat or tier. |
 | `dungeon` | `dungeon` (dungeon id) | Complete Slime Pits | Each win against that dungeon's boss. |
 | `craft` | `recipe` (recipe id) | Cook Grilled Salmon / Craft … | Each time the recipe is made; making 3 at once counts 3. "Cook" for a cooking recipe. |
-| `deposit` | | Deposit coins in the bank | Coins put in the bank, added up over every deposit. |
+| `camp` | (`count` is 1) | Place your camp | Having ever placed a camp. |
+| `deposit` | | Deposit coins in the bank | Coins put in the bank, added up over every deposit ever made. |
 
 ## Example
 

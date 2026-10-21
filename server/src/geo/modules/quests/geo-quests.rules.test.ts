@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CONTENT, type GameContent, type QuestDef } from "../../content";
-import { combatTierView, killTargets, objectiveLabel, openTier, progressAfter, questsToGive } from "./geo-quests.rules";
+import { combatTierView, killTargets, objectiveLabel, openTier, progressAfter, questsToGive, withHistory } from "./geo-quests.rules";
 
 const quest = (id: string, extra: Partial<QuestDef> = {}): QuestDef => ({
     id,
@@ -72,6 +72,7 @@ describe("quests: progress", () => {
             { id: "pits", type: "dungeon", dungeon: "slime-pits", count: 1 },
             { id: "cook", type: "craft", recipe: "cook-salmon", count: 3 },
             { id: "bank", type: "deposit", count: 10 },
+            { id: "camp", type: "camp", count: 1 },
         ],
     });
 
@@ -86,8 +87,13 @@ describe("quests: progress", () => {
             { crab: 1, pits: 1 },
         );
         assert.deepEqual(progressAfter(trial, { cook: 1 }, [{ type: "craft", recipeId: "cook-salmon", times: 5 }]), { cook: 3 });
-        assert.deepEqual(progressAfter(trial, { bank: 4 }, [{ type: "deposit", amount: 3 }]), { bank: 7 });
         assert.equal(progressAfter(trial, { crab: 1 }, [{ type: "kill", enemyId: "giant-river-crab" }]), null, "already met");
+    });
+
+    it("count camp and deposits from history, whenever they happened", () => {
+        assert.deepEqual(withHistory(trial, { crab: 1 }, { campPlaced: true, deposited: 4 }), { crab: 1, camp: 1, bank: 4 });
+        assert.deepEqual(withHistory(trial, {}, { campPlaced: false, deposited: 25 }), { bank: 10 }, "capped");
+        assert.deepEqual(withHistory(trial, { bank: 6 }, { campPlaced: false, deposited: 2 }), { bank: 6 }, "never lowered");
     });
 
     it("pull spawns toward unmet kills only", () => {
@@ -96,11 +102,12 @@ describe("quests: progress", () => {
     });
 
     it("label each kind for the app", () => {
-        const [crab, pits, cook, bank] = trial.objectives;
+        const [crab, pits, cook, bank, camp] = trial.objectives;
         assert.equal(objectiveLabel(crab!), "Kill Giant River Crab");
         assert.equal(objectiveLabel(pits!), "Complete Slime Pits");
         assert.equal(objectiveLabel(cook!), "Cook Grilled Salmon");
         assert.equal(objectiveLabel(bank!), "Deposit coins in the bank");
+        assert.equal(objectiveLabel(camp!), "Place your camp");
     });
 });
 

@@ -766,7 +766,8 @@ export type Mayor = {
 /**
  * Something to do: "Kill 1 Green Slime". The server counts progress, and the
  * app's label is written from it ("Kill Green Slime"), so a new kind here
- * needs no app change. Only what happens while the quest is held counts.
+ * needs no app change. Only what happens while the quest is held counts,
+ * except `camp` and `deposit`, which count what was done before it too.
  */
 export type QuestObjective =
     | {
@@ -793,7 +794,13 @@ export type QuestObjective =
       }
     | {
           id: string;
-          /** Coins put in the bank, added up over every deposit. */
+          /** Placing a camp, ever (before the quest too). Always 1. */
+          type: "camp";
+          count: 1;
+      }
+    | {
+          id: string;
+          /** Coins put in the bank, added up over every deposit, before the quest too. */
           type: "deposit";
           count: number;
       };

@@ -2,17 +2,21 @@
 
 /** Sprites the app has art for. Enemies whose sprite isn't here don't spawn on the map. */
 export const APP_SPRITES = [
+    "ant-legionnaire",
     "bandit-archer",
     "bandit-duelist",
     "bandit",
     "cragclaw-crab",
     "crystal-slime",
     "dreadclaw-crab",
+    "fire-ant",
+    "fungus-farmer",
     "giant-river-crab",
     "green-slime",
     "knight",
     "magma-slime",
     "mother-slime",
+    "rubblethorn",
     "spider",
     "tarantula",
 ] as const;

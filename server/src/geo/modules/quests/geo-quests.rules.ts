@@ -9,8 +9,13 @@ export type QuestProgress = Record<string, number>;
 export type QuestEvent =
     | { type: "kill"; enemyId: string }
     | { type: "dungeon"; dungeonId: string }
-    | { type: "craft"; recipeId: string; times: number }
-    | { type: "deposit"; amount: number };
+    | { type: "craft"; recipeId: string; times: number };
+
+/**
+ * What the player has done, whenever it was: camp and deposit objectives
+ * count from this, so placing camp or banking before the quest still counts.
+ */
+export type QuestHistory = { campPlaced: boolean; deposited: number };
 
 const UNLOCK_LEVELS = GAME_CONFIG.spawns.tierUnlockLevels;
 
@@ -89,9 +94,28 @@ function stepFor(objective: QuestObjectiveDef, event: QuestEvent): number {
             return event.type === "dungeon" && event.dungeonId === objective.dungeon ? 1 : 0;
         case "craft":
             return event.type === "craft" && event.recipeId === objective.recipe ? event.times : 0;
+        case "camp":
         case "deposit":
-            return event.type === "deposit" ? event.amount : 0;
+            return 0; // Counted from QuestHistory (withHistory).
     }
+}
+
+/** Whether the quest has objectives counted from QuestHistory. */
+export function needsHistory(quest: QuestDef): boolean {
+    return quest.objectives.some((objective) => objective.type === "camp" || objective.type === "deposit");
+}
+
+/** `progress` with its camp and deposit objectives counted from `history`. */
+export function withHistory(quest: QuestDef, progress: QuestProgress, history: QuestHistory): QuestProgress {
+    let next = progress;
+    for (const objective of quest.objectives) {
+        const done =
+            objective.type === "camp" ? (history.campPlaced ? 1 : 0) : objective.type === "deposit" ? history.deposited : null;
+        if (done === null) continue;
+        const value = Math.max(progress[objective.id] ?? 0, Math.min(objective.count, done));
+        if (value !== (progress[objective.id] ?? 0)) next = { ...next, [objective.id]: value };
+    }
+    return next;
 }
 
 /** The quest's progress once `events` are counted, or null if none of them count. */
@@ -117,7 +141,7 @@ export function killTargets(quest: QuestDef, progress: QuestProgress): string[] 
     );
 }
 
-/** "Kill Giant River Crab", "Complete Slime Pits", "Cook Grilled Salmon", "Deposit coins in the bank". */
+/** "Kill Giant River Crab", "Complete Slime Pits", "Cook Grilled Salmon", "Place your camp", "Deposit coins in the bank". */
 export function objectiveLabel(objective: QuestObjectiveDef, content: GameContent = CONTENT): string {
     switch (objective.type) {
         case "kill":
@@ -129,6 +153,8 @@ export function objectiveLabel(objective: QuestObjectiveDef, content: GameConten
             const output = recipe ? (content.items[recipe.output.itemId]?.name ?? recipe.output.itemId) : objective.recipe;
             return `${recipe?.station === "cooking" ? "Cook" : "Craft"} ${output}`;
         }
+        case "camp":
+            return "Place your camp";
         case "deposit":
             return "Deposit coins in the bank";
     }

@@ -39,3 +39,13 @@ export const CLAIM_QUEST = `
   UPDATE geo.player_quests SET claimed_at = now(), tracked = false
   WHERE player_id = $1 AND quest_id = $2;
 `;
+
+/** Whether the player has ever placed a camp (clearing it keeps camp_set_at), and coins ever banked. */
+export const FIND_QUEST_HISTORY = `
+  SELECT
+    camp_set_at IS NOT NULL AS camp_placed,
+    COALESCE((
+      SELECT -SUM(delta) FROM geo.coin_ledger WHERE player_id = $1 AND reason = 'bank-deposit'
+    ), 0)::bigint AS deposited
+  FROM geo.players WHERE id = $1;
+`;

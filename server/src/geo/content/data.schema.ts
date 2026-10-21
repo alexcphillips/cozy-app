@@ -514,6 +514,7 @@ const QuestFile = z.strictObject({
                 z.strictObject({ id: z.string().min(1), type: z.literal("kill"), enemy: ref, count }),
                 z.strictObject({ id: z.string().min(1), type: z.literal("dungeon"), dungeon: ref, count }),
                 z.strictObject({ id: z.string().min(1), type: z.literal("craft"), recipe: ref, count }),
+                z.strictObject({ id: z.string().min(1), type: z.literal("camp"), count: z.literal(1) }),
                 z.strictObject({ id: z.string().min(1), type: z.literal("deposit"), count }),
             ]),
         )

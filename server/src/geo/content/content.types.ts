@@ -341,6 +341,7 @@ export type QuestObjectiveDef =
     | { id: string; type: "kill"; enemy: string; count: number }
     | { id: string; type: "dungeon"; dungeon: string; count: number }
     | { id: string; type: "craft"; recipe: string; count: number }
+    | { id: string; type: "camp"; count: number }
     | { id: string; type: "deposit"; count: number };
 
 export type QuestDef = {

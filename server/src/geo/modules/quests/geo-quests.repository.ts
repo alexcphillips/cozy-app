@@ -7,16 +7,21 @@ import {
     combatTierView,
     isComplete,
     killTargets,
+    needsHistory,
     objectiveViews,
     openTier,
     progressAfter,
     questsToGive,
+    withHistory,
     type QuestEvent,
+    type QuestHistory,
+    type QuestProgress,
 } from "./geo-quests.rules";
 import {
     CLAIM_QUEST,
     FIND_OPEN_QUESTS_FOR_UPDATE,
     FIND_QUEST_FOR_UPDATE,
+    FIND_QUEST_HISTORY,
     FIND_QUESTS,
     INSERT_QUEST,
     SET_PROGRESS,
@@ -63,7 +68,7 @@ async function giveQuests(tx: TxQuery, playerId: string): Promise<void> {
 
 /**
  * Counts `events` toward every quest the player holds, in the caller's
- * transaction: a won fight's kills, a recipe made, coins banked. Quests due
+ * transaction: a won fight's kills, a recipe made. Quests due
  * are given first, so a new player's first kill counts.
  */
 export async function recordQuestEvents(tx: TxQuery, playerId: string, events: QuestEvent[]): Promise<void> {
@@ -76,13 +81,33 @@ export async function recordQuestEvents(tx: TxQuery, playerId: string, events: Q
     }
 }
 
-function toQuestView(quest: QuestDef, row: QuestRow): GeoQuestView {
+async function findHistory(tx: TxQuery, playerId: string): Promise<QuestHistory> {
+    const [row] = await tx<{ camp_placed: boolean; deposited: string }>(FIND_QUEST_HISTORY, [playerId]);
+    return { campPlaced: row?.camp_placed ?? false, deposited: Number(row?.deposited ?? 0) };
+}
+
+/**
+ * A held quest's progress, with camp and deposit objectives counted from
+ * what the player has done (QuestHistory), so doing them before the quest
+ * was given counts. `history` is fetched only if the quest needs it.
+ */
+async function progressOf(quest: QuestDef, row: QuestRow, history: () => Promise<QuestHistory>): Promise<QuestProgress> {
+    return needsHistory(quest) ? withHistory(quest, row.progress, await history()) : row.progress;
+}
+
+/** Fetches history at most once, on first use. */
+function lazyHistory(tx: TxQuery, playerId: string): () => Promise<QuestHistory> {
+    let history: Promise<QuestHistory> | undefined;
+    return () => (history ??= findHistory(tx, playerId));
+}
+
+function toQuestView(quest: QuestDef, row: QuestRow, progress: QuestProgress): GeoQuestView {
     return {
         id: quest.id,
         title: quest.title,
         giver: quest.giver,
-        status: isComplete(quest, row.progress) ? "ready" : "active",
-        objectives: objectiveViews(quest, row.progress),
+        status: isComplete(quest, progress) ? "ready" : "active",
+        objectives: objectiveViews(quest, progress),
         tracked: row.tracked,
         startedAt: row.started_at.toISOString(),
         unlocksTier: quest.unlocksTier,
@@ -94,10 +119,14 @@ function toQuestView(quest: QuestDef, row: QuestRow): GeoQuestView {
 export async function listQuests(tx: TxQuery, playerId: string): Promise<GeoQuestsResponse> {
     await giveQuests(tx, playerId);
     const rows = await tx<QuestRow>(FIND_QUESTS, [playerId]);
-    const quests = rows.flatMap((row) => {
+    const history = lazyHistory(tx, playerId);
+    const quests: GeoQuestView[] = [];
+    // One after another: `tx` may be a transaction's single connection.
+    for (const row of rows) {
         const quest = CONTENT.quests[row.quest_id];
-        return row.claimed_at === null && quest ? [toQuestView(quest, row)] : [];
-    });
+        if (row.claimed_at !== null || !quest) continue;
+        quests.push(toQuestView(quest, row, await progressOf(quest, row, history)));
+    }
     return { quests, combatTier: combatTierView(await combatLevelOf(tx, playerId), claimedIds(rows)) };
 }
 
@@ -115,7 +144,8 @@ export async function claimQuest(tx: TxQuery, playerId: string, questId: string)
     const [row] = await tx<QuestRow>(FIND_QUEST_FOR_UPDATE, [playerId, questId]);
     const quest = CONTENT.quests[questId];
     if (!row || row.claimed_at !== null || !quest) throw AppError.notFound("You don't have that quest");
-    if (!isComplete(quest, row.progress)) throw AppError.badRequest("That quest isn't finished yet");
+    const progress = await progressOf(quest, row, lazyHistory(tx, playerId));
+    if (!isComplete(quest, progress)) throw AppError.badRequest("That quest isn't finished yet");
 
     await tx(CLAIM_QUEST, [playerId, questId]);
     await playerRepository.grantItems(tx, playerId, quest.rewards.items);
