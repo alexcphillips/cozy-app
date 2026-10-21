@@ -734,6 +734,32 @@ export function stepFarm(prev: FarmState, action: GeoFarmAction | FarmTick, ctx:
             result.log.push(`Planted ${def.name} at ${tileName(action.tile)}.`);
             break;
         }
+        case "plant-all": {
+            // Planned tiles take their planned crop's seed; the rest take `itemId`, while seeds last.
+            const left = { ...ctx.held };
+            const seedFor = (cropId: string | null) => (cropId ? crops[cropId]?.seed : undefined);
+            if (action.itemId !== null && !Object.values(crops).some((crop) => crop.seed === action.itemId)) throw new FarmRuleError("Those aren't seeds that grow");
+            const used = new Map<string, number>();
+            const planted = new Map<string, number>();
+            const empty = state.tiles.flatMap((tile, index) => (tile.owned && !tile.crop && !tile.waste && !occupied(tile) ? [index] : []));
+            // Planned tiles first, so a plan isn't starved by a plain fill.
+            empty.sort((a, b) => Number(state.tiles[b]!.blueprint !== null) - Number(state.tiles[a]!.blueprint !== null));
+            for (const index of empty) {
+                const tile = state.tiles[index]!;
+                const planned = seedFor(tile.blueprint);
+                const seed = planned && (left[planned] ?? 0) > 0 ? planned : action.itemId;
+                if (!seed || (left[seed] ?? 0) < 1) continue;
+                const def = Object.values(crops).find((crop) => crop.seed === seed)!;
+                tile.crop = { cropId: def.id, stage: 0, ripeTurns: 0, held: false, rotten: false };
+                left[seed] = (left[seed] ?? 0) - 1;
+                used.set(seed, (used.get(seed) ?? 0) + 1);
+                planted.set(def.name, (planted.get(def.name) ?? 0) + 1);
+            }
+            if (used.size === 0) throw new FarmRuleError(empty.length === 0 ? "No empty tiles to plant" : "You have none of those seeds");
+            for (const [itemId, quantity] of used) result.itemsUsed.push({ itemId, quantity });
+            result.log.push(`Planted ${[...planted].map(([name, count]) => `${count} ${name}`).join(" and ")}.`);
+            break;
+        }
         case "harvest": {
             ripeAt(action.tile);
             harvest(action.tile, 0);

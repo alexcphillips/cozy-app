@@ -296,6 +296,8 @@ export type GeoFarmView = {
     fortune: number;
     /** When the farm takes its next turn. */
     nextTurnAt: string;
+    /** Real hours between turns, for drawing how far the current one has come. */
+    turnHours: number;
     /** Turns the farm takes while the player is away; past this it waits for them. */
     maxTurnsAway: number;
     /** Weather for the coming turns, soonest first. One unless the sky has been read. */
@@ -342,6 +344,8 @@ export type GeoFarmView = {
 export type GeoFarmAction =
     /** Free: takes one of these seeds from the inventory. */
     | { type: "plant"; tile: number; itemId: string }
+    /** Free: seeds into every empty owned tile. A planned tile takes its planned crop's seed while those last; the rest take `itemId` (null = planned tiles only). */
+    | { type: "plant-all"; itemId: string | null }
     /** Free: a ripe crop into the inventory. */
     | { type: "harvest"; tile: number }
     /** Free: every ripe crop on the farm into the inventory. */
@@ -379,6 +383,7 @@ export type GeoFarmAction =
 
 export const GEO_FARM_ACTION_TYPES = [
     "plant",
+    "plant-all",
     "harvest",
     "harvest-all",
     "clear",

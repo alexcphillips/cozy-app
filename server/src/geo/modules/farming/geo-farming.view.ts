@@ -182,6 +182,7 @@ export function toFarmView(state: FarmState, { hand, held, weather, contests, gl
         farmingLevel,
         fortune,
         nextTurnAt: nextTurnAt(state, FARMING).toISOString(),
+        turnHours: FARMING.turnHours,
         maxTurnsAway: FARMING.maxTurnsAway,
         forecast: sky,
         events: {

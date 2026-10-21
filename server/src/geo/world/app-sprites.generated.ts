@@ -6,7 +6,6 @@ export const APP_SPRITES = [
     "bandit-archer",
     "bandit-duelist",
     "bandit",
-    "clusterflesh",
     "cragclaw-crab",
     "crystal-slime",
     "dreadclaw-crab",
@@ -16,4 +15,5 @@ export const APP_SPRITES = [
     "green-slime",
     "magma-slime",
     "spider",
+    "tarantula",
 ] as const;

@@ -210,6 +210,22 @@ try {
     assert.equal(farm.tiles[0]!.blueprint, "melon");
     step("blueprints plan any tile");
 
+    await withTransaction((tx) => grantItems(tx, playerId, [{ itemId: "wheat-seeds", quantity: 20 }, { itemId: "carrot-seeds", quantity: 1 }]));
+    const isEmpty = (tile: GeoFarmView["tiles"][number]) => tile.owned && !tile.crop && !tile.structure && tile.partOf === null && !tile.waste;
+    const planned = farm.tiles.find(isEmpty)!;
+    await act({ type: "blueprint", tile: planned.index, cropId: "carrot" });
+    const empty = farm.tiles.filter(isEmpty).map((tile) => tile.index);
+    const seedsBefore = held((await me(token)).inventory, "wheat-seeds");
+    const carrotsBefore = held((await me(token)).inventory, "carrot-seeds");
+    await act({ type: "plant-all", itemId: "wheat-seeds" });
+    assert.equal(farm.tiles[planned.index]!.crop?.cropId, "carrot", "the planned tile takes its own seed");
+    for (const index of empty.filter((index) => index !== planned.index)) assert.equal(farm.tiles[index]!.crop?.cropId, "wheat");
+    const inventory = (await me(token)).inventory;
+    assert.equal(held(inventory, "wheat-seeds"), seedsBefore - (empty.length - 1));
+    assert.equal(held(inventory, "carrot-seeds"), carrotsBefore - 1);
+    await act({ type: "plant-all", itemId: "wheat-seeds" }, 400);
+    step(`plant-all fills ${empty.length} empty tiles in one go, a planned tile with its own seed, then refuses a full farm`);
+
 } finally {
     await stop();
 }

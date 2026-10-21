@@ -30,6 +30,9 @@ export async function act(req: Request, res: Response) {
     let action: GeoFarmAction;
     if (type === "harvest-all") {
         action = { type };
+    } else if (type === "plant-all") {
+        if (body.itemId !== null && typeof body.itemId !== "string") throw AppError.badRequest("itemId must be seeds or null");
+        action = { type, itemId: body.itemId };
     } else if (type === "buy" || type === "pesthunter-buy") {
         if (!isInt(body.offer)) throw AppError.badRequest("Missing offer");
         action = { type, offer: body.offer };

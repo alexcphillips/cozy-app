@@ -266,6 +266,20 @@ describe("farm", () => {
         assert.throws(() => stepFarm(state, { type: "harvest-all" }, ctx), /Nothing is ripe/);
     });
 
+    it("plants every empty tile at once, planned tiles with their own seed first, while seeds last", () => {
+        let state = plant(farm(), MID);
+        state = stepFarm(state, { type: "blueprint", tile: MID + 1, cropId: "melon" }, ctx).state;
+        const empty = state.tiles.filter((tile) => tile.owned && !tile.crop).length;
+        const result = stepFarm(state, { type: "plant-all", itemId: "wheat-seeds" }, ctx);
+        assert.equal(result.state.tiles[MID + 1]!.crop!.cropId, "melon", "the plan wins");
+        assert.equal(result.state.tiles[MID]!.crop!.stage, 0, "the growing crop is left alone");
+        const wheat = result.itemsUsed.find((entry) => entry.itemId === "wheat-seeds")!.quantity;
+        assert.equal(wheat, Math.min(5, empty - 1), "the rest take wheat, up to the 5 held");
+        assert.deepEqual(result.itemsUsed.find((entry) => entry.itemId === "melon-seeds"), { itemId: "melon-seeds", quantity: 1 });
+        assert.throws(() => stepFarm(state, { type: "plant-all", itemId: "carrot-seeds" }, { ...ctx, held: {} }), /none of those seeds/);
+        assert.throws(() => stepFarm(state, { type: "plant-all", itemId: "wheat" }, ctx), /aren't seeds/);
+    });
+
     it("Scythe Sweep harvests every ripe crop in reach, with seeds back twice", () => {
         let state = farm();
         const row = Math.floor(MID / GEO_FARM_SIZE);
